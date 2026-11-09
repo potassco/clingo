@@ -1,659 +1,1530 @@
+#define PY_SSIZE_T_CLEAN
+
 #include <clingo/backend.h>
 #include <clingo/observe.h>
 
-#include <pybind11/native_enum.h>
-
 #include "backend.hh"
 #include "base.hh"
-#include "iterable.hh" // IWYU pragma: keep
+#include "symbol.hh"
 #include "util.hh"
+
+#include <array>
+#include <limits>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace PyClingo {
 
-// Backend
+namespace {
 
-void Observer::init_program(bool incremental) {
-    PYBIND11_OVERRIDE_NAME(void, Observer, "init_program", no_op, incremental);
+using PyObserverObject = struct {
+    PyObject_HEAD
+};
+
+using PyBackendObject = struct {
+    PyObject_HEAD clingo_backend_t *backend;
+    PyObject *owner;
+};
+
+using PyBackendManagerObject = struct {
+    PyObject_HEAD clingo_control_t *ctl;
+    clingo_backend_t *backend;
+    PyObject *owner;
+    PyObject *backend_obj;
+};
+
+struct BackendModuleState {
+    PyObject *symbol_type{nullptr};
+    PyObject *observer_type{nullptr};
+    PyObject *backend_type{nullptr};
+    PyObject *backend_manager_type{nullptr};
+    PyObject *heuristic_type_enum{nullptr};
+    PyObject *external_type_enum{nullptr};
+    PyObject *theory_sequence_type_enum{nullptr};
+};
+
+constexpr auto heuristic_type_members = std::array<IntEnumMember, 6>{
+    IntEnumMember{"Level", static_cast<int>(clingo_heuristic_type_level)},
+    IntEnumMember{"Factor", static_cast<int>(clingo_heuristic_type_factor)},
+    IntEnumMember{"True_", static_cast<int>(clingo_heuristic_type_true)},
+    IntEnumMember{"False_", static_cast<int>(clingo_heuristic_type_false)},
+    IntEnumMember{"Init", static_cast<int>(clingo_heuristic_type_init)},
+    IntEnumMember{"Sign", static_cast<int>(clingo_heuristic_type_sign)},
+};
+
+constexpr auto external_type_members = std::array<IntEnumMember, 4>{
+    IntEnumMember{"True_", static_cast<int>(clingo_external_type_true)},
+    IntEnumMember{"False_", static_cast<int>(clingo_external_type_false)},
+    IntEnumMember{"Free", static_cast<int>(clingo_external_type_free)},
+    IntEnumMember{"Release", static_cast<int>(clingo_external_type_release)},
+};
+
+constexpr auto theory_sequence_type_members = std::array<IntEnumMember, 3>{
+    IntEnumMember{"Tuple", static_cast<int>(clingo_theory_sequence_type_tuple)},
+    IntEnumMember{"List", static_cast<int>(clingo_theory_sequence_type_list)},
+    IntEnumMember{"Set", static_cast<int>(clingo_theory_sequence_type_set)},
+};
+
+auto get_state(PyObject *module) -> BackendModuleState * {
+    auto *state = static_cast<BackendModuleState *>(PyModule_GetState(module));
+    if (state == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "backend module state is unavailable");
+        return nullptr;
+    }
+    return state;
 }
 
-void Observer::begin_step() {
-    PYBIND11_OVERRIDE_NAME(void, Observer, "begin_step", no_op);
+auto get_state_from_self(PyObject *self) -> BackendModuleState * {
+    auto *mod = PyType_GetModule(Py_TYPE(self));
+    if (mod == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "failed to resolve backend module");
+        return nullptr;
+    }
+    return get_state(mod);
 }
 
-void Observer::end_step(TypeHint<"clingo.base.Base"> base) {
-    PYBIND11_OVERRIDE_NAME(void, Observer, "end_step", no_op, base);
+auto parse_size_t(PyObject *obj, size_t *out, char const *what) -> bool {
+    auto v = PyLong_AsSize_t(obj);
+    if (PyErr_Occurred() != nullptr) {
+        PyErr_Format(PyExc_TypeError, "%s must be a non-negative integer", what);
+        return false;
+    }
+    *out = v;
+    return true;
 }
 
-void Observer::rule(AtomSpan head, LitSpan body, bool choice) {
-    PYBIND11_OVERRIDE_NAME(void, Observer, "rule", no_op, head, body, choice);
+auto parse_int(PyObject *obj, int *out, char const *what) -> bool {
+    auto v = PyLong_AsLong(obj);
+    if (PyErr_Occurred() != nullptr) {
+        PyErr_Format(PyExc_TypeError, "%s must be an integer", what);
+        return false;
+    }
+    if (v < std::numeric_limits<int>::min() || v > std::numeric_limits<int>::max()) {
+        PyErr_Format(PyExc_OverflowError, "%s is out of range", what);
+        return false;
+    }
+    *out = static_cast<int>(v);
+    return true;
 }
 
-void Observer::weight_rule(AtomSpan head, clingo_weight_t lower, WeightLitSpan body, bool choice) {
-    PYBIND11_OVERRIDE_NAME(void, Observer, "weight_rule", no_op, head, lower, body, choice);
+auto parse_symbol(BackendModuleState *state, PyObject *obj, clingo_symbol_t *sym, char const *what) -> bool {
+    if (state == nullptr) {
+        return false;
+    }
+    auto res = py_symbol_check(state->symbol_type, obj, sym);
+    if (res < 0) {
+        return false;
+    }
+    if (res == 0) {
+        PyErr_Format(PyExc_TypeError, "%s must be a Symbol", what);
+        return false;
+    }
+    return true;
 }
 
-void Observer::minimize(WeightLitSpan literals, clingo_weight_t priority) {
-    PYBIND11_OVERRIDE_NAME(void, Observer, "minimize", no_op, literals, priority);
+template <class T, class F>
+// NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
+auto parse_sequence(PyObject *obj, std::vector<T> *out, char const *what, F &&fun) -> bool {
+    auto seq = steal(PySequence_Fast(obj, what));
+    if (seq.get() == nullptr) {
+        return false;
+    }
+    auto n = PySequence_Fast_GET_SIZE(seq.get());
+    if (n < 0) {
+        return false;
+    }
+    out->clear();
+    out->reserve(static_cast<size_t>(n));
+    auto **items = PySequence_Fast_ITEMS(seq.get());
+    for (Py_ssize_t i = 0; i < n; ++i) {
+        T val{};
+        if (!std::invoke(fun, items[i], &val)) {
+            return false;
+        }
+        out->push_back(val);
+    }
+    return true;
 }
 
-void Observer::project(AtomSpan atoms) {
-    PYBIND11_OVERRIDE_NAME(void, Observer, "project", no_op, atoms);
+auto parse_atoms(PyObject *obj, std::vector<clingo_atom_t> *out, char const *what) -> bool {
+    return parse_sequence<clingo_atom_t>(obj, out, what, [](PyObject *item, clingo_atom_t *val) {
+        size_t tmp = 0;
+        if (!parse_size_t(item, &tmp, "atom")) {
+            return false;
+        }
+        if (tmp > std::numeric_limits<clingo_atom_t>::max()) {
+            PyErr_SetString(PyExc_OverflowError, "atom id is out of range");
+            return false;
+        }
+        *val = static_cast<clingo_atom_t>(tmp);
+        return true;
+    });
 }
 
-void Observer::external(clingo_atom_t atom, clingo_external_type_e type) {
-    PYBIND11_OVERRIDE_NAME(void, Observer, "external", no_op, atom, type);
+auto parse_ids(PyObject *obj, std::vector<clingo_id_t> *out, char const *what) -> bool {
+    return parse_sequence<clingo_id_t>(obj, out, what, [](PyObject *item, clingo_id_t *val) {
+        size_t tmp = 0;
+        if (!parse_size_t(item, &tmp, "id")) {
+            return false;
+        }
+        if (tmp > std::numeric_limits<clingo_id_t>::max()) {
+            PyErr_SetString(PyExc_OverflowError, "id is out of range");
+            return false;
+        }
+        *val = static_cast<clingo_id_t>(tmp);
+        return true;
+    });
 }
 
-void Observer::assume(LitSpan literals) {
-    PYBIND11_OVERRIDE_NAME(void, Observer, "assume", no_op, literals);
+auto parse_literals(PyObject *obj, std::vector<clingo_literal_t> *out, char const *what) -> bool {
+    return parse_sequence<clingo_literal_t>(obj, out, what, [](PyObject *item, clingo_literal_t *val) {
+        auto tmp = PyLong_AsLong(item);
+        if (PyErr_Occurred() != nullptr) {
+            PyErr_SetString(PyExc_TypeError, "literal must be an integer");
+            return false;
+        }
+        if (tmp < std::numeric_limits<clingo_literal_t>::min() || tmp > std::numeric_limits<clingo_literal_t>::max()) {
+            PyErr_SetString(PyExc_OverflowError, "literal is out of range");
+            return false;
+        }
+        *val = static_cast<clingo_literal_t>(tmp);
+        return true;
+    });
 }
 
-void Observer::heuristic(clingo_atom_t atom, clingo_heuristic_type_e type, int bias, unsigned priority,
-                         LitSpan condition) {
-    PYBIND11_OVERRIDE_NAME(void, Observer, "heuristic", no_op, atom, type, bias, priority, condition);
-}
-
-void Observer::edge(int node_u, int node_v, LitSpan condition) {
-    PYBIND11_OVERRIDE_NAME(void, Observer, "edge", no_op, node_u, node_v, condition);
-}
-
-void Observer::observe(clingo_control_t *ctl, bool preprocess) {
-    static constexpr auto g_obs = clingo_observer_t{
-        [](bool incremental, void *data) -> bool {
-            CLINGO_TRY {
-                static_cast<Observer *>(data)->init_program(incremental);
+auto parse_weighted_literals(PyObject *obj, std::vector<clingo_weighted_literal_t> *out, char const *what) -> bool {
+    return parse_sequence<clingo_weighted_literal_t>(
+        obj, out, what, [](PyObject *item, clingo_weighted_literal_t *val) {
+            auto pair = steal(PySequence_Fast(item, "weighted literal must be a pair (literal, weight)"));
+            if (pair.get() == nullptr) {
+                return false;
             }
-            CLINGO_CATCH;
+            if (PySequence_Fast_GET_SIZE(pair.get()) != 2) {
+                PyErr_SetString(PyExc_TypeError, "weighted literal must be a pair (literal, weight)");
+                return false;
+            }
+            auto **items = PySequence_Fast_ITEMS(pair.get());
+            auto lit_raw = PyLong_AsLong(items[0]);
+            if (PyErr_Occurred() != nullptr) {
+                PyErr_SetString(PyExc_TypeError, "literal must be an integer");
+                return false;
+            }
+            auto w_raw = PyLong_AsLong(items[1]);
+            if (PyErr_Occurred() != nullptr) {
+                PyErr_SetString(PyExc_TypeError, "weight must be an integer");
+                return false;
+            }
+            if (lit_raw < std::numeric_limits<clingo_literal_t>::min() ||
+                lit_raw > std::numeric_limits<clingo_literal_t>::max()) {
+                PyErr_SetString(PyExc_OverflowError, "literal is out of range");
+                return false;
+            }
+            if (w_raw < std::numeric_limits<clingo_weight_t>::min() ||
+                w_raw > std::numeric_limits<clingo_weight_t>::max()) {
+                PyErr_SetString(PyExc_OverflowError, "weight is out of range");
+                return false;
+            }
+            *val = clingo_weighted_literal_t{
+                static_cast<clingo_literal_t>(lit_raw),
+                static_cast<clingo_weight_t>(w_raw),
+            };
+            return true;
+        });
+}
+
+auto py_list_from_atoms(clingo_atom_t const *data, size_t n) -> PyObject * {
+    auto out = steal(PyList_New(static_cast<Py_ssize_t>(n)));
+    if (out.get() == nullptr) {
+        return nullptr;
+    }
+    for (size_t i = 0; i < n; ++i) {
+        auto *v = PyLong_FromSize_t(static_cast<size_t>(data[i]));
+        if (v == nullptr) {
+            return nullptr;
+        }
+        PyList_SET_ITEM(out.get(), static_cast<Py_ssize_t>(i), v);
+    }
+    return out.release();
+}
+
+auto py_list_from_literals(clingo_literal_t const *data, size_t n) -> PyObject * {
+    auto out = steal(PyList_New(static_cast<Py_ssize_t>(n)));
+    if (out.get() == nullptr) {
+        return nullptr;
+    }
+    for (size_t i = 0; i < n; ++i) {
+        auto *v = PyLong_FromLong(data[i]);
+        if (v == nullptr) {
+            return nullptr;
+        }
+        PyList_SET_ITEM(out.get(), static_cast<Py_ssize_t>(i), v);
+    }
+    return out.release();
+}
+
+auto py_list_from_weighted_literals(clingo_weighted_literal_t const *data, size_t n) -> PyObject * {
+    auto out = steal(PyList_New(static_cast<Py_ssize_t>(n)));
+    if (out.get() == nullptr) {
+        return nullptr;
+    }
+    for (size_t i = 0; i < n; ++i) {
+        auto lit = steal(PyLong_FromLong(data[i].literal));
+        if (lit.get() == nullptr) {
+            return nullptr;
+        }
+        auto w = steal(PyLong_FromLong(data[i].weight));
+        if (w.get() == nullptr) {
+            return nullptr;
+        }
+        auto pair = steal(PyTuple_Pack(2, lit.get(), w.get()));
+        if (pair.get() == nullptr) {
+            return nullptr;
+        }
+        PyList_SET_ITEM(out.get(), static_cast<Py_ssize_t>(i), pair.release());
+    }
+    return out.release();
+}
+
+using ObserverData = std::pair<PyObject *, BackendModuleState *>;
+
+auto call_observer(ObserverData *data, char const *name, PyObject *args) -> bool {
+    auto meth = steal(PyObject_GetAttrString(data->first, name));
+    if (meth.get() == nullptr) {
+        return store_python_error("observer callback lookup failed");
+    }
+    auto ret = steal(PyObject_CallObject(meth.get(), args));
+    if (ret.get() == nullptr) {
+        return store_python_error("observer callback failed");
+    }
+    return true;
+}
+
+auto py_observer_invoke_init_program(ObserverData *data, bool incremental) -> bool {
+    auto args = steal(PyTuple_Pack(1, incremental ? Py_True : Py_False));
+    if (args.get() == nullptr) {
+        return store_python_error("failed to prepare callback arguments");
+    }
+    return call_observer(data, "init_program", args.get());
+}
+
+auto py_observer_invoke_begin_step(ObserverData *data) -> bool {
+    auto args = steal(PyTuple_New(0));
+    if (args.get() == nullptr) {
+        return store_python_error("failed to prepare callback arguments");
+    }
+    return call_observer(data, "begin_step", args.get());
+}
+
+auto py_observer_invoke_end_step(ObserverData *data, clingo_base_t const *base) -> bool {
+    auto *base_type = py_base_type_ref();
+    if (base_type == nullptr) {
+        return store_python_error("failed to resolve base type");
+    }
+    auto base_obj = steal(py_base_new(base_type, base));
+    if (base_obj.get() == nullptr) {
+        return store_python_error("failed to create base object");
+    }
+    auto args = steal(PyTuple_Pack(1, base_obj.get()));
+    if (args.get() == nullptr) {
+        return store_python_error("failed to prepare callback arguments");
+    }
+    return call_observer(data, "end_step", args.get());
+}
+
+auto py_observer_invoke_rule(ObserverData *data, clingo_atom_t const *head, size_t head_size,
+                             clingo_literal_t const *body, size_t body_size, bool choice) -> bool {
+    auto head_obj = steal(py_list_from_atoms(head, head_size));
+    if (head_obj.get() == nullptr) {
+        return store_python_error("failed to build head list");
+    }
+    auto body_obj = steal(py_list_from_literals(body, body_size));
+    if (body_obj.get() == nullptr) {
+        return store_python_error("failed to build body list");
+    }
+    auto args = steal(PyTuple_Pack(3, head_obj.get(), body_obj.get(), choice ? Py_True : Py_False));
+    if (args.get() == nullptr) {
+        return store_python_error("failed to prepare callback arguments");
+    }
+    return call_observer(data, "rule", args.get());
+}
+
+auto py_observer_invoke_weight_rule(ObserverData *data, clingo_atom_t const *head, size_t head_size,
+                                    clingo_weight_t lower, clingo_weighted_literal_t const *body, size_t body_size,
+                                    bool choice) -> bool {
+    auto head_obj = steal(py_list_from_atoms(head, head_size));
+    if (head_obj.get() == nullptr) {
+        return store_python_error("failed to build head list");
+    }
+    auto lower_obj = steal(PyLong_FromLong(lower));
+    if (lower_obj.get() == nullptr) {
+        return store_python_error("failed to build lower bound");
+    }
+    auto body_obj = steal(py_list_from_weighted_literals(body, body_size));
+    if (body_obj.get() == nullptr) {
+        return store_python_error("failed to build body list");
+    }
+    auto args = steal(PyTuple_Pack(4, head_obj.get(), lower_obj.get(), body_obj.get(), choice ? Py_True : Py_False));
+    if (args.get() == nullptr) {
+        return store_python_error("failed to prepare callback arguments");
+    }
+    return call_observer(data, "weight_rule", args.get());
+}
+
+auto py_observer_invoke_minimize(ObserverData *data, clingo_weighted_literal_t const *body, size_t body_size,
+                                 clingo_weight_t priority) -> bool {
+    auto body_obj = steal(py_list_from_weighted_literals(body, body_size));
+    if (body_obj.get() == nullptr) {
+        return store_python_error("failed to build body list");
+    }
+    auto p_obj = steal(PyLong_FromLong(priority));
+    if (p_obj.get() == nullptr) {
+        return store_python_error("failed to build priority");
+    }
+    auto args = steal(PyTuple_Pack(2, body_obj.get(), p_obj.get()));
+    if (args.get() == nullptr) {
+        return store_python_error("failed to prepare callback arguments");
+    }
+    return call_observer(data, "minimize", args.get());
+}
+
+auto py_observer_invoke_project(ObserverData *data, clingo_atom_t const *atoms, size_t size) -> bool {
+    auto atoms_obj = steal(py_list_from_atoms(atoms, size));
+    if (atoms_obj.get() == nullptr) {
+        return store_python_error("failed to build atom list");
+    }
+    auto args = steal(PyTuple_Pack(1, atoms_obj.get()));
+    if (args.get() == nullptr) {
+        return store_python_error("failed to prepare callback arguments");
+    }
+    return call_observer(data, "project", args.get());
+}
+
+auto py_observer_invoke_external(ObserverData *data, clingo_atom_t atom, clingo_external_type_t type) -> bool {
+    auto atom_obj = steal(PyLong_FromSize_t(static_cast<size_t>(atom)));
+    if (atom_obj.get() == nullptr) {
+        return store_python_error("failed to build atom argument");
+    }
+    auto type_obj = steal(PyObject_CallFunction(data->second->external_type_enum, "i", static_cast<int>(type)));
+    if (type_obj.get() == nullptr) {
+        return store_python_error("failed to build external type argument");
+    }
+    auto args = steal(PyTuple_Pack(2, atom_obj.get(), type_obj.get()));
+    if (args.get() == nullptr) {
+        return store_python_error("failed to prepare callback arguments");
+    }
+    return call_observer(data, "external", args.get());
+}
+
+auto py_observer_invoke_assume(ObserverData *data, clingo_literal_t const *literals, size_t size) -> bool {
+    auto lits_obj = steal(py_list_from_literals(literals, size));
+    if (lits_obj.get() == nullptr) {
+        return store_python_error("failed to build literal list");
+    }
+    auto args = steal(PyTuple_Pack(1, lits_obj.get()));
+    if (args.get() == nullptr) {
+        return store_python_error("failed to prepare callback arguments");
+    }
+    return call_observer(data, "assume", args.get());
+}
+
+auto py_observer_invoke_heuristic(ObserverData *data, clingo_atom_t atom, clingo_heuristic_type_t type, int bias,
+                                  unsigned priority, clingo_literal_t const *condition, size_t size) -> bool {
+    auto atom_obj = steal(PyLong_FromSize_t(static_cast<size_t>(atom)));
+    if (atom_obj.get() == nullptr) {
+        return store_python_error("failed to build atom argument");
+    }
+    auto type_obj = steal(PyObject_CallFunction(data->second->heuristic_type_enum, "i", static_cast<int>(type)));
+    if (type_obj.get() == nullptr) {
+        return store_python_error("failed to build heuristic type argument");
+    }
+    auto bias_obj = steal(PyLong_FromLong(bias));
+    if (bias_obj.get() == nullptr) {
+        return store_python_error("failed to build bias argument");
+    }
+    auto prio_obj = steal(PyLong_FromUnsignedLong(priority));
+    if (prio_obj.get() == nullptr) {
+        return store_python_error("failed to build priority argument");
+    }
+    auto cond_obj = steal(py_list_from_literals(condition, size));
+    if (cond_obj.get() == nullptr) {
+        return store_python_error("failed to build condition list");
+    }
+    // NOLINTNEXTLINE(readability-magic-numbers)
+    auto args = steal(PyTuple_Pack(5, atom_obj.get(), type_obj.get(), bias_obj.get(), prio_obj.get(), cond_obj.get()));
+    if (args.get() == nullptr) {
+        return store_python_error("failed to prepare callback arguments");
+    }
+    return call_observer(data, "heuristic", args.get());
+}
+
+auto py_observer_invoke_edge(ObserverData *data, int node_u, int node_v, clingo_literal_t const *condition, size_t size)
+    -> bool {
+    auto u_obj = steal(PyLong_FromLong(node_u));
+    if (u_obj.get() == nullptr) {
+        return store_python_error("failed to build edge argument");
+    }
+    auto v_obj = steal(PyLong_FromLong(node_v));
+    if (v_obj.get() == nullptr) {
+        return store_python_error("failed to build edge argument");
+    }
+    auto cond_obj = steal(py_list_from_literals(condition, size));
+    if (cond_obj.get() == nullptr) {
+        return store_python_error("failed to build condition list");
+    }
+    auto args = steal(PyTuple_Pack(3, u_obj.get(), v_obj.get(), cond_obj.get()));
+    if (args.get() == nullptr) {
+        return store_python_error("failed to prepare callback arguments");
+    }
+    return call_observer(data, "edge", args.get());
+}
+
+auto cast_observer_data(void *data) -> std::pair<PyObject *, BackendModuleState *> * {
+    return static_cast<std::pair<PyObject *, BackendModuleState *> *>(data);
+}
+
+auto observer_trampoline() -> clingo_observer_t const * {
+    static constexpr auto obs = clingo_observer_t{
+        [](bool incremental, void *data) -> bool {
+            auto gil = GILGuard{};
+            return py_observer_invoke_init_program(cast_observer_data(data), incremental);
         },
         [](void *data) -> bool {
-            CLINGO_TRY {
-                static_cast<Observer *>(data)->begin_step();
-            }
-            CLINGO_CATCH;
+            auto gil = GILGuard{};
+            return py_observer_invoke_begin_step(cast_observer_data(data));
         },
         [](clingo_base_t const *base, void *data) -> bool {
-            CLINGO_TRY {
-                auto *type = py_base_type_ref();
-                if (type == nullptr) {
-                    throw py::error_already_set();
-                }
-                static_cast<Observer *>(data)->end_step(
-                    py::reinterpret_steal<TypeHint<"clingo.base.Base">>(py_base_new(type, base)));
-            }
-            CLINGO_CATCH;
+            auto gil = GILGuard{};
+            return py_observer_invoke_end_step(cast_observer_data(data), base);
         },
         [](bool choice, clingo_atom_t const *head, size_t head_size, clingo_literal_t const *body, size_t body_size,
            void *data) -> bool {
-            CLINGO_TRY {
-                static_cast<Observer *>(data)->rule(std::span{head, head_size}, std::span{body, body_size}, choice);
-            }
-            CLINGO_CATCH;
+            auto gil = GILGuard{};
+            return py_observer_invoke_rule(cast_observer_data(data), head, head_size, body, body_size, choice);
         },
         [](bool choice, clingo_atom_t const *head, size_t head_size, clingo_weight_t lower,
            clingo_weighted_literal_t const *body, size_t body_size, void *data) -> bool {
-            CLINGO_TRY {
-                static_cast<Observer *>(data)->weight_rule(std::span{head, head_size}, lower,
-                                                           std::span{body, body_size}, choice);
-            }
-            CLINGO_CATCH;
+            auto gil = GILGuard{};
+            return py_observer_invoke_weight_rule(cast_observer_data(data), head, head_size, lower, body, body_size,
+                                                  choice);
         },
         [](clingo_weight_t priority, clingo_weighted_literal_t const *body, size_t body_size, void *data) -> bool {
-            CLINGO_TRY {
-                static_cast<Observer *>(data)->minimize(std::span{body, body_size}, priority);
-            }
-            CLINGO_CATCH;
+            auto gil = GILGuard{};
+            return py_observer_invoke_minimize(cast_observer_data(data), body, body_size, priority);
         },
         [](clingo_atom_t const *atoms, size_t size, void *data) -> bool {
-            CLINGO_TRY {
-                static_cast<Observer *>(data)->project(std::span{atoms, size});
-            }
-            CLINGO_CATCH;
+            auto gil = GILGuard{};
+            return py_observer_invoke_project(cast_observer_data(data), atoms, size);
         },
         [](clingo_atom_t atom, clingo_external_type_t type, void *data) -> bool {
-            CLINGO_TRY {
-                static_cast<Observer *>(data)->external(atom, static_cast<clingo_external_type_e>(type));
-            }
-            CLINGO_CATCH;
+            auto gil = GILGuard{};
+            return py_observer_invoke_external(cast_observer_data(data), atom, type);
         },
         [](clingo_literal_t const *literals, size_t size, void *data) -> bool {
-            CLINGO_TRY {
-                static_cast<Observer *>(data)->assume(std::span{literals, size});
-            }
-            CLINGO_CATCH;
+            auto gil = GILGuard{};
+            return py_observer_invoke_assume(cast_observer_data(data), literals, size);
         },
         [](clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority,
            clingo_literal_t const *condition, size_t size, void *data) -> bool {
-            CLINGO_TRY {
-                static_cast<Observer *>(data)->heuristic(atom, static_cast<clingo_heuristic_type_e>(type), bias,
-                                                         priority, std::span{condition, size});
-            }
-            CLINGO_CATCH;
+            auto gil = GILGuard{};
+            return py_observer_invoke_heuristic(cast_observer_data(data), atom, type, bias, priority, condition, size);
         },
         [](int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data) -> bool {
-            CLINGO_TRY {
-                static_cast<Observer *>(data)->edge(node_u, node_v, std::span{condition, size});
-            }
-            CLINGO_CATCH;
+            auto gil = GILGuard{};
+            return py_observer_invoke_edge(cast_observer_data(data), node_u, node_v, condition, size);
         },
     };
-    handle_error(clingo_control_observe(ctl, &g_obs, static_cast<void *>(this), preprocess));
+    return &obs;
 }
 
-auto Backend::atom(std::optional<Symbol> symbol) -> clingo_atom_t {
-    clingo_atom_t atom = 0;
-    handle_error(clingo_backend_add_atom(backend_, symbol ? c_cast(&*symbol) : nullptr, &atom));
-    return atom;
+auto py_observer_init_program([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
+                              [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+    Py_RETURN_NONE;
 }
 
-void Backend::rule(AtomSpan head, LitSpan body, bool choice) {
-    handle_error(clingo_backend_rule(backend_, choice, head.data(), head.size(), body.data(), body.size()));
+auto py_observer_begin_step([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
+    Py_RETURN_NONE;
 }
 
-void Backend::weight_rule(AtomSpan head, clingo_weight_t lower, WeightLitSpan body, bool choice) {
-    handle_error(
-        clingo_backend_weight_rule(backend_, choice, head.data(), head.size(), lower, body.data(), body.size()));
+auto py_observer_end_step([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
+                          [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+    Py_RETURN_NONE;
 }
 
-void Backend::minimize(WeightLitSpan literals, clingo_weight_t priority) {
-    handle_error(clingo_backend_minimize(backend_, priority, literals.data(), literals.size()));
+auto py_observer_rule([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
+                      [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+    Py_RETURN_NONE;
 }
 
-void Backend::project(AtomSpan atoms) {
-    handle_error(clingo_backend_project(backend_, atoms.data(), atoms.size()));
+auto py_observer_weight_rule([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
+                             [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+    Py_RETURN_NONE;
 }
 
-void Backend::external(clingo_atom_t atom, clingo_external_type_e type) {
-    handle_error(clingo_backend_external(backend_, atom, type));
+auto py_observer_minimize([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
+                          [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+    Py_RETURN_NONE;
 }
 
-void Backend::assume(LitSpan literals) {
-    handle_error(clingo_backend_assume(backend_, literals.data(), literals.size()));
+auto py_observer_project([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
+                         [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+    Py_RETURN_NONE;
 }
 
-void Backend::heuristic(clingo_atom_t atom, clingo_heuristic_type_e type, int bias, unsigned priority,
-                        LitSpan condition) {
-    handle_error(clingo_backend_heuristic(backend_, atom, type, bias, priority, condition.data(), condition.size()));
+auto py_observer_external([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
+                          [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+    Py_RETURN_NONE;
 }
 
-void Backend::edge(int node_u, int node_v, LitSpan condition) {
-    handle_error(clingo_backend_acyc_edge(backend_, node_u, node_v, condition.data(), condition.size()));
+auto py_observer_assume([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
+                        [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+    Py_RETURN_NONE;
 }
 
-auto Backend::theory_number(int number) -> clingo_id_t {
-    clingo_id_t id = 0;
-    handle_error(clingo_backend_theory_term_number(backend_, number, &id));
-    return id;
+auto py_observer_heuristic([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
+                           [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+    Py_RETURN_NONE;
 }
 
-auto Backend::theory_string(std::string_view string) -> clingo_id_t {
-    clingo_id_t id = 0;
-    handle_error(clingo_backend_theory_term_string(backend_, string.data(), string.size(), &id));
-    return id;
+auto py_observer_edge([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
+                      [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+    Py_RETURN_NONE;
 }
 
-auto Backend::theory_symbol(Symbol symbol) -> clingo_id_t {
-    clingo_id_t id = 0;
-    handle_error(clingo_backend_theory_term_symbol(backend_, *c_cast(&symbol), &id));
-    return id;
+auto py_observer_methods = std::array{
+    PyMethodDef{
+        "init_program",
+        py_c_function_cast(py_observer_init_program),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "begin_step",
+        py_observer_begin_step,
+        METH_NOARGS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "end_step",
+        py_c_function_cast(py_observer_end_step),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "rule",
+        py_c_function_cast(py_observer_rule),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "weight_rule",
+        py_c_function_cast(py_observer_weight_rule),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "minimize",
+        py_c_function_cast(py_observer_minimize),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "project",
+        py_c_function_cast(py_observer_project),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "external",
+        py_c_function_cast(py_observer_external),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "assume",
+        py_c_function_cast(py_observer_assume),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "heuristic",
+        py_c_function_cast(py_observer_heuristic),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "edge",
+        py_c_function_cast(py_observer_edge),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
+auto py_observer_slots = std::array{
+    PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("ABC to inspect aspif directives."))},
+    PyType_Slot{Py_tp_methods, py_observer_methods.data()},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_observer_spec = PyType_Spec{
+    "clingo.backend.Observer", sizeof(PyObserverObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    py_observer_slots.data(),
+};
+
+auto py_backend_cast(PyObject *obj) -> PyBackendObject * {
+    return reinterpret_cast<PyBackendObject *>(obj);
 }
 
-auto Backend::theory_sequence(clingo_theory_sequence_type_e type, IdSpan elements) -> clingo_id_t {
-    clingo_id_t id = 0;
-    handle_error(clingo_backend_theory_term_sequence(backend_, type, elements.data(), elements.size(), &id));
-    return id;
-}
-
-auto Backend::theory_function(std::string_view name, IdSpan elements) -> clingo_id_t {
-    clingo_id_t id = 0;
-    handle_error(
-        clingo_backend_theory_term_function(backend_, name.data(), name.size(), elements.data(), elements.size(), &id));
-    return id;
-}
-
-auto Backend::theory_element(IdSpan tuple, LitSpan condition) -> clingo_id_t {
-    clingo_id_t id = 0;
-    handle_error(
-        clingo_backend_theory_element(backend_, tuple.data(), tuple.size(), condition.data(), condition.size(), &id));
-    return id;
-}
-
-auto Backend::theory_atom(std::optional<clingo_atom_t> atom, Symbol name, IdSpan elements,
-                          std::optional<std::pair<std::string, clingo_id_t>> const &guard) -> clingo_atom_t {
-    clingo_atom_t res = 0;
-    auto op = clingo_string_t{guard ? guard->first.data() : nullptr, guard ? guard->first.size() : 0};
-    handle_error(clingo_backend_theory_atom(backend_, *c_cast(&name), elements.data(), elements.size(),
-                                            guard ? &op : nullptr, guard ? guard->second : 0, atom ? &*atom : nullptr,
-                                            &res));
-    return res;
-}
-
-// BackendManager
-
-auto BackendManager::enter() -> Backend {
-    handle_error(clingo_control_backend(ctl_, &backend_));
-    return Backend{backend_};
-}
-
-void BackendManager::exit([[maybe_unused]] std::optional<pybind11::type> const &type,
-                          [[maybe_unused]] std::optional<pybind11::object> const &value,
-                          [[maybe_unused]] std::optional<pybind11::object> const &traceback) {
-    if (backend_ != nullptr) {
-        handle_error(clingo_backend_close(backend_));
-        backend_ = nullptr;
+auto py_backend_new(PyObject *type, clingo_backend_t *backend, PyObject *owner) -> PyObject * {
+    auto *to = reinterpret_cast<PyTypeObject *>(type);
+    auto *obj = to->tp_alloc(to, 0);
+    if (obj == nullptr) {
+        return nullptr;
     }
+    auto *b = py_backend_cast(obj);
+    b->backend = backend;
+    b->owner = owner;
+    Py_XINCREF(owner);
+    return obj;
+}
+
+void py_backend_dealloc(PyObject *self) {
+    auto *b = py_backend_cast(self);
+    Py_XDECREF(b->owner);
+    Py_TYPE(self)->tp_free(self);
+}
+
+auto ensure_backend_open(PyObject *self) -> clingo_backend_t * {
+    auto *b = py_backend_cast(self);
+    if (b->backend == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "backend is closed");
+        return nullptr;
+    }
+    return b->backend;
+}
+
+auto py_backend_atom(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 2>{"symbol", nullptr};
+    PyObject *sym_obj = Py_None;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "|O:atom", cast_kw(kwlist), &sym_obj) == 0) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+
+    clingo_symbol_t sym = 0;
+    clingo_symbol_t const *sym_ptr = nullptr;
+    if (sym_obj != Py_None) {
+        if (!parse_symbol(state, sym_obj, &sym, "symbol")) {
+            return nullptr;
+        }
+        sym_ptr = &sym;
+    }
+
+    clingo_atom_t atom = 0;
+    if (!clingo_backend_add_atom(backend, sym_ptr, &atom)) {
+        return py_handle_error();
+    }
+    return PyLong_FromSize_t(static_cast<size_t>(atom));
+}
+
+auto py_backend_rule(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 4>{"head", "body", "choice", nullptr};
+    PyObject *head_obj = nullptr;
+    PyObject *body_obj = Py_None;
+    int choice = 0;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O|Op:rule", cast_kw(kwlist), &head_obj, &body_obj, &choice) == 0) {
+        return nullptr;
+    }
+
+    std::vector<clingo_atom_t> head;
+    std::vector<clingo_literal_t> body;
+    if (!parse_atoms(head_obj, &head, "head must be a sequence of atoms")) {
+        return nullptr;
+    }
+    if (body_obj != Py_None && !parse_literals(body_obj, &body, "body must be a sequence of literals")) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+    if (!clingo_backend_rule(backend, choice != 0, head.data(), head.size(), body.data(), body.size())) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_backend_weight_rule(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 5>{"head", "lower_bound", "body", "choice", nullptr};
+    PyObject *head_obj = nullptr;
+    PyObject *lower_obj = nullptr;
+    PyObject *body_obj = nullptr;
+    int choice = 0;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OOO|p:weight_rule", cast_kw(kwlist), &head_obj, &lower_obj,
+                                    &body_obj, &choice) == 0) {
+        return nullptr;
+    }
+
+    std::vector<clingo_atom_t> head;
+    std::vector<clingo_weighted_literal_t> body;
+    if (!parse_atoms(head_obj, &head, "head must be a sequence of atoms")) {
+        return nullptr;
+    }
+    if (!parse_weighted_literals(body_obj, &body, "body must be a sequence of (literal, weight) pairs")) {
+        return nullptr;
+    }
+    int lower_i = 0;
+    if (!parse_int(lower_obj, &lower_i, "lower_bound")) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+    if (!clingo_backend_weight_rule(backend, choice != 0, head.data(), head.size(),
+                                    static_cast<clingo_weight_t>(lower_i), body.data(), body.size())) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_backend_minimize(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 3>{"literals", "priority", nullptr};
+    PyObject *lits_obj = nullptr;
+    int priority = 0;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O|i:minimize", cast_kw(kwlist), &lits_obj, &priority) == 0) {
+        return nullptr;
+    }
+
+    std::vector<clingo_weighted_literal_t> lits;
+    if (!parse_weighted_literals(lits_obj, &lits, "literals must be a sequence of (literal, weight) pairs")) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+    if (!clingo_backend_minimize(backend, static_cast<clingo_weight_t>(priority), lits.data(), lits.size())) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_backend_project(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 2>{"atoms", nullptr};
+    PyObject *atoms_obj = nullptr;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O:project", cast_kw(kwlist), &atoms_obj) == 0) {
+        return nullptr;
+    }
+
+    std::vector<clingo_atom_t> atoms;
+    if (!parse_atoms(atoms_obj, &atoms, "atoms must be a sequence of atoms")) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+    if (!clingo_backend_project(backend, atoms.data(), atoms.size())) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_backend_external(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 3>{"atom", "type", nullptr};
+    PyObject *atom_obj = nullptr;
+    PyObject *type_obj = nullptr;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO:external", cast_kw(kwlist), &atom_obj, &type_obj) == 0) {
+        return nullptr;
+    }
+
+    size_t atom = 0;
+    if (!parse_size_t(atom_obj, &atom, "atom")) {
+        return nullptr;
+    }
+    int type = 0;
+    if (!parse_int(type_obj, &type, "type")) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+    if (!clingo_backend_external(backend, static_cast<clingo_atom_t>(atom),
+                                 static_cast<clingo_external_type_t>(type))) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_backend_assume(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 2>{"literals", nullptr};
+    PyObject *lits_obj = nullptr;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O:assume", cast_kw(kwlist), &lits_obj) == 0) {
+        return nullptr;
+    }
+
+    std::vector<clingo_literal_t> lits;
+    if (!parse_literals(lits_obj, &lits, "literals must be a sequence of literals")) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+    if (!clingo_backend_assume(backend, lits.data(), lits.size())) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_backend_heuristic(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist =
+        std::array<char const *, 6>{"atom", "type", "weight", "priority", "condition", nullptr};
+    PyObject *atom_obj = nullptr;
+    PyObject *type_obj = nullptr;
+    PyObject *weight_obj = nullptr;
+    unsigned priority = 0;
+    PyObject *cond_obj = Py_None;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OOO|kO:heuristic", cast_kw(kwlist), &atom_obj, &type_obj,
+                                    &weight_obj, &priority, &cond_obj) == 0) {
+        return nullptr;
+    }
+
+    size_t atom = 0;
+    int type = 0;
+    int weight = 0;
+    if (!parse_size_t(atom_obj, &atom, "atom") || !parse_int(type_obj, &type, "type") ||
+        !parse_int(weight_obj, &weight, "weight")) {
+        return nullptr;
+    }
+
+    std::vector<clingo_literal_t> cond;
+    if (cond_obj != Py_None && !parse_literals(cond_obj, &cond, "condition must be a sequence of literals")) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+    if (!clingo_backend_heuristic(backend, static_cast<clingo_atom_t>(atom), static_cast<clingo_heuristic_type_t>(type),
+                                  weight, priority, cond.data(), cond.size())) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_backend_edge(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 4>{"node_u", "node_v", "condition", nullptr};
+    PyObject *u_obj = nullptr;
+    PyObject *v_obj = nullptr;
+    PyObject *cond_obj = nullptr;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OOO:edge", cast_kw(kwlist), &u_obj, &v_obj, &cond_obj) == 0) {
+        return nullptr;
+    }
+
+    int u = 0;
+    int v = 0;
+    if (!parse_int(u_obj, &u, "node_u") || !parse_int(v_obj, &v, "node_v")) {
+        return nullptr;
+    }
+
+    std::vector<clingo_literal_t> cond;
+    if (!parse_literals(cond_obj, &cond, "condition must be a sequence of literals")) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+    if (!clingo_backend_acyc_edge(backend, u, v, cond.data(), cond.size())) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_backend_theory_number(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 2>{"number", nullptr};
+    int number = 0;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "i:theory_number", cast_kw(kwlist), &number) == 0) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+
+    clingo_id_t id = 0;
+    if (!clingo_backend_theory_term_number(backend, number, &id)) {
+        return py_handle_error();
+    }
+    return PyLong_FromSize_t(static_cast<size_t>(id));
+}
+
+auto py_backend_theory_string(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 2>{"string", nullptr};
+    char const *text = nullptr;
+    Py_ssize_t n = 0;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#:theory_string", cast_kw(kwlist), &text, &n) == 0) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+
+    clingo_id_t id = 0;
+    if (!clingo_backend_theory_term_string(backend, text, static_cast<size_t>(n), &id)) {
+        return py_handle_error();
+    }
+    return PyLong_FromSize_t(static_cast<size_t>(id));
+}
+
+auto py_backend_theory_symbol(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 2>{"symbol", nullptr};
+    PyObject *sym_obj = nullptr;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O:theory_symbol", cast_kw(kwlist), &sym_obj) == 0) {
+        return nullptr;
+    }
+
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+
+    clingo_symbol_t sym = 0;
+    if (!parse_symbol(state, sym_obj, &sym, "symbol")) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+
+    clingo_id_t id = 0;
+    if (!clingo_backend_theory_term_symbol(backend, sym, &id)) {
+        return py_handle_error();
+    }
+    return PyLong_FromSize_t(static_cast<size_t>(id));
+}
+
+auto py_backend_theory_sequence(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 3>{"type", "elements", nullptr};
+    PyObject *type_obj = nullptr;
+    PyObject *elems_obj = nullptr;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO:theory_sequence", cast_kw(kwlist), &type_obj, &elems_obj) == 0) {
+        return nullptr;
+    }
+
+    int type = 0;
+    if (!parse_int(type_obj, &type, "type")) {
+        return nullptr;
+    }
+    std::vector<clingo_id_t> elems;
+    if (!parse_ids(elems_obj, &elems, "elements must be a sequence of ids")) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+
+    clingo_id_t id = 0;
+    if (!clingo_backend_theory_term_sequence(backend, static_cast<clingo_theory_sequence_type_t>(type), elems.data(),
+                                             elems.size(), &id)) {
+        return py_handle_error();
+    }
+    return PyLong_FromSize_t(static_cast<size_t>(id));
+}
+
+auto py_backend_theory_function(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 3>{"name", "arguments", nullptr};
+    char const *name = nullptr;
+    Py_ssize_t name_n = 0;
+    PyObject *args_obj = nullptr;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#O:theory_function", cast_kw(kwlist), &name, &name_n, &args_obj) ==
+        0) {
+        return nullptr;
+    }
+
+    std::vector<clingo_id_t> arg_ids;
+    if (!parse_ids(args_obj, &arg_ids, "arguments must be a sequence of ids")) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+
+    clingo_id_t id = 0;
+    if (!clingo_backend_theory_term_function(backend, name, static_cast<size_t>(name_n), arg_ids.data(), arg_ids.size(),
+                                             &id)) {
+        return py_handle_error();
+    }
+    return PyLong_FromSize_t(static_cast<size_t>(id));
+}
+
+auto py_backend_theory_element(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 3>{"tuple", "condition", nullptr};
+    PyObject *tuple_obj = nullptr;
+    PyObject *cond_obj = nullptr;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO:theory_element", cast_kw(kwlist), &tuple_obj, &cond_obj) == 0) {
+        return nullptr;
+    }
+
+    std::vector<clingo_id_t> tuple;
+    if (!parse_ids(tuple_obj, &tuple, "tuple must be a sequence of ids")) {
+        return nullptr;
+    }
+    std::vector<clingo_literal_t> cond;
+    if (!parse_literals(cond_obj, &cond, "condition must be a sequence of literals")) {
+        return nullptr;
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+
+    clingo_id_t id = 0;
+    if (!clingo_backend_theory_element(backend, tuple.data(), tuple.size(), cond.data(), cond.size(), &id)) {
+        return py_handle_error();
+    }
+    return PyLong_FromSize_t(static_cast<size_t>(id));
+}
+
+auto py_backend_theory_atom(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    static constexpr auto kwlist = std::array<char const *, 5>{"atom", "name", "elements", "guard", nullptr};
+    PyObject *atom_obj = nullptr;
+    PyObject *name_obj = nullptr;
+    PyObject *elems_obj = nullptr;
+    PyObject *guard_obj = Py_None;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OOO|O:theory_atom", cast_kw(kwlist), &atom_obj, &name_obj,
+                                    &elems_obj, &guard_obj) == 0) {
+        return nullptr;
+    }
+
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+
+    clingo_symbol_t name = 0;
+    if (!parse_symbol(state, name_obj, &name, "name")) {
+        return nullptr;
+    }
+
+    std::vector<clingo_id_t> elems;
+    if (!parse_ids(elems_obj, &elems, "elements must be a sequence of ids")) {
+        return nullptr;
+    }
+
+    std::optional<clingo_atom_t> atom = std::nullopt;
+    if (atom_obj != Py_None) {
+        size_t a = 0;
+        if (!parse_size_t(atom_obj, &a, "atom")) {
+            return nullptr;
+        }
+        if (a > std::numeric_limits<clingo_atom_t>::max()) {
+            PyErr_SetString(PyExc_OverflowError, "atom is out of range");
+            return nullptr;
+        }
+        atom = static_cast<clingo_atom_t>(a);
+    }
+
+    std::optional<std::pair<std::string, clingo_id_t>> guard = std::nullopt;
+    if (guard_obj != Py_None) {
+        auto guard_seq = steal(PySequence_Fast(guard_obj, "guard must be a pair (operator, term_id) or None"));
+        if (guard_seq.get() == nullptr) {
+            return nullptr;
+        }
+        if (PySequence_Fast_GET_SIZE(guard_seq.get()) != 2) {
+            PyErr_SetString(PyExc_TypeError, "guard must be a pair (operator, term_id) or None");
+            return nullptr;
+        }
+        auto **items = PySequence_Fast_ITEMS(guard_seq.get());
+        char const *op = nullptr;
+        Py_ssize_t op_n = 0;
+        if (PyUnicode_Check(items[0]) == 0) {
+            PyErr_SetString(PyExc_TypeError, "guard operator must be a string");
+            return nullptr;
+        }
+        op = PyUnicode_AsUTF8AndSize(items[0], &op_n);
+        if (op == nullptr) {
+            return nullptr;
+        }
+        size_t term = 0;
+        if (!parse_size_t(items[1], &term, "guard term id")) {
+            return nullptr;
+        }
+        if (term > std::numeric_limits<clingo_id_t>::max()) {
+            PyErr_SetString(PyExc_OverflowError, "guard term id is out of range");
+            return nullptr;
+        }
+        guard = std::make_pair(std::string(op, static_cast<size_t>(op_n)), static_cast<clingo_id_t>(term));
+    }
+
+    auto *backend = ensure_backend_open(self);
+    if (backend == nullptr) {
+        return nullptr;
+    }
+
+    clingo_atom_t out = 0;
+    auto op = clingo_string_t{
+        guard ? guard->first.data() : nullptr,
+        guard ? guard->first.size() : 0,
+    };
+    clingo_atom_t atom_value = atom.value_or(0);
+    if (!clingo_backend_theory_atom(backend, name, elems.data(), elems.size(), guard ? &op : nullptr,
+                                    guard ? guard->second : 0, atom ? &atom_value : nullptr, &out)) {
+        return py_handle_error();
+    }
+    return PyLong_FromSize_t(static_cast<size_t>(out));
+}
+
+auto py_backend_methods = std::array{
+    PyMethodDef{
+        "atom",
+        py_c_function_cast(py_backend_atom),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "rule",
+        py_c_function_cast(py_backend_rule),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "weight_rule",
+        py_c_function_cast(py_backend_weight_rule),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "minimize",
+        py_c_function_cast(py_backend_minimize),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "project",
+        py_c_function_cast(py_backend_project),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "external",
+        py_c_function_cast(py_backend_external),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "assume",
+        py_c_function_cast(py_backend_assume),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "heuristic",
+        py_c_function_cast(py_backend_heuristic),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "edge",
+        py_c_function_cast(py_backend_edge),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "theory_number",
+        py_c_function_cast(py_backend_theory_number),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "theory_string",
+        py_c_function_cast(py_backend_theory_string),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "theory_symbol",
+        py_c_function_cast(py_backend_theory_symbol),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "theory_sequence",
+        py_c_function_cast(py_backend_theory_sequence),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "theory_function",
+        py_c_function_cast(py_backend_theory_function),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "theory_element",
+        py_c_function_cast(py_backend_theory_element),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{
+        "theory_atom",
+        py_c_function_cast(py_backend_theory_atom),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR(""),
+    },
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
+auto py_backend_slots = std::array{
+    PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Provides an interface to extend a logic program."))},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_backend_dealloc)},
+    PyType_Slot{Py_tp_methods, py_backend_methods.data()},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_backend_spec = PyType_Spec{
+    "clingo.backend.Backend", sizeof(PyBackendObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    py_backend_slots.data(),
+};
+
+auto py_backend_manager_cast(PyObject *obj) -> PyBackendManagerObject * {
+    return reinterpret_cast<PyBackendManagerObject *>(obj);
+}
+
+void py_backend_manager_dealloc(PyObject *self) {
+    auto *mgr = py_backend_manager_cast(self);
+    if (mgr->backend != nullptr) {
+        clingo_backend_close(mgr->backend);
+        mgr->backend = nullptr;
+    }
+    if (mgr->backend_obj != nullptr) {
+        py_backend_cast(mgr->backend_obj)->backend = nullptr;
+    }
+    Py_XDECREF(mgr->backend_obj);
+    Py_XDECREF(mgr->owner);
+    Py_TYPE(self)->tp_free(self);
+}
+
+auto py_backend_manager_enter(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
+    auto *mgr = py_backend_manager_cast(self);
+    if (mgr->backend != nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "backend is already active");
+        return nullptr;
+    }
+    if (!clingo_control_backend(mgr->ctl, &mgr->backend)) {
+        return py_handle_error();
+    }
+
+    auto *state = get_state_from_self(self);
+    if (state == nullptr || state->backend_type == nullptr) {
+        return nullptr;
+    }
+
+    auto obj = steal(py_backend_new(state->backend_type, mgr->backend, self));
+    if (obj.get() == nullptr) {
+        clingo_backend_close(mgr->backend);
+        mgr->backend = nullptr;
+        return nullptr;
+    }
+
+    Py_XDECREF(mgr->backend_obj);
+    mgr->backend_obj = obj.get();
+    Py_INCREF(mgr->backend_obj);
+    return obj.release();
+}
+
+auto py_backend_manager_exit(PyObject *self, PyObject *args) -> PyObject * {
+    PyObject *type = nullptr;
+    PyObject *value = nullptr;
+    PyObject *traceback = nullptr;
+    if (PyArg_ParseTuple(args, "OOO:__exit__", &type, &value, &traceback) == 0) {
+        return nullptr;
+    }
+    (void)type;
+    (void)value;
+    (void)traceback;
+
+    auto *mgr = py_backend_manager_cast(self);
+    if (mgr->backend != nullptr) {
+        if (!clingo_backend_close(mgr->backend)) {
+            return py_handle_error();
+        }
+        mgr->backend = nullptr;
+    }
+    if (mgr->backend_obj != nullptr) {
+        py_backend_cast(mgr->backend_obj)->backend = nullptr;
+    }
+    Py_RETURN_FALSE;
+}
+
+auto py_backend_manager_methods = std::array{
+    PyMethodDef{"__enter__", py_backend_manager_enter, METH_NOARGS, PyDoc_STR("")},
+    PyMethodDef{"__exit__", py_backend_manager_exit, METH_VARARGS, PyDoc_STR("")},
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
+auto py_backend_manager_slots = std::array{
+    PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("A context manager to initialize and finalize a backend."))},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_backend_manager_dealloc)},
+    PyType_Slot{Py_tp_methods, py_backend_manager_methods.data()},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_backend_manager_spec = PyType_Spec{
+    "clingo.backend.BackendManager",
+    sizeof(PyBackendManagerObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    py_backend_manager_slots.data(),
+};
+
+auto backend_module_traverse(PyObject *module, visitproc visit, void *arg) -> int {
+    auto *state = static_cast<BackendModuleState *>(PyModule_GetState(module));
+    if (state == nullptr) {
+        return 0;
+    }
+    Py_VISIT(state->symbol_type);
+    Py_VISIT(state->observer_type);
+    Py_VISIT(state->backend_type);
+    Py_VISIT(state->backend_manager_type);
+    Py_VISIT(state->heuristic_type_enum);
+    Py_VISIT(state->external_type_enum);
+    Py_VISIT(state->theory_sequence_type_enum);
+    return 0;
+}
+
+auto backend_module_clear(PyObject *module) -> int {
+    auto *state = static_cast<BackendModuleState *>(PyModule_GetState(module));
+    if (state == nullptr) {
+        return 0;
+    }
+    Py_CLEAR(state->symbol_type);
+    Py_CLEAR(state->observer_type);
+    Py_CLEAR(state->backend_type);
+    Py_CLEAR(state->backend_manager_type);
+    Py_CLEAR(state->heuristic_type_enum);
+    Py_CLEAR(state->external_type_enum);
+    Py_CLEAR(state->theory_sequence_type_enum);
+    return 0;
+}
+
+void backend_module_free(void *module) {
+    backend_module_clear(static_cast<PyObject *>(module));
+}
+
+PyModuleDef backend_def = {
+    PyModuleDef_HEAD_INIT,
+    "clingo.backend",
+    PyDoc_STR("Functions and classes to observe or add ground statements."),
+    static_cast<Py_ssize_t>(sizeof(BackendModuleState)),
+    nullptr,
+    nullptr,
+    backend_module_traverse,
+    backend_module_clear,
+    backend_module_free,
+};
+
+} // namespace
+
+auto py_backend_manager_new(PyObject *type, clingo_control_t *ctl, PyObject *owner) -> PyObject * {
+    auto *to = reinterpret_cast<PyTypeObject *>(type);
+    auto *obj = to->tp_alloc(to, 0);
+    if (obj == nullptr) {
+        return nullptr;
+    }
+    auto *mgr = py_backend_manager_cast(obj);
+    mgr->ctl = ctl;
+    mgr->backend = nullptr;
+    mgr->owner = owner;
+    mgr->backend_obj = nullptr;
+    Py_XINCREF(owner);
+    return obj;
+}
+
+auto py_backend_manager_type_ref() -> PyObject * {
+    auto mod = steal(PyImport_ImportModule("clingo.backend"));
+    if (mod.get() == nullptr) {
+        return nullptr;
+    }
+    auto *state = get_state(mod.get());
+    if (state == nullptr) {
+        return nullptr;
+    }
+    return state->backend_manager_type;
+}
+
+auto py_observe(PyObject *module, clingo_control_t *ctl, PyObject *observer, bool preprocess) -> bool {
+    auto *state = get_state(module);
+    if (state == nullptr) {
+        return false;
+    }
+    auto ctx = std::pair{observer, state};
+    if (!with_gil_released([&]() { return clingo_control_observe(ctl, observer_trampoline(), &ctx, preprocess); })) {
+        py_handle_error();
+        return false;
+    }
+    return true;
 }
 
 void register_backend(pybind11::module &m) {
-    using namespace PyClingo;
-
-    auto backend = m.def_submodule("backend", R"(
-Functions and classes to observe or add ground statements.
-
-Examples
---------
-The first example shows how to add a fact to a program:
-
-```python
->>> from clingo.core import Library
->>> from clingo.symbol import Function
->>> from clingo.control import Control
-...
->>> lib = Library()
->>> ctl = Control(lib)
->>> sym = Function(lib, "a")
->>> with ctl.backend as bck:
-...     atm_a = bck.atom(sym)
-...     bck.rule([atm_a])
->>> ctl.base.is_fact(ctl.base[sym].literal)
-True
->>> print(ctl.solve(on_model=print))
-a
-SAT
-```
-
-The next example shows how to add theory atoms to a program:
-```python
->>> from clingo.core import Library
->>> from clingo.symbol import Function
->>> from clingo.control import Control
-...
->>> lib = Library()
->>> ctl = Control(lib)
-...
->>> with ctl.backend as bck:
-...     n = Function(lib, "p")
-...     a = bck.theory_string("a")
-...     o = bck.theory_number(1)
-...     f = bck.theory_function("f", [a, o])
-...     e = bck.theory_element([f], [])
-...     bck.theory_atom(0, n, [e])
-...
->>> print(ctl.base.theory[0])
-&p { f(a,1) }
-```
-)"_d);
-
-    py::native_enum<clingo_heuristic_type_e>(backend, "HeuristicType", "enum.IntEnum",
-                                             R"doc(Available heuristic types.)doc")
-        .value("Level", clingo_heuristic_type_level, R"doc(The level modifier.)doc")
-        .value("Factor", clingo_heuristic_type_factor, R"doc(The factor modifier.)doc")
-        .value("True_", clingo_heuristic_type_true, R"doc(The true modifier.)doc")
-        .value("False_", clingo_heuristic_type_false, R"doc(The false modifier.)doc")
-        .value("Init", clingo_heuristic_type_init, R"doc(The init modifier.)doc")
-        .value("Sign", clingo_heuristic_type_sign, R"doc(The sign modifier.)doc")
-        .finalize();
-
-    py::native_enum<clingo_external_type_e>(backend, "ExternalType", "enum.IntEnum",
-                                            R"doc(Available external types.)doc")
-        .value("True_", clingo_external_type_true, R"(Make an external atom true.)")
-        .value("False_", clingo_external_type_false, R"(Make an external atom false.)")
-        .value("Free", clingo_external_type_free, R"(Make an external atom a choice.)")
-        .value("Release", clingo_external_type_release, R"(Release an external atom.)")
-        .finalize();
-
-    py::native_enum<clingo_theory_sequence_type_e>(backend, "TheorySequenceType", "enum.IntEnum",
-                                                   R"(Available theory sequence types.)")
-        .value("Tuple", clingo_theory_sequence_type_tuple, R"(Sequences enclosed in parentheses.)")
-        .value("List", clingo_theory_sequence_type_list, R"(Sequences enclosed in brackets.)")
-        .value("Set", clingo_theory_sequence_type_set, R"(Sequences enclosed in braces.)")
-        .finalize();
-
-    py::class_<Observer>(backend, "Observer", R"(
-ABC to inspect aspif directives.
-
-Not all functions of the interface have to be implemented and can be omitted if
-not needed.
-
-See Also:
-    `clingo.control.Control.observe`
-)")
-        .def(py::init<>())
-        .def("init_program", &Observer::init_program, py::arg("incremental"), R"(
-The first directive in a program.
-
-The parameter `incremental` indicates whether the program can consist of more
-than one step.
-
-Args:
-    incremental: Whether the program is incremental.
-)"_d)
-        .def("begin_step", &Observer::begin_step, R"(
-Called at the beginning of a step.
-)"_d)
-        .def("end_step", &Observer::end_step, py::arg("base"), R"(
-Called at the end of a step.
-)"_d)
-        .def("rule", &Observer::rule, py::arg("head"), py::arg("body"), py::arg("choice"), R"(
-Called for rules in the program.
-
-See also `clingo.backend.Backend.rule`.
-
-Args:
-    head: Sequence of literals in the rule head.
-    body: Sequence of literals in the rule body (default: []).
-    choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
-)"_d)
-        .def("weight_rule", &Observer::weight_rule, py::arg("head"), py::arg("lower_bound"), py::arg("body"),
-             py::arg("choice"), R"(
-Called for weight rules in the program.
-
-See also `clingo.backend.Backend.weight_rule`.
-
-Args:
-    head: Sequence of literals in the rule head.
-    lower_bound: The lower bound of the weight constraint.
-    body: Sequence of (literal, weight) tuples forming the weight constraint.
-    choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
-)"_d)
-        .def("assume", &Observer::assume, py::arg("literals"), R"(
-Called for assumptions in the solver.
-
-See also `clingo.backend.Backend.assume`.
-
-Args:
-    literals: Sequence of program literals to assume.
-)"_d)
-        .def("edge", &Observer::edge, py::arg("node_u"), py::arg("node_v"), py::arg("condition"), R"(
-Called for edge directives in the program.
-
-See also `clingo.backend.Backend.edge`.
-
-Args:
-    node_u: The start node of the edge.
-    node_v: The end node of the edge.
-    condition: Sequence of literals representing the edge condition.
-)"_d)
-        .def("external", &Observer::external, py::arg("atom"), py::arg("type"), R"(
-Called for external directives in the program.
-
-See also `clingo.backend.Backend.external`.
-
-Args:
-    atom: The external atom (must be a positive literal).
-    type: The type determining the truth value of the atom.
-)"_d)
-        .def("heuristic", &Observer::heuristic, py::arg("atom"), py::arg("type"), py::arg("weight"),
-             py::arg("priority"), py::arg("condition"), R"(
-Called for heuristic directives in the program.
-
-See also `clingo.backend.Backend.heuristic`.
-
-Args:
-    atom: The atom to which the heuristic applies.
-    type: The type of the heuristic.
-    weight: The weight of the heuristic.
-    priority: The priority of the heuristic (default: 0).
-    condition: Sequence of literals representing the condition (default: []).
-)"_d)
-        .def("minimize", &Observer::minimize, py::arg("literals"), py::arg("priority"), R"(
-Called for minimize constraints in the program.
-
-See also `clingo.backend.Backend.minimize`.
-
-Args:
-    literals: Sequence of (literal, weight) tuples to minimize.
-    priority: Priority of the constraint (default: 0).
-)"_d)
-        .def("project", &Observer::project, py::arg("atoms"), R"(
-Called for projection directives in the program.
-
-See also `clingo.backend.Backend.project`.
-
-Args:
-    atoms: Sequence of atoms to project on.
-)"_d);
-
-    py::class_<Backend>(backend, "Backend", R"(
-Provides an interface to extend a logic program.
-
-This class offers methods to add various types of rules, set external atoms,
-specify heuristics, define optimization statements, and extend the underlying
-theory. It allows for low-level manipulation of logic programs.
-
-See Also:
-    `clingo.control.Control.backend`
-)"_d)
-        .def("atom", &Backend::atom, py::arg("symbol") = std::nullopt, R"(
-Return a fresh program atom or the atom associated with the given symbol.
-
-If the given symbol does not exist in the atom base, it is added first. These
-atoms will be used in subsequent calls to ground for instantiation.
-
-Args:
-    symbol: The symbol associated with the atom.
-
-Returns:
-    The program atom representing the atom.
-)"_d)
-        .def("rule", &Backend::rule, py::arg("head"), py::arg("body") = LitSpan{}, py::arg("choice") = false, R"(
-Add a rule to the program.
-
-Creates a disjunctive or choice rule based on the `choice` parameter. The
-head and body are specified as sequences of literals.
-
-Rule types based on head length (when choice is False):
-- Empty head: Integrity constraint
-- Single literal head: Normal rule
-- Multiple literals head: Disjunctive rule
-
-Args:
-    head: Sequence of literals in the rule head.
-    body: Sequence of literals in the rule body (default: []).
-    choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
-)"_d)
-        .def("weight_rule", &Backend::weight_rule, py::arg("head"), py::arg("lower_bound"), py::arg("body"),
-             py::arg("choice") = false, R"(
-Add a weight rule to the program.
-
-Adds a weight rule, where the body is a weight constraint. The head is either a
-disjunction ro choice (see Backend.rule for more details).
-
-A weight constraint is satisfied if the sum of weights of the true literals
-meets or exceeds the lower bound.
-
-Args:
-    head: Sequence of literals in the rule head.
-    lower_bound: The lower bound of the weight constraint.
-    body: Sequence of (literal, weight) tuples forming the weight constraint.
-    choice: If True, adds a choice rule; otherwise, a disjunctive rule (default: False).
-)"_d)
-        .def("assume", &Backend::assume, py::arg("literals"), R"(
-Add an assumption directive to the solver.
-
-Specifies literals to be assumed true or false for the next solving call.
-Positive literals are treated as true, while negative literals are treated
-as false. These assumptions apply only to the next solve call.
-
-Args:
-    literals: Sequence of program literals to assume.
-)"_d)
-        .def("edge", &Backend::edge, py::arg("node_u"), py::arg("node_v"), py::arg("condition"), R"(
-Add an edge directive.
-
-Adds an edge from `node_u` to `node_v` to the graph. The edge is subject to the
-specified condition.
-
-Args:
-    node_u: The start node of the edge.
-    node_v: The end node of the edge.
-    condition: Sequence of literals representing the edge condition.
-)"_d)
-        .def("external", &Backend::external, py::arg("atom"), py::arg("type"), R"(
-Add an external directive.
-
-Declares an atom as external and sets its truth value according to the
-specified type. External atoms can be used as assumptions or for incremental
-solving. The special value `clingo.backend.ExternalType.Release` can be used to
-permanently set an external atom to false.
-
-Args:
-    atom: The external atom (must be a positive literal).
-    type: The type determining the truth value of the atom.
-)"_d)
-        .def("heuristic", &Backend::heuristic, py::arg("atom"), py::arg("type"), py::arg("weight"),
-             py::arg("priority") = 0, py::arg("condition") = LitSpan{}, R"(
-Add a heuristic directive for an atom.
-
-Adds a heuristic directive for the given atom, influencing the solver's search
-process. The directive's effect depends on its type, weight, and priority. The
-condition, if provided, determines when the heuristic should be applied.
-
-Args:
-    atom: The atom to which the heuristic applies.
-    type: The type of the heuristic.
-    weight: The weight of the heuristic.
-    priority: The priority of the heuristic (default: 0).
-    condition: Sequence of literals representing the condition (default: []).
-)"_d)
-        .def("minimize", &Backend::minimize, py::arg("literals"), py::arg("priority") = 0, R"(
-Add a minimize constraint to the program.
-
-Adds a minimize constraint, which instructs the solver to minimize the sum of
-weights of true literals in the given sequence. Multiple minimize constraints
-with different priorities can be added, with lower priority values considered
-more important.
-
-Args:
-    literals: Sequence of (literal, weight) tuples to minimize.
-    priority: Priority of the constraint (default: 0).
-)"_d)
-        .def("project", &Backend::project, py::arg("atoms"), R"(
-Add a projection directive to the program.
-
-Specifies which atoms should be considered in stable models. When projection
-is used, stable models are treated as equivalent if they agree on the truth
-values of projected atoms, regardless of other atoms in the model.
-
-Args:
-    atoms: Sequence of atoms to project on.
-)"_d)
-        .def("theory_number", &Backend::theory_number, py::arg("number"), R"(
-Create a numeric theory term.
-
-The function creates a numeric theory term with the given value and return its
-unique identifier. This id can be used in other theory-related methods to
-reference this term.
-
-Args:
-    number: The numeric value of the theory term to create.
-
-Returns:
-    The unique id of the created theory term.
-)"_d)
-        .def("theory_string", &Backend::theory_string, py::arg("string"), R"(
-Create a string theory term.
-
-The method creates a string theory term with the given value and returns its
-unique identifier. This id can be used in other theory-related methods to
-reference this term.
-
-Args:
-    string: The string value of the theory term to create.
-
-Returns:
-    The unique id of the created string theory term.
-)"_d)
-        .def("theory_symbol", &Backend::theory_symbol, py::arg("symbol"), R"(
-Convert a symbol into a theory term.
-
-The method converts the given symbol into a theory term and returns its unique
-identifier. This id can be used in other theory-related methods to reference
-this term.
-
-Args:
-    symbol: The symbol to create the theory term from.
-
-Returns:
-    The unique id of the created theory term.
-)"_d)
-        .def("theory_sequence", &Backend::theory_sequence, py::arg("type"), py::arg("elements"), R"(
-Create a sequence theory term.
-
-The method creates a sequence theory term of the specified type, containing the
-given elements, and returns its unique identifier. This id can be used in other
-theory-related methods to reference this term.
-
-Args:
-    type: The type of the sequence (e.g., tuple, list, set).
-    elements: A sequence of ids representing theory terms.
-
-Returns:
-    The unique id of the created sequence theory term.
-)"_d)
-        .def("theory_function", &Backend::theory_function, py::arg("name"), py::arg("arguments"), R"(
-Create a function theory term.
-
-The method creates a function theory term with the given name and arguments,
-and returns its unique identifier. This id can be used in other theory-related
-methods to reference this term.
-
-Args:
-    name: The name of the function.
-    arguments: A sequence of ids of theory terms.
-
-Returns:
-    The unique id of the created function theory term.
-)"_d)
-        .def("theory_element", &Backend::theory_element, py::arg("tuple"), py::arg("condition"), R"(
-Create a theory element.
-
-The method creates a theory element consisting of a tuple and a condition, and
-returns its unique identifier. This id can be used in other theory-related
-methods to reference this element.
-
-Args:
-    tuple: A sequence of ids representing theory terms.
-    condition: A sequence of program literals.
-
-Returns:
-    The unique id of the created theory element.
-)"_d)
-        .def("theory_atom", &Backend::theory_atom, py::arg("atom"), py::arg("name"), py::arg("elements"),
-             py::arg("guard") = std::nullopt, R"(
-Create a theory atom and return its associated program atom.
-
-If the theory atom does not exist yet, the method assigns a program atom based
-on these rules:
-- If a specific atom value is provided, that value is used.
-- If None is given, a fresh program atom is introduced.
-- For program directives, value zero is used.
-
-Args:
-    atom: The program atom to assign, or None to assign a fresh one.
-    name: The name of the theory atom.
-    elements: A sequence of ids representing theory elements.
-    guard: A tuple containing the guard operator and the id of the guard term, or None if there is no guard.
-
-Returns:
-    The program atom associated with the created theory atom.
-)"_d);
-
-    py::class_<BackendManager>(backend, "BackendManager", R"(
-A context manager to initialize and finalize a backend.
-)"_d)
-        .def("__enter__", &BackendManager::enter, "Initialize the backend.")
-        .def("__exit__", &BackendManager::exit, py::arg("type"), py::arg("value"), py::arg("traceback"),
-             "Finalize the backend.");
+    auto backend_mod = PyGuard{nullptr};
+    if (!add_submodule(m.ptr(), &backend_def, &backend_mod.get())) {
+        throw py::error_already_set();
+    }
+
+    auto *state = get_state(backend_mod.get());
+    if (state == nullptr) {
+        throw py::error_already_set();
+    }
+
+    state->symbol_type = py_symbol_type_ref();
+    if (state->symbol_type == nullptr) {
+        throw py::error_already_set();
+    }
+    Py_INCREF(state->symbol_type);
+
+    if (!add_int_enum(backend_mod.get(), "HeuristicType", heuristic_type_members, &state->heuristic_type_enum, {}) ||
+        !add_int_enum(backend_mod.get(), "ExternalType", external_type_members, &state->external_type_enum, {}) ||
+        !add_int_enum(backend_mod.get(), "TheorySequenceType", theory_sequence_type_members,
+                      &state->theory_sequence_type_enum, {}) ||
+        !add_type(backend_mod.get(), "Observer", &py_observer_spec, &state->observer_type) ||
+        !add_type(backend_mod.get(), "Backend", &py_backend_spec, &state->backend_type) ||
+        !add_type(backend_mod.get(), "BackendManager", &py_backend_manager_spec, &state->backend_manager_type)) {
+        throw py::error_already_set();
+    }
 }
 
 } // namespace PyClingo

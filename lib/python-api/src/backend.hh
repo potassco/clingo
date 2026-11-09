@@ -5,10 +5,8 @@
 
 #include <pybind11/pybind11.h>
 
-#include "base.hh"
-#include "symbol.hh"
-
 namespace PyClingo {
+/*
 
 class Observer {
   public:
@@ -69,6 +67,11 @@ class BackendManager {
     clingo_backend_t *backend_ = nullptr;
 };
 
+*/
+
+auto py_backend_manager_type_ref() -> PyObject *;
+auto py_backend_manager_new(PyObject *type, clingo_control_t *ctl, PyObject *owner) -> PyObject *;
+auto py_observe(PyObject *module, clingo_control_t *ctl, PyObject *observer, bool preprocess) -> bool;
 void register_backend(pybind11::module &m);
 
 } // namespace PyClingo

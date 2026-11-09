@@ -490,6 +490,24 @@ class GILGuard {
     PyGILState_STATE state_;
 };
 
+class GILReleaseGuard {
+  public:
+    GILReleaseGuard() : state_(PyEval_SaveThread()) {}
+    GILReleaseGuard(GILReleaseGuard const &) = delete;
+    auto operator=(GILReleaseGuard const &) -> GILReleaseGuard & = delete;
+    GILReleaseGuard(GILReleaseGuard &&) = delete;
+    auto operator=(GILReleaseGuard &&) -> GILReleaseGuard & = delete;
+    ~GILReleaseGuard() { PyEval_RestoreThread(state_); }
+
+  private:
+    PyThreadState *state_;
+};
+
+template <class F> auto with_gil_released(F &&f) -> decltype(auto) {
+    auto guard = GILReleaseGuard{};
+    return std::invoke(std::forward<F>(f));
+}
+
 inline auto steal(PyObject *obj) -> PyGuard {
     return PyGuard(obj);
 }
