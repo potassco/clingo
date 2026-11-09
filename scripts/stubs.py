@@ -283,7 +283,13 @@ class Rewriter:
                     target_path = os.path.join(libpath, Path(path).relative_to(tmpdir))
 
                     # NOTE: stubs will be written manually in the future
-                    if file in ("base.pyi", "symbol.pyi", "stats.pyi", "config.pyi"):
+                    if file in (
+                        "base.pyi",
+                        "symbol.pyi",
+                        "stats.pyi",
+                        "config.pyi",
+                        "backend.pyi",
+                    ):
                         with (
                             open(gen_path, "r", encoding="utf8") as hnd,
                             open(target_path, "w", encoding="utf8") as hnd2,
