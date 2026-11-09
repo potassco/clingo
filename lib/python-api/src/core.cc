@@ -19,9 +19,12 @@ auto py_handle_error() -> std::nullptr_t {
             exc_type = PyExc_MemoryError;
             break;
         }
-        case clingo_result_invalid:
-        case clingo_result_range: {
+        case clingo_result_invalid: {
             exc_type = PyExc_ValueError;
+            break;
+        }
+        case clingo_result_range: {
+            exc_type = PyExc_IndexError;
             break;
         }
         default: {
