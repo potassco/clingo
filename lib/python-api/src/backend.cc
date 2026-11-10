@@ -11,10 +11,8 @@
 #include <array>
 #include <limits>
 #include <optional>
-#include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 namespace PyClingo {
 
@@ -86,27 +84,33 @@ auto get_state_from_self(PyObject *self) -> BackendModuleState * {
     return get_state(mod);
 }
 
-auto parse_size_t(PyObject *obj, size_t *out, char const *what) -> bool {
-    auto v = PyLong_AsSize_t(obj);
-    if (PyErr_Occurred() != nullptr) {
-        PyErr_Format(PyExc_TypeError, "%s must be a non-negative integer", what);
-        return false;
+template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *what) -> bool {
+    if (obj == nullptr) {
+        return true;
     }
-    *out = v;
-    return true;
-}
-
-auto parse_int(PyObject *obj, int *out, char const *what) -> bool {
-    auto v = PyLong_AsLong(obj);
-    if (PyErr_Occurred() != nullptr) {
-        PyErr_Format(PyExc_TypeError, "%s must be an integer", what);
-        return false;
+    if constexpr (std::is_unsigned_v<T>) {
+        auto v = PyLong_AsUnsignedLong(obj);
+        if (PyErr_Occurred() != nullptr) {
+            PyErr_Format(PyExc_TypeError, "%s must be a non-negative integer", what);
+            return false;
+        }
+        if (std::cmp_greater(v, std::numeric_limits<T>::max())) {
+            PyErr_Format(PyExc_OverflowError, "%s is out of range", what);
+            return false;
+        }
+        *out = static_cast<T>(v);
+    } else {
+        auto v = PyLong_AsLong(obj);
+        if (PyErr_Occurred() != nullptr) {
+            PyErr_Format(PyExc_TypeError, "%s must be an integer", what);
+            return false;
+        }
+        if (std::cmp_less(v, std::numeric_limits<T>::min()) || std::cmp_greater(v, std::numeric_limits<T>::max())) {
+            PyErr_Format(PyExc_OverflowError, "%s is out of range", what);
+            return false;
+        }
+        *out = static_cast<T>(v);
     }
-    if (v < std::numeric_limits<int>::min() || v > std::numeric_limits<int>::max()) {
-        PyErr_Format(PyExc_OverflowError, "%s is out of range", what);
-        return false;
-    }
-    *out = static_cast<int>(v);
     return true;
 }
 
@@ -125,77 +129,97 @@ auto parse_symbol(BackendModuleState *state, PyObject *obj, clingo_symbol_t *sym
     return true;
 }
 
+template <class T> struct PyBuffer {
+    PyBuffer() = default;
+    PyBuffer(PyBuffer const &) = delete;
+    auto operator=(PyBuffer const &) -> PyBuffer & = delete;
+    PyBuffer(PyBuffer &&) = delete;
+    auto operator=(PyBuffer &&) -> PyBuffer & = delete;
+
+    ~PyBuffer() {
+        if (ptr_ != nullptr) {
+            PyMem_Free(ptr_);
+        }
+    }
+
+    auto alloc(size_t n) -> bool {
+        T *new_ptr = nullptr;
+        if (n > 0) {
+            new_ptr = static_cast<T *>(PyMem_Calloc(n, sizeof(T)));
+            if (new_ptr == nullptr) {
+                PyErr_NoMemory();
+                return false;
+            }
+        }
+        if (ptr_ != nullptr) {
+            PyMem_Free(ptr_);
+        }
+        ptr_ = new_ptr;
+        n_ = n;
+        return true;
+    }
+
+    auto data() -> T * { return ptr_; }
+    [[nodiscard]] auto data() const -> T const * { return ptr_; }
+    [[nodiscard]] auto size() const -> size_t { return n_; }
+
+    auto operator[](size_t i) -> T & { return ptr_[i]; }
+    auto operator[](size_t i) const -> T const & { return ptr_[i]; }
+
+  private:
+    T *ptr_{nullptr};
+    size_t n_{0};
+};
+
 template <class T, class F>
 // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
-auto parse_sequence(PyObject *obj, std::vector<T> *out, char const *what, F &&fun) -> bool {
-    auto seq = steal(PySequence_Fast(obj, what));
+auto parse_sequence(PyObject *obj, PyBuffer<T> *out, char const *what, F &&fun) -> bool {
+    auto seq_fast = steal(PySequence_Fast(obj, what));
+    if (seq_fast.get() == nullptr) {
+        return false;
+    }
+
+    auto seq = steal(PySequence_Tuple(seq_fast.get()));
     if (seq.get() == nullptr) {
         return false;
     }
-    auto n = PySequence_Fast_GET_SIZE(seq.get());
+
+    auto n = PyTuple_GET_SIZE(seq.get());
     if (n < 0) {
         return false;
     }
-    out->clear();
-    out->reserve(static_cast<size_t>(n));
-    auto **items = PySequence_Fast_ITEMS(seq.get());
+
+    auto count = static_cast<size_t>(n);
+    if (!out->alloc(count)) {
+        return false;
+    }
+
+    auto *it = out->data();
     for (Py_ssize_t i = 0; i < n; ++i) {
-        T val{};
-        if (!std::invoke(fun, items[i], &val)) {
+        auto *item = PyTuple_GET_ITEM(seq.get(), i); // borrowed, tuple-owned
+        if (!std::invoke(fun, item, it++)) {
             return false;
         }
-        out->push_back(val);
     }
     return true;
 }
 
-auto parse_atoms(PyObject *obj, std::vector<clingo_atom_t> *out, char const *what) -> bool {
-    return parse_sequence<clingo_atom_t>(obj, out, what, [](PyObject *item, clingo_atom_t *val) {
-        size_t tmp = 0;
-        if (!parse_size_t(item, &tmp, "atom")) {
-            return false;
-        }
-        if (tmp > std::numeric_limits<clingo_atom_t>::max()) {
-            PyErr_SetString(PyExc_OverflowError, "atom id is out of range");
-            return false;
-        }
-        *val = static_cast<clingo_atom_t>(tmp);
-        return true;
-    });
+auto parse_atoms(PyObject *obj, PyBuffer<clingo_atom_t> *out, char const *what) -> bool {
+    return parse_sequence<clingo_atom_t>(
+        obj, out, what, [](PyObject *item, clingo_atom_t *val) { return parse_num(item, val, "atom"); });
 }
 
-auto parse_ids(PyObject *obj, std::vector<clingo_id_t> *out, char const *what) -> bool {
-    return parse_sequence<clingo_id_t>(obj, out, what, [](PyObject *item, clingo_id_t *val) {
-        size_t tmp = 0;
-        if (!parse_size_t(item, &tmp, "id")) {
-            return false;
-        }
-        if (tmp > std::numeric_limits<clingo_id_t>::max()) {
-            PyErr_SetString(PyExc_OverflowError, "id is out of range");
-            return false;
-        }
-        *val = static_cast<clingo_id_t>(tmp);
-        return true;
-    });
+auto parse_ids(PyObject *obj, PyBuffer<clingo_id_t> *out, char const *what) -> bool {
+    return parse_sequence<clingo_id_t>(obj, out, what,
+                                       [](PyObject *item, clingo_id_t *val) { return parse_num(item, val, "id"); });
 }
 
-auto parse_literals(PyObject *obj, std::vector<clingo_literal_t> *out, char const *what) -> bool {
-    return parse_sequence<clingo_literal_t>(obj, out, what, [](PyObject *item, clingo_literal_t *val) {
-        auto tmp = PyLong_AsLong(item);
-        if (PyErr_Occurred() != nullptr) {
-            PyErr_SetString(PyExc_TypeError, "literal must be an integer");
-            return false;
-        }
-        if (tmp < std::numeric_limits<clingo_literal_t>::min() || tmp > std::numeric_limits<clingo_literal_t>::max()) {
-            PyErr_SetString(PyExc_OverflowError, "literal is out of range");
-            return false;
-        }
-        *val = static_cast<clingo_literal_t>(tmp);
-        return true;
-    });
+auto parse_literals(PyObject *obj, PyBuffer<clingo_literal_t> *out, char const *what) -> bool {
+    return parse_sequence<clingo_literal_t>(
+        obj, out, what, [](PyObject *item, clingo_literal_t *val) { return parse_num(item, val, "literal"); });
 }
 
-auto parse_weighted_literals(PyObject *obj, std::vector<clingo_weighted_literal_t> *out, char const *what) -> bool {
+auto parse_weighted_literals(PyObject *obj, PyBuffer<clingo_weighted_literal_t> *out, char const *what) -> bool {
     return parse_sequence<clingo_weighted_literal_t>(
         obj, out, what, [](PyObject *item, clingo_weighted_literal_t *val) {
             auto pair = steal(PySequence_Fast(item, "weighted literal must be a pair (literal, weight)"));
@@ -207,30 +231,14 @@ auto parse_weighted_literals(PyObject *obj, std::vector<clingo_weighted_literal_
                 return false;
             }
             auto **items = PySequence_Fast_ITEMS(pair.get());
-            auto lit_raw = PyLong_AsLong(items[0]);
-            if (PyErr_Occurred() != nullptr) {
-                PyErr_SetString(PyExc_TypeError, "literal must be an integer");
+            auto lit_obj = borrow(items[0]);
+            auto weight_obj = borrow(items[1]);
+            if (!parse_num(lit_obj.get(), &val->literal, "literal")) {
                 return false;
             }
-            auto w_raw = PyLong_AsLong(items[1]);
-            if (PyErr_Occurred() != nullptr) {
-                PyErr_SetString(PyExc_TypeError, "weight must be an integer");
+            if (!parse_num(weight_obj.get(), &val->weight, "weight")) {
                 return false;
             }
-            if (lit_raw < std::numeric_limits<clingo_literal_t>::min() ||
-                lit_raw > std::numeric_limits<clingo_literal_t>::max()) {
-                PyErr_SetString(PyExc_OverflowError, "literal is out of range");
-                return false;
-            }
-            if (w_raw < std::numeric_limits<clingo_weight_t>::min() ||
-                w_raw > std::numeric_limits<clingo_weight_t>::max()) {
-                PyErr_SetString(PyExc_OverflowError, "weight is out of range");
-                return false;
-            }
-            *val = clingo_weighted_literal_t{
-                static_cast<clingo_literal_t>(lit_raw),
-                static_cast<clingo_weight_t>(w_raw),
-            };
             return true;
         });
 }
@@ -430,7 +438,7 @@ auto py_observer_invoke_assume(ObserverData *data, clingo_literal_t const *liter
     return call_observer(data, "assume", args.get());
 }
 
-auto py_observer_invoke_heuristic(ObserverData *data, clingo_atom_t atom, clingo_heuristic_type_t type, int bias,
+auto py_observer_invoke_heuristic(ObserverData *data, clingo_atom_t atom, clingo_heuristic_type_t type, int weight,
                                   unsigned priority, clingo_literal_t const *condition, size_t size) -> bool {
     auto atom_obj = steal(PyLong_FromSize_t(static_cast<size_t>(atom)));
     if (atom_obj.get() == nullptr) {
@@ -440,9 +448,9 @@ auto py_observer_invoke_heuristic(ObserverData *data, clingo_atom_t atom, clingo
     if (type_obj.get() == nullptr) {
         return store_python_error("failed to build heuristic type argument");
     }
-    auto bias_obj = steal(PyLong_FromLong(bias));
-    if (bias_obj.get() == nullptr) {
-        return store_python_error("failed to build bias argument");
+    auto weight_obj = steal(PyLong_FromLong(weight));
+    if (weight_obj.get() == nullptr) {
+        return store_python_error("failed to build weight argument");
     }
     auto prio_obj = steal(PyLong_FromUnsignedLong(priority));
     if (prio_obj.get() == nullptr) {
@@ -453,7 +461,8 @@ auto py_observer_invoke_heuristic(ObserverData *data, clingo_atom_t atom, clingo
         return store_python_error("failed to build condition list");
     }
     // NOLINTNEXTLINE(readability-magic-numbers)
-    auto args = steal(PyTuple_Pack(5, atom_obj.get(), type_obj.get(), bias_obj.get(), prio_obj.get(), cond_obj.get()));
+    auto args =
+        steal(PyTuple_Pack(5, atom_obj.get(), type_obj.get(), weight_obj.get(), prio_obj.get(), cond_obj.get()));
     if (args.get() == nullptr) {
         return store_python_error("failed to prepare callback arguments");
     }
@@ -526,10 +535,11 @@ auto observer_trampoline() -> clingo_observer_t const * {
             auto gil = GILGuard{};
             return py_observer_invoke_assume(cast_observer_data(data), literals, size);
         },
-        [](clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority,
+        [](clingo_atom_t atom, clingo_heuristic_type_t type, int weight, unsigned priority,
            clingo_literal_t const *condition, size_t size, void *data) -> bool {
             auto gil = GILGuard{};
-            return py_observer_invoke_heuristic(cast_observer_data(data), atom, type, bias, priority, condition, size);
+            return py_observer_invoke_heuristic(cast_observer_data(data), atom, type, weight, priority, condition,
+                                                size);
         },
         [](int node_u, int node_v, clingo_literal_t const *condition, size_t size, void *data) -> bool {
             auto gil = GILGuard{};
@@ -691,10 +701,16 @@ auto py_backend_new(PyObject *type, clingo_backend_t *backend, PyObject *owner) 
     return obj;
 }
 
-void py_backend_dealloc(PyObject *self) {
+auto py_backend_traverse(PyObject *self, visitproc visit, void *arg) -> int {
     auto *b = py_backend_cast(self);
-    Py_XDECREF(b->owner);
-    Py_TYPE(self)->tp_free(self);
+    Py_VISIT(b->owner);
+    return 0;
+}
+
+auto py_backend_clear(PyObject *self) -> int {
+    auto *b = py_backend_cast(self);
+    Py_CLEAR(b->owner);
+    return 0;
 }
 
 auto ensure_backend_open(PyObject *self) -> clingo_backend_t * {
@@ -748,8 +764,8 @@ auto py_backend_rule(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObje
         return nullptr;
     }
 
-    std::vector<clingo_atom_t> head;
-    std::vector<clingo_literal_t> body;
+    PyBuffer<clingo_atom_t> head;
+    PyBuffer<clingo_literal_t> body;
     if (!parse_atoms(head_obj, &head, "head must be a sequence of atoms")) {
         return nullptr;
     }
@@ -778,8 +794,8 @@ auto py_backend_weight_rule(PyObject *self, PyObject *args, PyObject *kwargs) ->
         return nullptr;
     }
 
-    std::vector<clingo_atom_t> head;
-    std::vector<clingo_weighted_literal_t> body;
+    PyBuffer<clingo_atom_t> head;
+    PyBuffer<clingo_weighted_literal_t> body;
     if (!parse_atoms(head_obj, &head, "head must be a sequence of atoms")) {
         return nullptr;
     }
@@ -787,7 +803,7 @@ auto py_backend_weight_rule(PyObject *self, PyObject *args, PyObject *kwargs) ->
         return nullptr;
     }
     int lower_i = 0;
-    if (!parse_int(lower_obj, &lower_i, "lower_bound")) {
+    if (!parse_num(lower_obj, &lower_i, "lower_bound")) {
         return nullptr;
     }
 
@@ -810,7 +826,7 @@ auto py_backend_minimize(PyObject *self, PyObject *args, PyObject *kwargs) -> Py
         return nullptr;
     }
 
-    std::vector<clingo_weighted_literal_t> lits;
+    PyBuffer<clingo_weighted_literal_t> lits;
     if (!parse_weighted_literals(lits_obj, &lits, "literals must be a sequence of (literal, weight) pairs")) {
         return nullptr;
     }
@@ -832,7 +848,7 @@ auto py_backend_project(PyObject *self, PyObject *args, PyObject *kwargs) -> PyO
         return nullptr;
     }
 
-    std::vector<clingo_atom_t> atoms;
+    PyBuffer<clingo_atom_t> atoms;
     if (!parse_atoms(atoms_obj, &atoms, "atoms must be a sequence of atoms")) {
         return nullptr;
     }
@@ -855,12 +871,12 @@ auto py_backend_external(PyObject *self, PyObject *args, PyObject *kwargs) -> Py
         return nullptr;
     }
 
-    size_t atom = 0;
-    if (!parse_size_t(atom_obj, &atom, "atom")) {
+    clingo_atom_t atom = 0;
+    if (!parse_num(atom_obj, &atom, "atom")) {
         return nullptr;
     }
-    int type = 0;
-    if (!parse_int(type_obj, &type, "type")) {
+    clingo_external_type_t type = 0;
+    if (!parse_num(type_obj, &type, "type")) {
         return nullptr;
     }
 
@@ -868,8 +884,7 @@ auto py_backend_external(PyObject *self, PyObject *args, PyObject *kwargs) -> Py
     if (backend == nullptr) {
         return nullptr;
     }
-    if (!clingo_backend_external(backend, static_cast<clingo_atom_t>(atom),
-                                 static_cast<clingo_external_type_t>(type))) {
+    if (!clingo_backend_external(backend, atom, type)) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
@@ -882,7 +897,7 @@ auto py_backend_assume(PyObject *self, PyObject *args, PyObject *kwargs) -> PyOb
         return nullptr;
     }
 
-    std::vector<clingo_literal_t> lits;
+    PyBuffer<clingo_literal_t> lits;
     if (!parse_literals(lits_obj, &lits, "literals must be a sequence of literals")) {
         return nullptr;
     }
@@ -903,22 +918,23 @@ auto py_backend_heuristic(PyObject *self, PyObject *args, PyObject *kwargs) -> P
     PyObject *atom_obj = nullptr;
     PyObject *type_obj = nullptr;
     PyObject *weight_obj = nullptr;
-    unsigned priority = 0;
+    PyObject *priority_obj = nullptr;
     PyObject *cond_obj = Py_None;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OOO|kO:heuristic", cast_kw(kwlist), &atom_obj, &type_obj,
-                                    &weight_obj, &priority, &cond_obj) == 0) {
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OOO|OO:heuristic", cast_kw(kwlist), &atom_obj, &type_obj,
+                                    &weight_obj, &priority_obj, &cond_obj) == 0) {
         return nullptr;
     }
 
-    size_t atom = 0;
-    int type = 0;
+    clingo_atom_t atom = 0;
+    clingo_heuristic_type_t type = 0;
     int weight = 0;
-    if (!parse_size_t(atom_obj, &atom, "atom") || !parse_int(type_obj, &type, "type") ||
-        !parse_int(weight_obj, &weight, "weight")) {
+    unsigned priority = 0;
+    if (!parse_num(atom_obj, &atom, "atom") || !parse_num(type_obj, &type, "type") ||
+        !parse_num(weight_obj, &weight, "weight") || !parse_num(priority_obj, &priority, "priority")) {
         return nullptr;
     }
 
-    std::vector<clingo_literal_t> cond;
+    PyBuffer<clingo_literal_t> cond;
     if (cond_obj != Py_None && !parse_literals(cond_obj, &cond, "condition must be a sequence of literals")) {
         return nullptr;
     }
@@ -927,8 +943,7 @@ auto py_backend_heuristic(PyObject *self, PyObject *args, PyObject *kwargs) -> P
     if (backend == nullptr) {
         return nullptr;
     }
-    if (!clingo_backend_heuristic(backend, static_cast<clingo_atom_t>(atom), static_cast<clingo_heuristic_type_t>(type),
-                                  weight, priority, cond.data(), cond.size())) {
+    if (!clingo_backend_heuristic(backend, atom, type, weight, priority, cond.data(), cond.size())) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
@@ -945,11 +960,11 @@ auto py_backend_edge(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObje
 
     int u = 0;
     int v = 0;
-    if (!parse_int(u_obj, &u, "node_u") || !parse_int(v_obj, &v, "node_v")) {
+    if (!parse_num(u_obj, &u, "node_u") || !parse_num(v_obj, &v, "node_v")) {
         return nullptr;
     }
 
-    std::vector<clingo_literal_t> cond;
+    PyBuffer<clingo_literal_t> cond;
     if (!parse_literals(cond_obj, &cond, "condition must be a sequence of literals")) {
         return nullptr;
     }
@@ -1041,10 +1056,10 @@ auto py_backend_theory_sequence(PyObject *self, PyObject *args, PyObject *kwargs
     }
 
     int type = 0;
-    if (!parse_int(type_obj, &type, "type")) {
+    if (!parse_num(type_obj, &type, "type")) {
         return nullptr;
     }
-    std::vector<clingo_id_t> elems;
+    PyBuffer<clingo_id_t> elems;
     if (!parse_ids(elems_obj, &elems, "elements must be a sequence of ids")) {
         return nullptr;
     }
@@ -1072,7 +1087,7 @@ auto py_backend_theory_function(PyObject *self, PyObject *args, PyObject *kwargs
         return nullptr;
     }
 
-    std::vector<clingo_id_t> arg_ids;
+    PyBuffer<clingo_id_t> arg_ids;
     if (!parse_ids(args_obj, &arg_ids, "arguments must be a sequence of ids")) {
         return nullptr;
     }
@@ -1098,11 +1113,11 @@ auto py_backend_theory_element(PyObject *self, PyObject *args, PyObject *kwargs)
         return nullptr;
     }
 
-    std::vector<clingo_id_t> tuple;
+    PyBuffer<clingo_id_t> tuple;
     if (!parse_ids(tuple_obj, &tuple, "tuple must be a sequence of ids")) {
         return nullptr;
     }
-    std::vector<clingo_literal_t> cond;
+    PyBuffer<clingo_literal_t> cond;
     if (!parse_literals(cond_obj, &cond, "condition must be a sequence of literals")) {
         return nullptr;
     }
@@ -1140,25 +1155,21 @@ auto py_backend_theory_atom(PyObject *self, PyObject *args, PyObject *kwargs) ->
         return nullptr;
     }
 
-    std::vector<clingo_id_t> elems;
+    PyBuffer<clingo_id_t> elems;
     if (!parse_ids(elems_obj, &elems, "elements must be a sequence of ids")) {
         return nullptr;
     }
 
     std::optional<clingo_atom_t> atom = std::nullopt;
     if (atom_obj != Py_None) {
-        size_t a = 0;
-        if (!parse_size_t(atom_obj, &a, "atom")) {
+        clingo_atom_t a = 0;
+        if (!parse_num(atom_obj, &a, "atom")) {
             return nullptr;
         }
-        if (a > std::numeric_limits<clingo_atom_t>::max()) {
-            PyErr_SetString(PyExc_OverflowError, "atom is out of range");
-            return nullptr;
-        }
-        atom = static_cast<clingo_atom_t>(a);
+        atom = a;
     }
 
-    std::optional<std::pair<std::string, clingo_id_t>> guard = std::nullopt;
+    std::optional<std::tuple<PyGuard, clingo_string_t, clingo_id_t>> guard = std::nullopt;
     if (guard_obj != Py_None) {
         auto guard_seq = steal(PySequence_Fast(guard_obj, "guard must be a pair (operator, term_id) or None"));
         if (guard_seq.get() == nullptr) {
@@ -1169,25 +1180,27 @@ auto py_backend_theory_atom(PyObject *self, PyObject *args, PyObject *kwargs) ->
             return nullptr;
         }
         auto **items = PySequence_Fast_ITEMS(guard_seq.get());
-        char const *op = nullptr;
-        Py_ssize_t op_n = 0;
-        if (PyUnicode_Check(items[0]) == 0) {
+        auto op_obj = borrow(items[0]);
+        auto term_obj = borrow(items[1]);
+
+        if (PyUnicode_Check(op_obj.get()) == 0) {
             PyErr_SetString(PyExc_TypeError, "guard operator must be a string");
             return nullptr;
         }
-        op = PyUnicode_AsUTF8AndSize(items[0], &op_n);
+
+        Py_ssize_t op_n = 0;
+        char const *op = PyUnicode_AsUTF8AndSize(op_obj.get(), &op_n);
         if (op == nullptr) {
             return nullptr;
         }
-        size_t term = 0;
-        if (!parse_size_t(items[1], &term, "guard term id")) {
+
+        clingo_id_t term = 0;
+        if (!parse_num(term_obj.get(), &term, "guard term id")) {
             return nullptr;
         }
-        if (term > std::numeric_limits<clingo_id_t>::max()) {
-            PyErr_SetString(PyExc_OverflowError, "guard term id is out of range");
-            return nullptr;
-        }
-        guard = std::make_pair(std::string(op, static_cast<size_t>(op_n)), static_cast<clingo_id_t>(term));
+
+        auto op_string = clingo_string_t{op, static_cast<size_t>(op_n)};
+        guard.emplace(std::move(op_obj), op_string, term);
     }
 
     auto *backend = ensure_backend_open(self);
@@ -1196,13 +1209,11 @@ auto py_backend_theory_atom(PyObject *self, PyObject *args, PyObject *kwargs) ->
     }
 
     clingo_atom_t out = 0;
-    auto op = clingo_string_t{
-        guard ? guard->first.data() : nullptr,
-        guard ? guard->first.size() : 0,
-    };
+    clingo_string_t *rhs_rel = guard ? &std::get<1>(*guard) : nullptr;
+    clingo_id_t rhs_term = guard ? std::get<2>(*guard) : 0;
     clingo_atom_t atom_value = atom.value_or(0);
-    if (!clingo_backend_theory_atom(backend, name, elems.data(), elems.size(), guard ? &op : nullptr,
-                                    guard ? guard->second : 0, atom ? &atom_value : nullptr, &out)) {
+    if (!clingo_backend_theory_atom(backend, name, elems.data(), elems.size(), rhs_rel, rhs_term,
+                                    atom ? &atom_value : nullptr, &out)) {
         return py_handle_error();
     }
     return PyLong_FromSize_t(static_cast<size_t>(out));
@@ -1310,13 +1321,18 @@ auto py_backend_methods = std::array{
 
 auto py_backend_slots = std::array{
     PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Provides an interface to extend a logic program."))},
-    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_backend_dealloc)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_backend_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_backend_clear)},
     PyType_Slot{Py_tp_methods, py_backend_methods.data()},
     PyType_Slot{0, nullptr},
 };
 
 auto py_backend_spec = PyType_Spec{
-    "clingo.backend.Backend", sizeof(PyBackendObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.backend.Backend",
+    sizeof(PyBackendObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
     py_backend_slots.data(),
 };
 
@@ -1324,18 +1340,31 @@ auto py_backend_manager_cast(PyObject *obj) -> PyBackendManagerObject * {
     return reinterpret_cast<PyBackendManagerObject *>(obj);
 }
 
-void py_backend_manager_dealloc(PyObject *self) {
+void py_backend_manager_invalidate(PyBackendManagerObject *mgr) {
+    if (mgr->backend_obj != nullptr) {
+        auto *backend = py_backend_cast(mgr->backend_obj);
+        backend->backend = nullptr;
+        Py_CLEAR(backend->owner);
+    }
+    Py_CLEAR(mgr->backend_obj);
+}
+
+auto py_backend_manager_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *mgr = py_backend_manager_cast(self);
+    Py_VISIT(mgr->owner);
+    Py_VISIT(mgr->backend_obj);
+    return 0;
+}
+
+auto py_backend_manager_clear(PyObject *self) -> int {
     auto *mgr = py_backend_manager_cast(self);
     if (mgr->backend != nullptr) {
         clingo_backend_close(mgr->backend);
         mgr->backend = nullptr;
     }
-    if (mgr->backend_obj != nullptr) {
-        py_backend_cast(mgr->backend_obj)->backend = nullptr;
-    }
-    Py_XDECREF(mgr->backend_obj);
-    Py_XDECREF(mgr->owner);
-    Py_TYPE(self)->tp_free(self);
+    py_backend_manager_invalidate(mgr);
+    Py_CLEAR(mgr->owner);
+    return 0;
 }
 
 auto py_backend_manager_enter(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
@@ -1344,15 +1373,14 @@ auto py_backend_manager_enter(PyObject *self, [[maybe_unused]] PyObject *args) -
         PyErr_SetString(PyExc_RuntimeError, "backend is already active");
         return nullptr;
     }
-    if (!clingo_control_backend(mgr->ctl, &mgr->backend)) {
-        return py_handle_error();
-    }
-
     auto *state = get_state_from_self(self);
-    if (state == nullptr || state->backend_type == nullptr) {
+    if (state == nullptr) {
         return nullptr;
     }
 
+    if (!clingo_control_backend(mgr->ctl, &mgr->backend)) {
+        return py_handle_error();
+    }
     auto obj = steal(py_backend_new(state->backend_type, mgr->backend, self));
     if (obj.get() == nullptr) {
         clingo_backend_close(mgr->backend);
@@ -1360,9 +1388,8 @@ auto py_backend_manager_enter(PyObject *self, [[maybe_unused]] PyObject *args) -
         return nullptr;
     }
 
-    Py_XDECREF(mgr->backend_obj);
+    Py_INCREF(obj.get());
     mgr->backend_obj = obj.get();
-    Py_INCREF(mgr->backend_obj);
     return obj.release();
 }
 
@@ -1378,14 +1405,10 @@ auto py_backend_manager_exit(PyObject *self, PyObject *args) -> PyObject * {
     (void)traceback;
 
     auto *mgr = py_backend_manager_cast(self);
-    if (mgr->backend != nullptr) {
-        if (!clingo_backend_close(mgr->backend)) {
-            return py_handle_error();
-        }
-        mgr->backend = nullptr;
-    }
-    if (mgr->backend_obj != nullptr) {
-        py_backend_cast(mgr->backend_obj)->backend = nullptr;
+    auto *old = std::exchange(mgr->backend, nullptr);
+    py_backend_manager_invalidate(mgr);
+    if (old != nullptr && !clingo_backend_close(old)) {
+        return py_handle_error();
     }
     Py_RETURN_FALSE;
 }
@@ -1398,7 +1421,9 @@ auto py_backend_manager_methods = std::array{
 
 auto py_backend_manager_slots = std::array{
     PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("A context manager to initialize and finalize a backend."))},
-    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_backend_manager_dealloc)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_backend_manager_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_backend_manager_clear)},
     PyType_Slot{Py_tp_methods, py_backend_manager_methods.data()},
     PyType_Slot{0, nullptr},
 };
@@ -1407,7 +1432,7 @@ auto py_backend_manager_spec = PyType_Spec{
     "clingo.backend.BackendManager",
     sizeof(PyBackendManagerObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
     py_backend_manager_slots.data(),
 };
 

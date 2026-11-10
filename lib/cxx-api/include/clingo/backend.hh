@@ -229,13 +229,13 @@ class ProgramBackend : private TheoryBackend {
     //!
     //! @param atom the target atom
     //! @param type the type of the heuristic modification
-    //! @param bias the heuristic bias
+    //! @param weight the heuristic weight
     //! @param priority the heuristic priority
     //! @param condition the condition under which to apply the heuristic modification
-    void heuristic(ProgramAtom atom, HeuristicType type, int bias, unsigned priority = 0,
+    void heuristic(ProgramAtom atom, HeuristicType type, int weight, unsigned priority = 0,
                    ProgramLiteralSpan condition = {}) const {
         Detail::handle_error(clingo_backend_heuristic(backend_.get(), atom, static_cast<clingo_heuristic_type_t>(type),
-                                                      bias, priority, condition.data(), condition.size()));
+                                                      weight, priority, condition.data(), condition.size()));
     }
 
     //! Add an edge directive.

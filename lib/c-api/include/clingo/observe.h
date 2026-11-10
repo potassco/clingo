@@ -122,13 +122,13 @@ typedef struct clingo_observer {
     //!
     //! @param[in] atom the target atom
     //! @param[in] type the type of the heuristic modification
-    //! @param[in] bias the heuristic bias
+    //! @param[in] weight the heuristic weight
     //! @param[in] priority the heuristic priority
     //! @param[in] condition the condition under which to apply the heuristic modification
     //! @param[in] size the number of atoms in the condition
     //! @param[in] data user data for the callback
     //! @return the result code
-    bool (*heuristic)(clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority,
+    bool (*heuristic)(clingo_atom_t atom, clingo_heuristic_type_t type, int weight, unsigned priority,
                       clingo_literal_t const *condition, size_t size, void *data);
     //! Observe edge directives passed to the solver.
     //!

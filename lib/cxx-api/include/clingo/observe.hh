@@ -78,11 +78,11 @@ class Observer {
 
     //! @param atom the atom to apply the heuristic to
     //! @param type the type of the heuristic modification
-    //! @param bias the bias of the heuristic modification
+    //! @param weight the weight of the heuristic modification
     //! @param priority the priority of the heuristic modification
     //! @param condition the condition when to apply the heuristic modification
-    void heuristic(ProgramAtom atom, HeuristicType type, int bias, unsigned priority, ProgramLiteralSpan condition) {
-        do_heuristic(atom, type, bias, priority, condition);
+    void heuristic(ProgramAtom atom, HeuristicType type, int weight, unsigned priority, ProgramLiteralSpan condition) {
+        do_heuristic(atom, type, weight, priority, condition);
     }
 
     //! Callback for an edge statement.
@@ -154,10 +154,10 @@ class Observer {
                 }
                 CLINGO_CATCH;
             },
-            [](clingo_atom_t atom, clingo_heuristic_type_t type, int bias, unsigned priority,
+            [](clingo_atom_t atom, clingo_heuristic_type_t type, int weight, unsigned priority,
                clingo_literal_t const *condition, size_t size, void *data) -> bool {
                 CLINGO_TRY {
-                    static_cast<Observer *>(data)->heuristic(atom, static_cast<HeuristicType>(type), bias, priority,
+                    static_cast<Observer *>(data)->heuristic(atom, static_cast<HeuristicType>(type), weight, priority,
                                                              std::span{condition, size});
                 }
                 CLINGO_CATCH;
@@ -184,7 +184,7 @@ class Observer {
     virtual void do_external([[maybe_unused]] ProgramAtom atom, [[maybe_unused]] ExternalType type) {}
     virtual void do_assume([[maybe_unused]] ProgramLiteralSpan literals) {}
     virtual void do_heuristic([[maybe_unused]] ProgramAtom atom, [[maybe_unused]] HeuristicType type,
-                              [[maybe_unused]] int bias, [[maybe_unused]] unsigned priority,
+                              [[maybe_unused]] int weight, [[maybe_unused]] unsigned priority,
                               [[maybe_unused]] ProgramLiteralSpan condition) {}
     virtual void do_edge([[maybe_unused]] int node_u, [[maybe_unused]] int node_v,
                          [[maybe_unused]] ProgramLiteralSpan condition) {}

@@ -63,9 +63,9 @@ class ExampleObserver : public Observer {
 
     void do_external(ProgramAtom atom, ExternalType type) override { externals.emplace_back(atom, type); }
 
-    void do_heuristic(ProgramAtom atom, HeuristicType type, int bias, unsigned priority,
+    void do_heuristic(ProgramAtom atom, HeuristicType type, int weight, unsigned priority,
                       ProgramLiteralSpan condition) override {
-        heuristics.emplace_back(atom, type, bias, priority, std::vector<int>(condition.begin(), condition.end()));
+        heuristics.emplace_back(atom, type, weight, priority, std::vector<int>(condition.begin(), condition.end()));
     }
 
     void do_edge(int node_u, int node_v, ProgramLiteralSpan condition) override {
