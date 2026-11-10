@@ -78,7 +78,7 @@ using FinishCallback = std::function<void(SolveResult)>;
 
 class SolveHandle : public reference_keeper<SolveHandle> {
   public:
-    SolveHandle() = default;
+    SolveHandle(py::handle owner) : owner_{owner} {}
     SolveHandle(SolveHandle const &other) = delete;
     SolveHandle(SolveHandle &&other) noexcept = delete;
     auto operator=(SolveHandle const &other) -> SolveHandle & = delete;
@@ -95,6 +95,7 @@ class SolveHandle : public reference_keeper<SolveHandle> {
     auto wait(std::optional<double> timeout) -> bool;
     auto next() -> Model;
     void close();
+    auto owner() -> py::handle { return owner_; }
 
     auto handle() -> clingo_solve_handle_t *& { return hnd_; }
 
@@ -102,6 +103,7 @@ class SolveHandle : public reference_keeper<SolveHandle> {
     friend class Control;
 
     clingo_solve_handle_t *hnd_ = nullptr;
+    py::handle owner_;
     py::handle mdl_;
     py::handle unsat_;
     py::handle stats_;

@@ -45,10 +45,9 @@ The next example shows how to add theory atoms to a program:
 ```
 """
 
-from __future__ import annotations
-
 import enum
-import typing
+import types
+from collections.abc import Sequence
 
 import clingo.base
 import clingo.symbol
@@ -68,11 +67,29 @@ class HeuristicType(enum.IntEnum):
     """
 
     Factor = 2
+    """
+    Set the heuristic factor to multiply scores of atoms.
+    """
     False_ = 5
+    """
+    Set atoms to false.
+    """
     Init = 3
+    """
+    Set initial scores of atoms.
+    """
     Level = 0
+    """
+    Set decision levels of atom.
+    """
     Sign = 1
+    """
+    Set signs of atoms.
+    """
     True_ = 4
+    """
+    Set atoms to true.
+    """
 
 class ExternalType(enum.IntEnum):
     """
@@ -80,9 +97,21 @@ class ExternalType(enum.IntEnum):
     """
 
     False_ = 2
+    """
+    Set external atoms to false.
+    """
     Free = 0
+    """
+    Set external atoms to free.
+    """
     Release = 3
+    """
+    Release external atoms.
+    """
     True_ = 1
+    """
+    Set external atoms to true.
+    """
 
 class TheorySequenceType(enum.IntEnum):
     """
@@ -90,8 +119,17 @@ class TheorySequenceType(enum.IntEnum):
     """
 
     List = 2
+    """
+    Indicate a list sequence type.
+    """
     Set = 1
+    """
+    Indicate a set sequence type.
+    """
     Tuple = 0
+    """
+    Indicate a tuple sequence type.
+    """
 
 class Observer:
     """
@@ -104,8 +142,12 @@ class Observer:
         `clingo.control.Control.observe`
     """
 
-    def __init__(self) -> None: ...
-    def assume(self, literals: typing.Sequence[int]) -> None:
+    def __init__(self) -> None:
+        """
+        Constructor for the observer interface.
+        """
+
+    def assume(self, literals: Sequence[int]) -> None:
         """
         Called for assumptions in the solver.
 
@@ -120,7 +162,7 @@ class Observer:
         Called at the beginning of a step.
         """
 
-    def edge(self, node_u: int, node_v: int, condition: typing.Sequence[int]) -> None:
+    def edge(self, node_u: int, node_v: int, condition: Sequence[int]) -> None:
         """
         Called for edge directives in the program.
 
@@ -135,6 +177,9 @@ class Observer:
     def end_step(self, base: clingo.base.Base) -> None:
         """
         Called at the end of a step.
+
+        Args:
+            base: The base of the step.
         """
 
     def external(self, atom: int, type: ExternalType) -> None:
@@ -154,7 +199,7 @@ class Observer:
         type: HeuristicType,
         weight: int,
         priority: int,
-        condition: typing.Sequence[int],
+        condition: Sequence[int],
     ) -> None:
         """
         Called for heuristic directives in the program.
@@ -180,9 +225,7 @@ class Observer:
             incremental: Whether the program is incremental.
         """
 
-    def minimize(
-        self, literals: typing.Sequence[tuple[int, int]], priority: int
-    ) -> None:
+    def minimize(self, literals: Sequence[tuple[int, int]], priority: int) -> None:
         """
         Called for minimize constraints in the program.
 
@@ -193,7 +236,7 @@ class Observer:
             priority: Priority of the constraint (default: 0).
         """
 
-    def project(self, atoms: typing.Sequence[int]) -> None:
+    def project(self, atoms: Sequence[int]) -> None:
         """
         Called for projection directives in the program.
 
@@ -203,9 +246,7 @@ class Observer:
             atoms: Sequence of atoms to project on.
         """
 
-    def rule(
-        self, head: typing.Sequence[int], body: typing.Sequence[int], choice: bool
-    ) -> None:
+    def rule(self, head: Sequence[int], body: Sequence[int], choice: bool) -> None:
         """
         Called for rules in the program.
 
@@ -219,9 +260,9 @@ class Observer:
 
     def weight_rule(
         self,
-        head: typing.Sequence[int],
+        head: Sequence[int],
         lower_bound: int,
-        body: typing.Sequence[tuple[int, int]],
+        body: Sequence[tuple[int, int]],
         choice: bool,
     ) -> None:
         """
@@ -248,7 +289,7 @@ class Backend:
         `clingo.control.Control.backend`
     """
 
-    def assume(self, literals: typing.Sequence[int]) -> None:
+    def assume(self, literals: Sequence[int]) -> None:
         """
         Add an assumption directive to the solver.
 
@@ -274,7 +315,7 @@ class Backend:
             The program atom representing the atom.
         """
 
-    def edge(self, node_u: int, node_v: int, condition: typing.Sequence[int]) -> None:
+    def edge(self, node_u: int, node_v: int, condition: Sequence[int]) -> None:
         """
         Add an edge directive.
 
@@ -307,7 +348,7 @@ class Backend:
         type: HeuristicType,
         weight: int,
         priority: int = 0,
-        condition: typing.Sequence[int] = [],
+        condition: Sequence[int] = [],
     ) -> None:
         """
         Add a heuristic directive for an atom.
@@ -324,9 +365,7 @@ class Backend:
             condition: Sequence of literals representing the condition (default: []).
         """
 
-    def minimize(
-        self, literals: typing.Sequence[tuple[int, int]], priority: int = 0
-    ) -> None:
+    def minimize(self, literals: Sequence[tuple[int, int]], priority: int = 0) -> None:
         """
         Add a minimize constraint to the program.
 
@@ -340,7 +379,7 @@ class Backend:
             priority: Priority of the constraint (default: 0).
         """
 
-    def project(self, atoms: typing.Sequence[int]) -> None:
+    def project(self, atoms: Sequence[int]) -> None:
         """
         Add a projection directive to the program.
 
@@ -354,8 +393,8 @@ class Backend:
 
     def rule(
         self,
-        head: typing.Sequence[int],
-        body: typing.Sequence[int] = [],
+        head: Sequence[int],
+        body: Sequence[int] = [],
         choice: bool = False,
     ) -> None:
         """
@@ -379,7 +418,7 @@ class Backend:
         self,
         atom: int | None,
         name: clingo.symbol.Symbol,
-        elements: typing.Sequence[int],
+        elements: Sequence[int],
         guard: tuple[str, int] | None = None,
     ) -> int:
         """
@@ -401,9 +440,7 @@ class Backend:
             The program atom associated with the created theory atom.
         """
 
-    def theory_element(
-        self, tuple: typing.Sequence[int], condition: typing.Sequence[int]
-    ) -> int:
+    def theory_element(self, tuple: Sequence[int], condition: Sequence[int]) -> int:
         """
         Create a theory element.
 
@@ -419,7 +456,7 @@ class Backend:
             The unique id of the created theory element.
         """
 
-    def theory_function(self, name: str, arguments: typing.Sequence[int]) -> int:
+    def theory_function(self, name: str, arguments: Sequence[int]) -> int:
         """
         Create a function theory term.
 
@@ -450,9 +487,7 @@ class Backend:
             The unique id of the created theory term.
         """
 
-    def theory_sequence(
-        self, type: TheorySequenceType, elements: typing.Sequence[int]
-    ) -> int:
+    def theory_sequence(self, type: TheorySequenceType, elements: Sequence[int]) -> int:
         """
         Create a sequence theory term.
 
@@ -500,16 +535,16 @@ class Backend:
 
     def weight_rule(
         self,
-        head: typing.Sequence[int],
+        head: Sequence[int],
         lower_bound: int,
-        body: typing.Sequence[tuple[int, int]],
+        body: Sequence[tuple[int, int]],
         choice: bool = False,
     ) -> None:
         """
         Add a weight rule to the program.
 
         Adds a weight rule, where the body is a weight constraint. The head is either a
-        disjunction ro choice (see Backend.rule for more details).
+        disjunction or choice (see Backend.rule for more details).
 
         A weight constraint is satisfied if the sum of weights of the true literals
         meets or exceeds the lower bound.
@@ -532,7 +567,10 @@ class BackendManager:
         """
 
     def __exit__(
-        self, type: type | None, value: typing.Any | None, traceback: typing.Any | None
+        self,
+        type: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: types.TracebackType | None,
     ) -> None:
         """
         Finalize the backend.

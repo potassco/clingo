@@ -252,7 +252,8 @@ auto Control::stats() -> StatsView {
     if (type == nullptr) {
         throw py::error_already_set();
     }
-    auto *res = py_stats_new(type, const_cast<clingo_stats_t *>(stats), key);
+
+    auto *res = py_stats_new(py::cast(this).ptr(), type, const_cast<clingo_stats_t *>(stats), key);
     if (res == nullptr) {
         throw py::error_already_set();
     }
@@ -320,7 +321,9 @@ auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optio
                           Annotation<std::optional<StatsCallback>> on_stats,
                           Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
     -> Annotation<SolveHandle> {
-    auto res = py::cast(std::make_unique<SolveHandle>());
+    // TODO: This is just to get the nested ownership right for now. When refactoring this module, the solve handle
+    // should track ownership of the it's parent properly.
+    auto res = py::cast(std::make_unique<SolveHandle>(py::cast(this)));
     auto *hnd = res.cast<SolveHandle *>();
     auto store = [&]<class T>(Annotation<std::optional<T>> &src, py::handle &dst) -> void {
         if (!src.is_none()) {
@@ -366,6 +369,7 @@ auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optio
             CLINGO_TRY {
                 auto guard = py::gil_scoped_acquire{};
                 auto *hnd = static_cast<SolveHandle *>(data);
+                hnd->keeper_ref();
                 uint64_t root = 0;
                 handle_error(clingo_stats_root(stats, &root));
                 uint64_t step = 0;
@@ -378,11 +382,11 @@ auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optio
                 if (type == nullptr) {
                     throw py::error_already_set();
                 }
-                auto step_stats = py::reinterpret_steal<StatsView>(py_stats_new(type, stats, step));
+                auto step_stats = py::reinterpret_steal<StatsView>(py_stats_new(hnd->owner().ptr(), type, stats, step));
                 if (step_stats.ptr() == nullptr) {
                     throw py::error_already_set();
                 }
-                auto accu_stats = py::reinterpret_steal<StatsView>(py_stats_new(type, stats, accu));
+                auto accu_stats = py::reinterpret_steal<StatsView>(py_stats_new(hnd->owner().ptr(), type, stats, accu));
                 if (accu_stats.ptr() == nullptr) {
                     throw py::error_already_set();
                 }

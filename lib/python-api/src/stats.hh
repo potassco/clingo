@@ -23,7 +23,7 @@ void register_stats(pybind11::module &m);
 
 auto py_stats_type_ref() -> PyObject *;
 auto py_stats_view_type_ref() -> PyObject *;
-auto py_stats_new(PyObject *type, clingo_stats_t *stats, uint64_t key) -> PyObject *;
+auto py_stats_new(PyObject *owner, PyObject *type, clingo_stats_t *stats, uint64_t key) -> PyObject *;
 auto py_stats_get(PyObject *type, PyObject *obj, clingo_stats_t **stats, uint64_t *key) -> bool;
 
 } // namespace PyClingo
