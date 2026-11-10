@@ -48,8 +48,6 @@ jobs:
           - { tag: macosx_arm64, os: macos-latest }
           - { tag: macosx_x86_64, os: macos-15-intel }
         include:
-          - python: pp311
-            target: { tag: manylinux_x86_64, os: ubuntu-latest }
           - python: pp312
             target: { tag: manylinux_x86_64, os: ubuntu-latest }
 

@@ -126,13 +126,13 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_assume(clingo_backend_t *backend, 
 //! @param[in] backend the target backend
 //! @param[in] atom the target atom
 //! @param[in] type the type of the heuristic modification
-//! @param[in] bias the heuristic bias
+//! @param[in] weight the heuristic weight
 //! @param[in] priority the heuristic priority
 //! @param[in] condition the condition under which to apply the heuristic modification
 //! @param[in] size the number of atoms in the condition
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom,
-                                                        clingo_heuristic_type_t type, int bias, unsigned priority,
+                                                        clingo_heuristic_type_t type, int weight, unsigned priority,
                                                         clingo_literal_t const *condition, size_t size);
 //! Add an edge directive.
 //!

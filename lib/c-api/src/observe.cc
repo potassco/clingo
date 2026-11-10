@@ -116,10 +116,10 @@ class Observer : public Potassco::AbstractProgram {
             handle_error(obs_->assume(lits.data(), lits.size(), data_));
         }
     }
-    void heuristic(Potassco::Atom_t a, Potassco::DomModifier t, int bias, unsigned prio,
+    void heuristic(Potassco::Atom_t a, Potassco::DomModifier t, int weight, unsigned prio,
                    Potassco::LitSpan condition) override {
         if (obs_->heuristic != nullptr) {
-            handle_error(obs_->heuristic(a, map(t), bias, prio, condition.data(), condition.size(), data_));
+            handle_error(obs_->heuristic(a, map(t), weight, prio, condition.data(), condition.size(), data_));
         }
     }
     void acycEdge(int s, int t, Potassco::LitSpan condition) override {

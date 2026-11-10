@@ -490,6 +490,24 @@ class GILGuard {
     PyGILState_STATE state_;
 };
 
+class GILReleaseGuard {
+  public:
+    GILReleaseGuard() : state_(PyEval_SaveThread()) {}
+    GILReleaseGuard(GILReleaseGuard const &) = delete;
+    auto operator=(GILReleaseGuard const &) -> GILReleaseGuard & = delete;
+    GILReleaseGuard(GILReleaseGuard &&) = delete;
+    auto operator=(GILReleaseGuard &&) -> GILReleaseGuard & = delete;
+    ~GILReleaseGuard() { PyEval_RestoreThread(state_); }
+
+  private:
+    PyThreadState *state_;
+};
+
+template <class F> auto with_gil_released(F &&f) -> decltype(auto) {
+    auto guard = GILReleaseGuard{};
+    return std::invoke(std::forward<F>(f));
+}
+
 inline auto steal(PyObject *obj) -> PyGuard {
     return PyGuard(obj);
 }
@@ -517,5 +535,20 @@ auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **
     -> bool;
 
 auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool;
+
+inline void free_object(PyObject *self) {
+    PyTypeObject *type = Py_TYPE(self);
+
+    if (PyType_HasFeature(type, Py_TPFLAGS_HAVE_GC) != 0) {
+        PyObject_GC_UnTrack(self);
+    }
+    if (type->tp_clear != nullptr) {
+        type->tp_clear(self);
+    }
+    type->tp_free(self);
+    if (PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE) != 0) {
+        Py_DECREF(type);
+    }
+}
 
 } // namespace PyClingo

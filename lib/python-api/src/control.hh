@@ -1,6 +1,5 @@
 #pragma once
 
-#include "backend.hh"
 #include "base.hh"
 #include "ground.hh"
 #include "iterable.hh"
@@ -62,8 +61,8 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
                      Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
         -> Annotation<SolveHandle>;
     auto base() -> TypeHint<"clingo.base.Base">;
-    void observe(Observer &obs, bool preprocess);
-    auto backend() -> BackendManager;
+    void observe(TypeHint<"clingo.backend.Observer"> &obs, bool preprocess);
+    auto backend() -> TypeHint<"clingo.backend.BackendManager">;
     auto config() -> TypeHint<"clingo.config.Config">;
     auto stats() -> StatsView;
     auto profile() -> py::list;

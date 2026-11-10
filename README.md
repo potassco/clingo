@@ -132,7 +132,7 @@ to use Clingo from Python without needing to build the entire application.
 ### 📋 Requirements
 
 - a C++20 compiler
-- python
+- python 3.12+
 - pipx (recommended)
 
 ### 🏗️ Building

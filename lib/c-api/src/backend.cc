@@ -175,13 +175,13 @@ extern "C" auto clingo_backend_assume(clingo_backend_t *backend, clingo_literal_
 }
 
 extern "C" auto clingo_backend_heuristic(clingo_backend_t *backend, clingo_atom_t atom, clingo_heuristic_type_t type,
-                                         int bias, unsigned priority, clingo_literal_t const *condition, size_t size)
+                                         int weight, unsigned priority, clingo_literal_t const *condition, size_t size)
     -> bool {
     CLINGO_TRY {
         if (backend == nullptr || (condition == nullptr && size > 0)) {
             return fail_arguments();
         }
-        get_program(backend).addDomHeuristic(atom, map(static_cast<clingo_heuristic_type_e>(type)), bias, priority,
+        get_program(backend).addDomHeuristic(atom, map(static_cast<clingo_heuristic_type_e>(type)), weight, priority,
                                              std::span{condition, size});
     }
     CLINGO_CATCH;
