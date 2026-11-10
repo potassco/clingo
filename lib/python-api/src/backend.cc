@@ -464,9 +464,9 @@ auto py_observer_invoke_heuristic(ObserverData *data, clingo_atom_t atom, clingo
     if (cond_obj.get() == nullptr) {
         return store_python_error("failed to build condition list");
     }
-    // NOLINTNEXTLINE(readability-magic-numbers)
-    auto args =
-        steal(PyTuple_Pack(5, atom_obj.get(), type_obj.get(), weight_obj.get(), prio_obj.get(), cond_obj.get()));
+    auto args = steal(PyTuple_Pack(
+        // NOLINTNEXTLINE(readability-magic-numbers)
+        5, atom_obj.get(), type_obj.get(), weight_obj.get(), prio_obj.get(), cond_obj.get()));
     if (args.get() == nullptr) {
         return store_python_error("failed to prepare callback arguments");
     }
