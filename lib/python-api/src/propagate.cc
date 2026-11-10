@@ -278,7 +278,7 @@ class PropagateInit : public PropagateControl {
         if (type == nullptr) {
             throw py::error_already_set();
         }
-        return py::reinterpret_steal<TypeHint<"clingo.base.Base">>(py_base_new(type, base));
+        return py::reinterpret_steal<TypeHint<"clingo.base.Base">>(py_base_new(py::cast(this).ptr(), type, base));
     }
 
     auto get_check_mode() -> clingo_propagator_check_mode_e {

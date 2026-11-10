@@ -205,7 +205,7 @@ auto Control::base() -> TypeHint<"clingo.base.Base"> {
     if (type == nullptr) {
         throw py::error_already_set();
     }
-    return py::reinterpret_steal<TypeHint<"clingo.base.Base">>(py_base_new(type, base));
+    return py::reinterpret_steal<TypeHint<"clingo.base.Base">>(py_base_new(py::cast(this).ptr(), type, base));
 }
 
 void Control::observe(TypeHint<"clingo.backend.Observer"> &obs, bool preprocess) {
@@ -236,7 +236,7 @@ auto Control::config() -> TypeHint<"clingo.config.Config"> {
     if (type == nullptr) {
         throw py::error_already_set();
     }
-    auto cfg = steal(py_config_new(type, keeper_ref(), config, key));
+    auto cfg = steal(py_config_new(py::cast(this).ptr(), keeper_ref(), type, config, key));
     if (cfg.get() == nullptr) {
         throw py::error_already_set();
     }

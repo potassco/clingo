@@ -335,7 +335,7 @@ auto py_observer_invoke_end_step(ObserverData *data, clingo_base_t const *base) 
     if (base_type == nullptr) {
         return store_python_error("failed to resolve base type");
     }
-    auto base_obj = steal(py_base_new(base_type, base));
+    auto base_obj = steal(py_base_new(data->first, base_type, base));
     if (base_obj.get() == nullptr) {
         return store_python_error("failed to create base object");
     }

@@ -24,65 +24,69 @@ constexpr auto theory_term_members = std::array<IntEnumMember, 6>{
     IntEnumMember{"Function", static_cast<int>(clingo_theory_term_type_function)},
 };
 
-using PyAtomObject = struct {
-    PyObject_HEAD const clingo_atom_base_t *base;
-    size_t index;
+using PyBaseObject = struct {
+    PyObject_HEAD PyObject *owner;
+    clingo_base_t const *base;
 };
 
 using PyAtomBaseObject = struct {
-    PyObject_HEAD const clingo_atom_base_t *base;
+    PyObject_HEAD PyBaseObject *owner;
+    clingo_atom_base_t const *base;
 };
 
-using PyTermObject = struct {
-    PyObject_HEAD const clingo_term_base_t *base;
+using PyAtomObject = struct {
+    PyObject_HEAD PyAtomBaseObject *owner;
     size_t index;
 };
 
 using PyTermBaseObject = struct {
-    PyObject_HEAD const clingo_term_base_t *base;
+    PyObject_HEAD PyBaseObject *owner;
+    clingo_term_base_t const *base;
 };
 
-using PyTheoryTermObject = struct {
-    PyObject_HEAD const clingo_theory_base_t *base;
-    size_t index;
-};
-
-using PyTheoryElementObject = struct {
-    PyObject_HEAD const clingo_theory_base_t *base;
-    size_t index;
-};
-
-using PyTheoryAtomObject = struct {
-    PyObject_HEAD const clingo_theory_base_t *base;
+using PyTermObject = struct {
+    PyObject_HEAD PyTermBaseObject *owner;
     size_t index;
 };
 
 using PyTheoryBaseObject = struct {
-    PyObject_HEAD const clingo_theory_base_t *base;
+    PyObject_HEAD PyBaseObject *owner;
+    clingo_theory_base_t const *base;
 };
 
-using PyBaseObject = struct {
-    PyObject_HEAD const clingo_base_t *base;
+using PyTheoryElementObject = struct {
+    PyObject_HEAD PyTheoryBaseObject *owner;
+    size_t index;
+};
+
+using PyTheoryAtomObject = struct {
+    PyObject_HEAD PyTheoryBaseObject *owner;
+    size_t index;
+};
+
+using PyTheoryTermObject = struct {
+    PyObject_HEAD PyTheoryBaseObject *owner;
+    size_t index;
 };
 
 enum class IterType : uint8_t { keys, values, items };
 
 using PyBaseIter = struct {
-    PyObject_HEAD clingo_base_t *base;
+    PyObject_HEAD PyBaseObject *owner;
     Py_ssize_t index;
     Py_ssize_t size;
     IterType kind;
 };
 
 using PyAtomBaseIter = struct {
-    PyObject_HEAD const clingo_atom_base_t *base;
+    PyObject_HEAD PyAtomBaseObject *owner;
     Py_ssize_t index;
     Py_ssize_t size;
     IterType kind;
 };
 
 using PyTermBaseIter = struct {
-    PyObject_HEAD const clingo_term_base_t *base;
+    PyObject_HEAD PyTermBaseObject *owner;
     Py_ssize_t index;
     Py_ssize_t size;
     IterType kind;
@@ -125,20 +129,35 @@ auto get_state_from_self(PyObject *self) -> BaseModuleState * {
 
 // Atom
 
-auto py_atom_new(PyTypeObject *type, const clingo_atom_base_t *base, size_t index) -> PyObject * {
+auto py_atom_new(PyAtomBaseObject *owner, PyTypeObject *type, size_t index) -> PyObject * {
     auto *obj = type->tp_alloc(type, 0);
     if (obj == nullptr) {
         return nullptr;
     }
     auto *a = reinterpret_cast<PyAtomObject *>(obj);
-    a->base = base;
+    a->owner = owner;
     a->index = index;
+    Py_INCREF(owner);
     return obj;
+}
+
+auto py_atom_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = reinterpret_cast<PyAtomObject *>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    return 0;
+}
+
+auto py_atom_clear(PyObject *self) -> int {
+    auto *o = reinterpret_cast<PyAtomObject *>(self);
+    Py_CLEAR(o->owner);
+    o->index = 0;
+    return 0;
 }
 
 auto py_atom_hash(PyObject *self) -> Py_hash_t {
     auto *a = reinterpret_cast<PyAtomObject *>(self);
-    return static_cast<Py_hash_t>(hash_combine(a->index, std::hash<void const *>{}(a->base)));
+    return static_cast<Py_hash_t>(hash_combine(a->index, std::hash<void const *>{}(a->owner->base)));
 }
 
 auto py_atom_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
@@ -147,7 +166,7 @@ auto py_atom_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
     }
     auto *x = reinterpret_cast<PyAtomObject *>(a);
     auto *y = reinterpret_cast<PyAtomObject *>(b);
-    bool eq = x->base == y->base && x->index == y->index;
+    bool eq = x->owner->base == y->owner->base && x->index == y->index;
     bool res = false;
     if (op == Py_EQ) {
         res = eq;
@@ -165,7 +184,7 @@ auto py_atom_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
 auto py_atom_get_literal(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
     auto *a = reinterpret_cast<PyAtomObject *>(self);
     clingo_literal_t lit = 0;
-    if (!clingo_atom_base_literal(a->base, a->index, &lit)) {
+    if (!clingo_atom_base_literal(a->owner->base, a->index, &lit)) {
         return py_handle_error();
     }
     return PyLong_FromLong(lit);
@@ -178,7 +197,7 @@ auto py_atom_get_symbol(PyObject *self, [[maybe_unused]] void *arg) -> PyObject 
     }
     auto *a = reinterpret_cast<PyAtomObject *>(self);
     clingo_symbol_t sym = 0;
-    if (!clingo_atom_base_symbol(a->base, a->index, &sym)) {
+    if (!clingo_atom_base_symbol(a->owner->base, a->index, &sym)) {
         return py_handle_error();
     }
     return py_symbol_new(state->symbol_type, sym, true);
@@ -195,26 +214,31 @@ auto py_atom_slots = std::array{
     PyType_Slot{Py_tp_hash, reinterpret_cast<void *>(py_atom_hash)},
     PyType_Slot{Py_tp_richcompare, reinterpret_cast<void *>(py_atom_richcompare)},
     PyType_Slot{Py_tp_getset, py_atom_getset.data()},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_atom_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_atom_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
 auto py_atom_spec = PyType_Spec{
-    "clingo.base.Atom",   sizeof(PyAtomObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.base.Atom",
+    sizeof(PyAtomObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
     py_atom_slots.data(),
 };
 
 // AtomBase Iterator
 
-auto py_atom_base_iter_new(PyObject *owner, IterType kind) -> PyObject * {
-    auto *state = get_state_from_self(owner);
+auto py_atom_base_iter_new(PyAtomBaseObject *owner, IterType kind) -> PyObject * {
+    auto *state = get_state_from_self(reinterpret_cast<PyObject *>(owner));
     if (state == nullptr || state->atom_base_iter_type == nullptr) {
         return nullptr;
     }
 
-    auto *a = reinterpret_cast<PyAtomBaseObject *>(owner);
     auto *t = reinterpret_cast<PyTypeObject *>(state->atom_base_iter_type);
     size_t n = 0;
-    if (!clingo_atom_base_size(a->base, &n)) {
+    if (!clingo_atom_base_size(owner->base, &n)) {
         return py_handle_error();
     }
     if (std::cmp_greater(n, std::numeric_limits<Py_ssize_t>::max())) {
@@ -228,12 +252,28 @@ auto py_atom_base_iter_new(PyObject *owner, IterType kind) -> PyObject * {
     }
     auto *it = reinterpret_cast<PyAtomBaseIter *>(obj.get());
 
-    it->base = a->base;
+    it->owner = owner;
     it->index = 0;
     it->kind = kind;
+    Py_INCREF(owner);
 
     it->size = static_cast<Py_ssize_t>(n);
     return obj.release();
+}
+
+auto py_atom_base_iter_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = reinterpret_cast<PyAtomBaseIter *>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    return 0;
+}
+
+auto py_atom_base_iter_clear(PyObject *self) -> int {
+    auto *o = reinterpret_cast<PyAtomBaseIter *>(self);
+    Py_CLEAR(o->owner);
+    o->index = 0;
+    o->size = 0;
+    return 0;
 }
 
 auto py_atom_base_iter_next(PyObject *self) -> PyObject * {
@@ -250,25 +290,25 @@ auto py_atom_base_iter_next(PyObject *self) -> PyObject * {
     auto idx = static_cast<size_t>(it->index++);
     if (it->kind == IterType::keys) {
         clingo_symbol_t sym = 0;
-        if (!clingo_atom_base_symbol(it->base, idx, &sym)) {
+        if (!clingo_atom_base_symbol(it->owner->base, idx, &sym)) {
             return py_handle_error();
         }
         return py_symbol_new(state->symbol_type, sym, true);
     }
 
     if (it->kind == IterType::values) {
-        return py_atom_new(reinterpret_cast<PyTypeObject *>(state->atom_type), it->base, idx);
+        return py_atom_new(it->owner, reinterpret_cast<PyTypeObject *>(state->atom_type), idx);
     }
 
     clingo_symbol_t sym = 0;
-    if (!clingo_atom_base_symbol(it->base, idx, &sym)) {
+    if (!clingo_atom_base_symbol(it->owner->base, idx, &sym)) {
         return py_handle_error();
     }
     auto key = steal(py_symbol_new(state->symbol_type, sym, true));
     if (key.get() == nullptr) {
         return nullptr;
     }
-    auto val = steal(py_atom_new(reinterpret_cast<PyTypeObject *>(state->atom_type), it->base, idx));
+    auto val = steal(py_atom_new(it->owner, reinterpret_cast<PyTypeObject *>(state->atom_type), idx));
     if (val.get() == nullptr) {
         return nullptr;
     }
@@ -279,24 +319,46 @@ auto py_atom_base_iter_slots = std::array{
     PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Lazy iterator over AtomBase."))},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(PyObject_SelfIter)},
     PyType_Slot{Py_tp_iternext, reinterpret_cast<void *>(py_atom_base_iter_next)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_atom_base_iter_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_atom_base_iter_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
 auto py_atom_base_iter_spec = PyType_Spec{
-    "clingo.base._AtomBaseIter",    sizeof(PyAtomBaseIter), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.base._AtomBaseIter",
+    sizeof(PyAtomBaseIter),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
     py_atom_base_iter_slots.data(),
 };
 
 // AtomBase
 
-auto py_atom_base_new(PyTypeObject *type, const clingo_atom_base_t *base) -> PyObject * {
+auto py_atom_base_new(PyBaseObject *owner, PyTypeObject *type, clingo_atom_base_t const *base) -> PyObject * {
     auto *obj = type->tp_alloc(type, 0);
     if (obj == nullptr) {
         return nullptr;
     }
     auto *a = reinterpret_cast<PyAtomBaseObject *>(obj);
     a->base = base;
+    a->owner = owner;
+    Py_INCREF(owner);
     return obj;
+}
+
+auto py_atom_base_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = reinterpret_cast<PyAtomBaseObject *>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    return 0;
+}
+
+auto py_atom_base_clear(PyObject *self) -> int {
+    auto *o = reinterpret_cast<PyAtomBaseObject *>(self);
+    Py_CLEAR(o->owner);
+    o->base = nullptr;
+    return 0;
 }
 
 auto py_atom_base_len(PyObject *self) -> Py_ssize_t {
@@ -372,8 +434,8 @@ auto py_atom_base_subscript(PyObject *self, PyObject *key) -> PyObject * {
         PyErr_SetString(PyExc_KeyError, "key not found");
         return nullptr;
     }
-    auto *a = reinterpret_cast<PyAtomBaseObject *>(self);
-    return py_atom_new(reinterpret_cast<PyTypeObject *>(state->atom_type), a->base, idx);
+    return py_atom_new(reinterpret_cast<PyAtomBaseObject *>(self), reinterpret_cast<PyTypeObject *>(state->atom_type),
+                       idx);
 }
 
 auto py_atom_base_get(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
@@ -405,19 +467,19 @@ auto py_atom_base_get(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObj
 }
 
 auto py_atom_base_keys(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
-    return py_atom_base_iter_new(self, IterType::keys);
+    return py_atom_base_iter_new(reinterpret_cast<PyAtomBaseObject *>(self), IterType::keys);
 }
 
 auto py_atom_base_iter(PyObject *self) -> PyObject * {
-    return py_atom_base_iter_new(self, IterType::keys);
+    return py_atom_base_iter_new(reinterpret_cast<PyAtomBaseObject *>(self), IterType::keys);
 }
 
 auto py_atom_base_values(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
-    return py_atom_base_iter_new(self, IterType::values);
+    return py_atom_base_iter_new(reinterpret_cast<PyAtomBaseObject *>(self), IterType::values);
 }
 
 auto py_atom_base_items(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
-    return py_atom_base_iter_new(self, IterType::items);
+    return py_atom_base_iter_new(reinterpret_cast<PyAtomBaseObject *>(self), IterType::items);
 }
 
 auto py_atom_base_methods = std::array{
@@ -440,6 +502,9 @@ auto py_atom_base_slots = std::array{
     PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_atom_base_subscript)},
     PyType_Slot{Py_sq_contains, reinterpret_cast<void *>(py_atom_base_contains)},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_atom_base_iter)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_atom_base_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_atom_base_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
@@ -447,26 +512,41 @@ auto py_atom_base_spec = PyType_Spec{
     "clingo.base.AtomBase",
     sizeof(PyAtomBaseObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING | Py_TPFLAGS_HAVE_GC,
     py_atom_base_slots.data(),
 };
 
 // Term
 
-auto py_term_new(PyTypeObject *type, const clingo_term_base_t *base, size_t index) -> PyObject * {
+auto py_term_new(PyTermBaseObject *owner, PyTypeObject *type, size_t index) -> PyObject * {
     auto *obj = type->tp_alloc(type, 0);
     if (obj == nullptr) {
         return nullptr;
     }
     auto *t = reinterpret_cast<PyTermObject *>(obj);
-    t->base = base;
     t->index = index;
+    t->owner = owner;
+    Py_INCREF(owner);
     return obj;
+}
+
+auto py_term_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = reinterpret_cast<PyTermObject *>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    return 0;
+}
+
+auto py_term_clear(PyObject *self) -> int {
+    auto *o = reinterpret_cast<PyTermObject *>(self);
+    Py_CLEAR(o->owner);
+    o->index = 0;
+    return 0;
 }
 
 auto py_term_hash(PyObject *self) -> Py_hash_t {
     auto *t = reinterpret_cast<PyTermObject *>(self);
-    return static_cast<Py_hash_t>(hash_combine(t->index, std::hash<void const *>{}(t->base)));
+    return static_cast<Py_hash_t>(hash_combine(t->index, std::hash<void const *>{}(t->owner->base)));
 }
 
 auto py_term_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
@@ -475,7 +555,7 @@ auto py_term_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
     }
     auto *x = reinterpret_cast<PyTermObject *>(a);
     auto *y = reinterpret_cast<PyTermObject *>(b);
-    bool eq = x->base == y->base && x->index == y->index;
+    bool eq = x->owner->base == y->owner->base && x->index == y->index;
     bool res = false;
     if (op == Py_EQ) {
         res = eq;
@@ -497,7 +577,7 @@ auto py_term_get_symbol(PyObject *self, [[maybe_unused]] void *arg) -> PyObject 
     }
     auto *t = reinterpret_cast<PyTermObject *>(self);
     clingo_symbol_t sym = 0;
-    if (!clingo_term_base_symbol(t->base, t->index, &sym)) {
+    if (!clingo_term_base_symbol(t->owner->base, t->index, &sym)) {
         return py_handle_error();
     }
     return py_symbol_new(state->symbol_type, sym, true);
@@ -508,7 +588,7 @@ auto py_term_get_condition(PyObject *self, [[maybe_unused]] void *arg) -> PyObje
     size_t const *sizes = nullptr;
     clingo_literal_t const *const *lits = nullptr;
     size_t n = 0;
-    if (!clingo_term_base_condition(t->base, t->index, &sizes, &lits, &n)) {
+    if (!clingo_term_base_condition(t->owner->base, t->index, &sizes, &lits, &n)) {
         return py_handle_error();
     }
 
@@ -545,18 +625,24 @@ auto py_term_slots = std::array{
     PyType_Slot{Py_tp_hash, reinterpret_cast<void *>(py_term_hash)},
     PyType_Slot{Py_tp_richcompare, reinterpret_cast<void *>(py_term_richcompare)},
     PyType_Slot{Py_tp_getset, py_term_getset.data()},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_term_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_term_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
 auto py_term_spec = PyType_Spec{
-    "clingo.base.Term",   sizeof(PyTermObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.base.Term",
+    sizeof(PyTermObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
     py_term_slots.data(),
 };
 
 // TermBase Iterator
 
-auto py_term_base_iter_new(PyObject *owner, IterType kind) -> PyObject * {
-    auto *state = get_state_from_self(owner);
+auto py_term_base_iter_new(PyTermBaseObject *owner, IterType kind) -> PyObject * {
+    auto *state = get_state_from_self(reinterpret_cast<PyObject *>(owner));
     if (state == nullptr || state->term_base_iter_type == nullptr) {
         return nullptr;
     }
@@ -567,13 +653,13 @@ auto py_term_base_iter_new(PyObject *owner, IterType kind) -> PyObject * {
     }
 
     auto *it = reinterpret_cast<PyTermBaseIter *>(obj);
-    auto *t = reinterpret_cast<PyTermBaseObject *>(owner);
-    it->base = t->base;
     it->index = 0;
     it->kind = kind;
+    it->owner = owner;
+    Py_INCREF(owner);
 
     size_t n = 0;
-    if (!clingo_term_base_size(it->base, &n)) {
+    if (!clingo_term_base_size(it->owner->base, &n)) {
         Py_DECREF(obj);
         return py_handle_error();
     }
@@ -584,6 +670,21 @@ auto py_term_base_iter_new(PyObject *owner, IterType kind) -> PyObject * {
     }
     it->size = static_cast<Py_ssize_t>(n);
     return obj;
+}
+
+auto py_term_base_iter_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = reinterpret_cast<PyTermBaseIter *>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    return 0;
+}
+
+auto py_term_base_iter_clear(PyObject *self) -> int {
+    auto *o = reinterpret_cast<PyTermBaseIter *>(self);
+    Py_CLEAR(o->owner);
+    o->index = 0;
+    o->size = 0;
+    return 0;
 }
 
 auto py_term_base_iter_next(PyObject *self) -> PyObject * {
@@ -600,25 +701,25 @@ auto py_term_base_iter_next(PyObject *self) -> PyObject * {
     auto idx = static_cast<size_t>(it->index++);
     if (it->kind == IterType::keys) {
         clingo_symbol_t sym = 0;
-        if (!clingo_term_base_symbol(it->base, idx, &sym)) {
+        if (!clingo_term_base_symbol(it->owner->base, idx, &sym)) {
             return py_handle_error();
         }
         return py_symbol_new(state->symbol_type, sym, true);
     }
 
     if (it->kind == IterType::values) {
-        return py_term_new(reinterpret_cast<PyTypeObject *>(state->term_type), it->base, idx);
+        return py_term_new(it->owner, reinterpret_cast<PyTypeObject *>(state->term_type), idx);
     }
 
     clingo_symbol_t sym = 0;
-    if (!clingo_term_base_symbol(it->base, idx, &sym)) {
+    if (!clingo_term_base_symbol(it->owner->base, idx, &sym)) {
         return py_handle_error();
     }
     auto key = steal(py_symbol_new(state->symbol_type, sym, true));
     if (key.get() == nullptr) {
         return nullptr;
     }
-    auto val = steal(py_term_new(reinterpret_cast<PyTypeObject *>(state->term_type), it->base, idx));
+    auto val = steal(py_term_new(it->owner, reinterpret_cast<PyTypeObject *>(state->term_type), idx));
     if (val.get() == nullptr) {
         return nullptr;
     }
@@ -629,24 +730,50 @@ auto py_term_base_iter_slots = std::array{
     PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Lazy iterator over TermBase."))},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(PyObject_SelfIter)},
     PyType_Slot{Py_tp_iternext, reinterpret_cast<void *>(py_term_base_iter_next)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_term_base_iter_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_term_base_iter_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
 auto py_term_base_iter_spec = PyType_Spec{
-    "clingo.base._TermBaseIter",    sizeof(PyTermBaseIter), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.base._TermBaseIter",
+    sizeof(PyTermBaseIter),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
     py_term_base_iter_slots.data(),
 };
 
 // TermBase
 
-auto py_term_base_new(PyTypeObject *type, const clingo_term_base_t *base) -> PyObject * {
+auto py_term_base_new(PyBaseObject *owner, PyTypeObject *type) -> PyObject * {
+    clingo_term_base_t const *base = nullptr;
+    if (!clingo_base_terms(owner->base, &base)) {
+        return py_handle_error();
+    }
     auto *obj = type->tp_alloc(type, 0);
     if (obj == nullptr) {
         return nullptr;
     }
     auto *t = reinterpret_cast<PyTermBaseObject *>(obj);
     t->base = base;
+    t->owner = owner;
+    Py_INCREF(owner);
     return obj;
+}
+
+auto py_term_base_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = reinterpret_cast<PyTermBaseObject *>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    return 0;
+}
+
+auto py_term_base_clear(PyObject *self) -> int {
+    auto *o = reinterpret_cast<PyTermBaseObject *>(self);
+    Py_CLEAR(o->owner);
+    o->base = nullptr;
+    return 0;
 }
 
 auto py_term_base_len(PyObject *self) -> Py_ssize_t {
@@ -704,8 +831,8 @@ auto py_term_base_subscript(PyObject *self, PyObject *key) -> PyObject * {
         PyErr_SetString(PyExc_KeyError, "key not found");
         return nullptr;
     }
-    auto *t = reinterpret_cast<PyTermBaseObject *>(self);
-    return py_term_new(reinterpret_cast<PyTypeObject *>(state->term_type), t->base, idx);
+    return py_term_new(reinterpret_cast<PyTermBaseObject *>(self), reinterpret_cast<PyTypeObject *>(state->term_type),
+                       idx);
 }
 
 auto py_term_base_contains(PyObject *self, PyObject *key) -> int {
@@ -749,19 +876,19 @@ auto py_term_base_get(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObj
 }
 
 auto py_term_base_keys(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
-    return py_term_base_iter_new(self, IterType::keys);
+    return py_term_base_iter_new(reinterpret_cast<PyTermBaseObject *>(self), IterType::keys);
 }
 
 auto py_term_base_iter(PyObject *self) -> PyObject * {
-    return py_term_base_iter_new(self, IterType::keys);
+    return py_term_base_iter_new(reinterpret_cast<PyTermBaseObject *>(self), IterType::keys);
 }
 
 auto py_term_base_values(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
-    return py_term_base_iter_new(self, IterType::values);
+    return py_term_base_iter_new(reinterpret_cast<PyTermBaseObject *>(self), IterType::values);
 }
 
 auto py_term_base_items(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
-    return py_term_base_iter_new(self, IterType::items);
+    return py_term_base_iter_new(reinterpret_cast<PyTermBaseObject *>(self), IterType::items);
 }
 
 auto py_term_base_methods = std::array{
@@ -784,6 +911,9 @@ auto py_term_base_slots = std::array{
     PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_term_base_subscript)},
     PyType_Slot{Py_sq_contains, reinterpret_cast<void *>(py_term_base_contains)},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_term_base_iter)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_term_base_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_term_base_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
@@ -791,26 +921,41 @@ auto py_term_base_spec = PyType_Spec{
     "clingo.base.TermBase",
     sizeof(PyTermBaseObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING | Py_TPFLAGS_HAVE_GC,
     py_term_base_slots.data(),
 };
 
 // TheoryTerm
 
-auto py_theory_term_new(PyTypeObject *type, const clingo_theory_base_t *base, size_t index) -> PyObject * {
+auto py_theory_term_new(PyTheoryBaseObject *owner, PyTypeObject *type, size_t index) -> PyObject * {
     auto *obj = type->tp_alloc(type, 0);
     if (obj == nullptr) {
         return nullptr;
     }
     auto *t = reinterpret_cast<PyTheoryTermObject *>(obj);
-    t->base = base;
+    t->owner = owner;
     t->index = index;
+    Py_INCREF(owner);
     return obj;
+}
+
+auto py_theory_term_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = reinterpret_cast<PyTheoryTermObject *>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    return 0;
+}
+
+auto py_theory_term_clear(PyObject *self) -> int {
+    auto *o = reinterpret_cast<PyTheoryTermObject *>(self);
+    Py_CLEAR(o->owner);
+    o->index = 0;
+    return 0;
 }
 
 auto py_theory_term_hash(PyObject *self) -> Py_hash_t {
     auto *t = reinterpret_cast<PyTheoryTermObject *>(self);
-    return static_cast<Py_hash_t>(hash_combine(t->index, std::hash<void const *>{}(t->base)));
+    return static_cast<Py_hash_t>(hash_combine(t->index, std::hash<void const *>{}(t->owner->base)));
 }
 
 auto py_theory_term_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
@@ -819,7 +964,7 @@ auto py_theory_term_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * 
     }
     auto *x = reinterpret_cast<PyTheoryTermObject *>(a);
     auto *y = reinterpret_cast<PyTheoryTermObject *>(b);
-    bool eq = x->base == y->base && x->index == y->index;
+    bool eq = x->owner->base == y->owner->base && x->index == y->index;
     bool res = false;
     if (op == Py_EQ) {
         res = eq;
@@ -840,7 +985,7 @@ auto py_theory_term_str(PyObject *self) -> PyObject * {
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
     }
-    if (!clingo_theory_base_term_to_string(t->base, t->index, bld)) {
+    if (!clingo_theory_base_term_to_string(t->owner->base, t->index, bld)) {
         return py_handle_error();
     }
     clingo_string_t str;
@@ -857,7 +1002,7 @@ auto py_theory_term_get_type(PyObject *self, [[maybe_unused]] void *arg) -> PyOb
     }
     auto *t = reinterpret_cast<PyTheoryTermObject *>(self);
     clingo_theory_term_type_t ty = 0;
-    if (!clingo_theory_base_term_type(t->base, t->index, &ty)) {
+    if (!clingo_theory_base_term_type(t->owner->base, t->index, &ty)) {
         return py_handle_error();
     }
     return PyObject_CallFunction(state->theory_term_type_enum, "i", static_cast<int>(ty));
@@ -866,7 +1011,7 @@ auto py_theory_term_get_type(PyObject *self, [[maybe_unused]] void *arg) -> PyOb
 auto py_theory_term_get_number(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
     auto *t = reinterpret_cast<PyTheoryTermObject *>(self);
     int num = 0;
-    if (!clingo_theory_base_term_number(t->base, t->index, &num)) {
+    if (!clingo_theory_base_term_number(t->owner->base, t->index, &num)) {
         return py_handle_error();
     }
     return PyLong_FromLong(num);
@@ -875,7 +1020,7 @@ auto py_theory_term_get_number(PyObject *self, [[maybe_unused]] void *arg) -> Py
 auto py_theory_term_get_name(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
     auto *t = reinterpret_cast<PyTheoryTermObject *>(self);
     clingo_string_t name;
-    if (!clingo_theory_base_term_name(t->base, t->index, &name)) {
+    if (!clingo_theory_base_term_name(t->owner->base, t->index, &name)) {
         return py_handle_error();
     }
     return PyUnicode_FromStringAndSize(name.data, static_cast<Py_ssize_t>(name.size));
@@ -889,7 +1034,7 @@ auto py_theory_term_get_arguments(PyObject *self, [[maybe_unused]] void *arg) ->
     auto *t = reinterpret_cast<PyTheoryTermObject *>(self);
     clingo_id_t const *args = nullptr;
     size_t n = 0;
-    if (!clingo_theory_base_term_arguments(t->base, t->index, &args, &n)) {
+    if (!clingo_theory_base_term_arguments(t->owner->base, t->index, &args, &n)) {
         return py_handle_error();
     }
 
@@ -898,7 +1043,7 @@ auto py_theory_term_get_arguments(PyObject *self, [[maybe_unused]] void *arg) ->
         return nullptr;
     }
     for (size_t i = 0; i < n; ++i) {
-        auto *obj = py_theory_term_new(reinterpret_cast<PyTypeObject *>(state->theory_term_type), t->base, args[i]);
+        auto *obj = py_theory_term_new(t->owner, reinterpret_cast<PyTypeObject *>(state->theory_term_type), args[i]);
         if (obj == nullptr) {
             return nullptr;
         }
@@ -921,30 +1066,51 @@ auto py_theory_term_slots = std::array{
     PyType_Slot{Py_tp_hash, reinterpret_cast<void *>(py_theory_term_hash)},
     PyType_Slot{Py_tp_richcompare, reinterpret_cast<void *>(py_theory_term_richcompare)},
     PyType_Slot{Py_tp_getset, py_theory_term_getset.data()},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_theory_term_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_theory_term_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
 auto py_theory_term_spec = PyType_Spec{
-    "clingo.base.TheoryTerm",    sizeof(PyTheoryTermObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.base.TheoryTerm",
+    sizeof(PyTheoryTermObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
     py_theory_term_slots.data(),
 };
 
 // TheoryElement
 
-auto py_theory_element_new(PyTypeObject *type, const clingo_theory_base_t *base, size_t index) -> PyObject * {
+auto py_theory_element_new(PyTheoryBaseObject *owner, PyTypeObject *type, size_t index) -> PyObject * {
     auto *obj = type->tp_alloc(type, 0);
     if (obj == nullptr) {
         return nullptr;
     }
     auto *t = reinterpret_cast<PyTheoryElementObject *>(obj);
-    t->base = base;
+    t->owner = owner;
     t->index = index;
+    Py_INCREF(owner);
     return obj;
+}
+
+auto py_theory_element_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = reinterpret_cast<PyTheoryElementObject *>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    return 0;
+}
+
+auto py_theory_element_clear(PyObject *self) -> int {
+    auto *o = reinterpret_cast<PyTheoryElementObject *>(self);
+    Py_CLEAR(o->owner);
+    o->index = 0;
+    return 0;
 }
 
 auto py_theory_element_hash(PyObject *self) -> Py_hash_t {
     auto *t = reinterpret_cast<PyTheoryElementObject *>(self);
-    return static_cast<Py_hash_t>(hash_combine(t->index, std::hash<void const *>{}(t->base)));
+    return static_cast<Py_hash_t>(hash_combine(t->index, std::hash<void const *>{}(t->owner->base)));
 }
 
 auto py_theory_element_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
@@ -953,7 +1119,7 @@ auto py_theory_element_richcompare(PyObject *a, PyObject *b, int op) -> PyObject
     }
     auto *x = reinterpret_cast<PyTheoryElementObject *>(a);
     auto *y = reinterpret_cast<PyTheoryElementObject *>(b);
-    bool eq = x->base == y->base && x->index == y->index;
+    bool eq = x->owner->base == y->owner->base && x->index == y->index;
     bool res = false;
     if (op == Py_EQ) {
         res = eq;
@@ -974,7 +1140,7 @@ auto py_theory_element_str(PyObject *self) -> PyObject * {
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
     }
-    if (!clingo_theory_base_element_to_string(t->base, t->index, bld)) {
+    if (!clingo_theory_base_element_to_string(t->owner->base, t->index, bld)) {
         return py_handle_error();
     }
     clingo_string_t str;
@@ -992,7 +1158,7 @@ auto py_theory_element_get_tuple(PyObject *self, [[maybe_unused]] void *arg) -> 
     auto *t = reinterpret_cast<PyTheoryElementObject *>(self);
     clingo_id_t const *vals = nullptr;
     size_t n = 0;
-    if (!clingo_theory_base_element_tuple(t->base, t->index, &vals, &n)) {
+    if (!clingo_theory_base_element_tuple(t->owner->base, t->index, &vals, &n)) {
         return py_handle_error();
     }
     auto out = steal(PyList_New(static_cast<Py_ssize_t>(n)));
@@ -1000,7 +1166,7 @@ auto py_theory_element_get_tuple(PyObject *self, [[maybe_unused]] void *arg) -> 
         return nullptr;
     }
     for (size_t i = 0; i < n; ++i) {
-        auto *obj = py_theory_term_new(reinterpret_cast<PyTypeObject *>(state->theory_term_type), t->base, vals[i]);
+        auto *obj = py_theory_term_new(t->owner, reinterpret_cast<PyTypeObject *>(state->theory_term_type), vals[i]);
         if (obj == nullptr) {
             return nullptr;
         }
@@ -1013,7 +1179,7 @@ auto py_theory_element_get_condition(PyObject *self, [[maybe_unused]] void *arg)
     auto *t = reinterpret_cast<PyTheoryElementObject *>(self);
     clingo_literal_t const *vals = nullptr;
     size_t n = 0;
-    if (!clingo_theory_base_element_condition(t->base, t->index, &vals, &n)) {
+    if (!clingo_theory_base_element_condition(t->owner->base, t->index, &vals, &n)) {
         return py_handle_error();
     }
     auto out = steal(PyList_New(static_cast<Py_ssize_t>(n)));
@@ -1033,7 +1199,7 @@ auto py_theory_element_get_condition(PyObject *self, [[maybe_unused]] void *arg)
 auto py_theory_element_get_condition_id(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
     auto *t = reinterpret_cast<PyTheoryElementObject *>(self);
     clingo_literal_t id = 0;
-    if (!clingo_theory_base_element_condition_id(t->base, t->index, &id)) {
+    if (!clingo_theory_base_element_condition_id(t->owner->base, t->index, &id)) {
         return py_handle_error();
     }
     if (id == 0) {
@@ -1061,6 +1227,9 @@ auto py_theory_element_slots = std::array{
     PyType_Slot{Py_tp_hash, reinterpret_cast<void *>(py_theory_element_hash)},
     PyType_Slot{Py_tp_richcompare, reinterpret_cast<void *>(py_theory_element_richcompare)},
     PyType_Slot{Py_tp_getset, py_theory_element_getset.data()},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_theory_element_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_theory_element_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
@@ -1068,26 +1237,41 @@ auto py_theory_element_spec = PyType_Spec{
     "clingo.base.TheoryElement",
     sizeof(PyTheoryElementObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
     py_theory_element_slots.data(),
 };
 
 // TheoryAtom
 
-auto py_theory_atom_new(PyTypeObject *type, const clingo_theory_base_t *base, size_t index) -> PyObject * {
+auto py_theory_atom_new(PyTheoryBaseObject *owner, PyTypeObject *type, const size_t index) -> PyObject * {
     auto *obj = type->tp_alloc(type, 0);
     if (obj == nullptr) {
         return nullptr;
     }
     auto *t = reinterpret_cast<PyTheoryAtomObject *>(obj);
-    t->base = base;
+    t->owner = owner;
     t->index = index;
+    Py_INCREF(owner);
     return obj;
+}
+
+auto py_theory_atom_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = reinterpret_cast<PyTheoryAtomObject *>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    return 0;
+}
+
+auto py_theory_atom_clear(PyObject *self) -> int {
+    auto *o = reinterpret_cast<PyTheoryAtomObject *>(self);
+    Py_CLEAR(o->owner);
+    o->index = 0;
+    return 0;
 }
 
 auto py_theory_atom_hash(PyObject *self) -> Py_hash_t {
     auto *t = reinterpret_cast<PyTheoryAtomObject *>(self);
-    return static_cast<Py_hash_t>(hash_combine(t->index, std::hash<void const *>{}(t->base)));
+    return static_cast<Py_hash_t>(hash_combine(t->index, std::hash<void const *>{}(t->owner->base)));
 }
 
 auto py_theory_atom_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
@@ -1096,7 +1280,7 @@ auto py_theory_atom_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * 
     }
     auto *x = reinterpret_cast<PyTheoryAtomObject *>(a);
     auto *y = reinterpret_cast<PyTheoryAtomObject *>(b);
-    bool eq = x->base == y->base && x->index == y->index;
+    bool eq = x->owner->base == y->owner->base && x->index == y->index;
     bool res = false;
     if (op == Py_EQ) {
         res = eq;
@@ -1117,7 +1301,7 @@ auto py_theory_atom_str(PyObject *self) -> PyObject * {
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
     }
-    if (!clingo_theory_base_atom_to_string(t->base, t->index, bld)) {
+    if (!clingo_theory_base_atom_to_string(t->owner->base, t->index, bld)) {
         return py_handle_error();
     }
     clingo_string_t str;
@@ -1134,10 +1318,10 @@ auto py_theory_atom_get_name(PyObject *self, [[maybe_unused]] void *arg) -> PyOb
     }
     auto *t = reinterpret_cast<PyTheoryAtomObject *>(self);
     clingo_id_t id = 0;
-    if (!clingo_theory_base_atom_term(t->base, t->index, &id)) {
+    if (!clingo_theory_base_atom_term(t->owner->base, t->index, &id)) {
         return py_handle_error();
     }
-    return py_theory_term_new(reinterpret_cast<PyTypeObject *>(state->theory_term_type), t->base, id);
+    return py_theory_term_new(t->owner, reinterpret_cast<PyTypeObject *>(state->theory_term_type), id);
 }
 
 auto py_theory_atom_get_elements(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
@@ -1148,7 +1332,7 @@ auto py_theory_atom_get_elements(PyObject *self, [[maybe_unused]] void *arg) -> 
     auto *t = reinterpret_cast<PyTheoryAtomObject *>(self);
     clingo_id_t const *ids = nullptr;
     size_t n = 0;
-    if (!clingo_theory_base_atom_elements(t->base, t->index, &ids, &n)) {
+    if (!clingo_theory_base_atom_elements(t->owner->base, t->index, &ids, &n)) {
         return py_handle_error();
     }
     auto out = steal(PyList_New(static_cast<Py_ssize_t>(n)));
@@ -1157,7 +1341,7 @@ auto py_theory_atom_get_elements(PyObject *self, [[maybe_unused]] void *arg) -> 
     }
     for (size_t i = 0; i < n; ++i) {
         auto *obj =
-            py_theory_element_new(reinterpret_cast<PyTypeObject *>(state->theory_element_type), t->base, ids[i]);
+            py_theory_element_new(t->owner, reinterpret_cast<PyTypeObject *>(state->theory_element_type), ids[i]);
         if (obj == nullptr) {
             return nullptr;
         }
@@ -1169,7 +1353,7 @@ auto py_theory_atom_get_elements(PyObject *self, [[maybe_unused]] void *arg) -> 
 auto py_theory_atom_get_literal(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
     auto *t = reinterpret_cast<PyTheoryAtomObject *>(self);
     clingo_literal_t lit = 0;
-    if (!clingo_theory_base_atom_literal(t->base, t->index, &lit)) {
+    if (!clingo_theory_base_atom_literal(t->owner->base, t->index, &lit)) {
         return py_handle_error();
     }
     return PyLong_FromLong(lit);
@@ -1182,7 +1366,7 @@ auto py_theory_atom_get_guard(PyObject *self, [[maybe_unused]] void *arg) -> PyO
     }
     auto *t = reinterpret_cast<PyTheoryAtomObject *>(self);
     bool has_guard = false;
-    if (!clingo_theory_base_atom_has_guard(t->base, t->index, &has_guard)) {
+    if (!clingo_theory_base_atom_has_guard(t->owner->base, t->index, &has_guard)) {
         return py_handle_error();
     }
     if (!has_guard) {
@@ -1191,7 +1375,7 @@ auto py_theory_atom_get_guard(PyObject *self, [[maybe_unused]] void *arg) -> PyO
 
     clingo_string_t op;
     clingo_id_t term = 0;
-    if (!clingo_theory_base_atom_guard(t->base, t->index, &op, &term)) {
+    if (!clingo_theory_base_atom_guard(t->owner->base, t->index, &op, &term)) {
         return py_handle_error();
     }
 
@@ -1199,7 +1383,8 @@ auto py_theory_atom_get_guard(PyObject *self, [[maybe_unused]] void *arg) -> PyO
     if (op_obj.get() == nullptr) {
         return nullptr;
     }
-    auto term_obj = steal(py_theory_term_new(reinterpret_cast<PyTypeObject *>(state->theory_term_type), t->base, term));
+    auto term_obj =
+        steal(py_theory_term_new(t->owner, reinterpret_cast<PyTypeObject *>(state->theory_term_type), term));
     if (term_obj.get() == nullptr) {
         return nullptr;
     }
@@ -1220,24 +1405,50 @@ auto py_theory_atom_slots = std::array{
     PyType_Slot{Py_tp_hash, reinterpret_cast<void *>(py_theory_atom_hash)},
     PyType_Slot{Py_tp_richcompare, reinterpret_cast<void *>(py_theory_atom_richcompare)},
     PyType_Slot{Py_tp_getset, py_theory_atom_getset.data()},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_theory_atom_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_theory_atom_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
 auto py_theory_atom_spec = PyType_Spec{
-    "clingo.base.TheoryAtom",    sizeof(PyTheoryAtomObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.base.TheoryAtom",
+    sizeof(PyTheoryAtomObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
     py_theory_atom_slots.data(),
 };
 
 // TheoryBase (sequence)
 
-auto py_theory_base_new(PyTypeObject *type, const clingo_theory_base_t *base) -> PyObject * {
+auto py_theory_base_new(PyBaseObject *owner, PyTypeObject *type) -> PyObject * {
+    clingo_theory_base_t const *base = nullptr;
+    if (!clingo_base_theory(owner->base, &base)) {
+        return py_handle_error();
+    }
     auto *obj = type->tp_alloc(type, 0);
     if (obj == nullptr) {
         return nullptr;
     }
     auto *t = reinterpret_cast<PyTheoryBaseObject *>(obj);
     t->base = base;
+    t->owner = owner;
+    Py_INCREF(owner);
     return obj;
+}
+
+auto py_theory_base_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = reinterpret_cast<PyTheoryBaseObject *>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    return 0;
+}
+
+auto py_theory_base_clear(PyObject *self) -> int {
+    auto *o = reinterpret_cast<PyTheoryBaseObject *>(self);
+    Py_CLEAR(o->owner);
+    o->base = nullptr;
+    return 0;
 }
 
 auto py_theory_base_len(PyObject *self) -> Py_ssize_t {
@@ -1268,8 +1479,7 @@ auto py_theory_base_item(PyObject *self, Py_ssize_t i) -> PyObject * {
         return nullptr;
     }
     auto *t = reinterpret_cast<PyTheoryBaseObject *>(self);
-    return py_theory_atom_new(reinterpret_cast<PyTypeObject *>(state->theory_atom_type), t->base,
-                              static_cast<size_t>(i));
+    return py_theory_atom_new(t, reinterpret_cast<PyTypeObject *>(state->theory_atom_type), static_cast<size_t>(i));
 }
 
 auto py_theory_base_contains(PyObject *self, PyObject *value) -> int {
@@ -1287,7 +1497,7 @@ auto py_theory_base_contains(PyObject *self, PyObject *value) -> int {
         py_handle_error();
         return -1;
     }
-    return (a->base == t->base && a->index < n) ? 1 : 0;
+    return (a->owner->base == t->base && a->index < n) ? 1 : 0;
 }
 
 auto py_theory_base_iter(PyObject *self) -> PyObject * {
@@ -1310,6 +1520,9 @@ auto py_theory_base_slots = std::array{
     PyType_Slot{Py_sq_item, reinterpret_cast<void *>(py_theory_base_item)},
     PyType_Slot{Py_sq_contains, reinterpret_cast<void *>(py_theory_base_contains)},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_theory_base_iter)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_theory_base_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_theory_base_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
@@ -1317,22 +1530,21 @@ auto py_theory_base_spec = PyType_Spec{
     "clingo.base.TheoryBase",
     sizeof(PyTheoryBaseObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_SEQUENCE,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_SEQUENCE | Py_TPFLAGS_HAVE_GC,
     py_theory_base_slots.data(),
 };
 
 // Base iterator
 
-auto py_base_iter_new(PyObject *owner, IterType kind) -> PyObject * {
-    auto *state = get_state_from_self(owner);
+auto py_base_iter_new(PyBaseObject *owner, IterType kind) -> PyObject * {
+    auto *state = get_state_from_self(reinterpret_cast<PyObject *>(owner));
     if (state == nullptr || state->base_iter_type == nullptr) {
         return nullptr;
     }
 
     auto *t = reinterpret_cast<PyTypeObject *>(state->base_iter_type);
-    auto *b = reinterpret_cast<PyBaseObject *>(owner);
     size_t n = 0;
-    if (!clingo_base_atoms_size(b->base, &n)) {
+    if (!clingo_base_atoms_size(owner->base, &n)) {
         py_handle_error();
         return nullptr;
     }
@@ -1346,11 +1558,27 @@ auto py_base_iter_new(PyObject *owner, IterType kind) -> PyObject * {
         return nullptr;
     }
     auto *it = reinterpret_cast<PyBaseIter *>(obj.get());
-    it->base = const_cast<clingo_base_t *>(b->base);
+    it->owner = owner;
     it->index = 0;
     it->size = static_cast<Py_ssize_t>(n);
     it->kind = kind;
+    Py_INCREF(owner);
     return obj.release();
+}
+
+auto py_base_iter_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = reinterpret_cast<PyBaseIter *>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    return 0;
+}
+
+auto py_base_iter_clear(PyObject *self) -> int {
+    auto *o = reinterpret_cast<PyBaseIter *>(self);
+    Py_CLEAR(o->owner);
+    o->index = 0;
+    o->size = 0;
+    return 0;
 }
 
 auto py_base_iter_next(PyObject *self) -> PyObject * {
@@ -1361,7 +1589,7 @@ auto py_base_iter_next(PyObject *self) -> PyObject * {
 
     clingo_signature_t sig{};
     clingo_atom_base_t const *atoms = nullptr;
-    if (!clingo_base_atoms_at(it->base, static_cast<size_t>(it->index), &sig, &atoms)) {
+    if (!clingo_base_atoms_at(it->owner->base, static_cast<size_t>(it->index), &sig, &atoms)) {
         return py_handle_error();
     }
     ++it->index;
@@ -1377,7 +1605,7 @@ auto py_base_iter_next(PyObject *self) -> PyObject * {
     }
 
     if (it->kind == IterType::values) {
-        return py_atom_base_new(reinterpret_cast<PyTypeObject *>(state->atom_base_type), atoms);
+        return py_atom_base_new(it->owner, reinterpret_cast<PyTypeObject *>(state->atom_base_type), atoms);
     }
 
     auto key = steal(Py_BuildValue("(s#nO)", sig.name, static_cast<Py_ssize_t>(sig.size),
@@ -1385,7 +1613,7 @@ auto py_base_iter_next(PyObject *self) -> PyObject * {
     if (key.get() == nullptr) {
         return nullptr;
     }
-    auto val = steal(py_atom_base_new(reinterpret_cast<PyTypeObject *>(state->atom_base_type), atoms));
+    auto val = steal(py_atom_base_new(it->owner, reinterpret_cast<PyTypeObject *>(state->atom_base_type), atoms));
     if (val.get() == nullptr) {
         return nullptr;
     }
@@ -1396,15 +1624,35 @@ auto py_base_iter_slots = std::array{
     PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Lazy iterator over Base."))},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(PyObject_SelfIter)},
     PyType_Slot{Py_tp_iternext, reinterpret_cast<void *>(py_base_iter_next)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_base_iter_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_base_iter_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
 auto py_base_iter_spec = PyType_Spec{
-    "clingo.base._BaseIter",   sizeof(PyBaseIter), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.base._BaseIter",
+    sizeof(PyBaseIter),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
     py_base_iter_slots.data(),
 };
 
 // Base
+
+auto py_base_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = reinterpret_cast<PyBaseObject *>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    return 0;
+}
+
+auto py_base_clear(PyObject *self) -> int {
+    auto *o = reinterpret_cast<PyBaseObject *>(self);
+    Py_CLEAR(o->owner);
+    o->base = nullptr;
+    return 0;
+}
 
 auto py_base_len(PyObject *self) -> Py_ssize_t {
     auto *b = reinterpret_cast<PyBaseObject *>(self);
@@ -1564,7 +1812,7 @@ auto base_get(PyObject *self, PyObject *key, PyObject *def) -> PyObject * {
     }
 
     if (PyTuple_Check(key) != 0) {
-        return py_atom_base_new(reinterpret_cast<PyTypeObject *>(state->atom_base_type), atoms);
+        return py_atom_base_new(b, reinterpret_cast<PyTypeObject *>(state->atom_base_type), atoms);
     }
 
     size_t idx = 0;
@@ -1579,7 +1827,12 @@ auto base_get(PyObject *self, PyObject *key, PyObject *def) -> PyObject * {
         Py_INCREF(def);
         return def;
     }
-    return py_atom_new(reinterpret_cast<PyTypeObject *>(state->atom_type), atoms, idx);
+    auto base = PyGuard{py_atom_base_new(b, reinterpret_cast<PyTypeObject *>(state->atom_base_type), atoms)};
+    if (base.get() == nullptr) {
+        return nullptr;
+    }
+    return py_atom_new(reinterpret_cast<PyAtomBaseObject *>(base.get()),
+                       reinterpret_cast<PyTypeObject *>(state->atom_type), idx);
 }
 
 auto py_base_get(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
@@ -1606,19 +1859,19 @@ auto py_base_subscript(PyObject *self, PyObject *key) -> PyObject * {
 }
 
 auto py_base_keys(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
-    return py_base_iter_new(self, IterType::keys);
+    return py_base_iter_new(reinterpret_cast<PyBaseObject *>(self), IterType::keys);
 }
 
 auto py_base_iter(PyObject *self) -> PyObject * {
-    return py_base_iter_new(self, IterType::keys);
+    return py_base_iter_new(reinterpret_cast<PyBaseObject *>(self), IterType::keys);
 }
 
 auto py_base_values(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
-    return py_base_iter_new(self, IterType::values);
+    return py_base_iter_new(reinterpret_cast<PyBaseObject *>(self), IterType::values);
 }
 
 auto py_base_items(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
-    return py_base_iter_new(self, IterType::items);
+    return py_base_iter_new(reinterpret_cast<PyBaseObject *>(self), IterType::items);
 }
 
 auto base_predicate(PyObject *self, PyObject *args, PyObject *kwargs,
@@ -1665,12 +1918,8 @@ auto py_base_get_terms(PyObject *self, [[maybe_unused]] void *arg) -> PyObject *
     if (state == nullptr) {
         return nullptr;
     }
-    auto *b = reinterpret_cast<PyBaseObject *>(self);
-    clingo_term_base_t const *terms = nullptr;
-    if (!clingo_base_terms(b->base, &terms)) {
-        return py_handle_error();
-    }
-    return py_term_base_new(reinterpret_cast<PyTypeObject *>(state->term_base_type), terms);
+    return py_term_base_new(reinterpret_cast<PyBaseObject *>(self),
+                            reinterpret_cast<PyTypeObject *>(state->term_base_type));
 }
 
 auto py_base_get_theory(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
@@ -1678,12 +1927,8 @@ auto py_base_get_theory(PyObject *self, [[maybe_unused]] void *arg) -> PyObject 
     if (state == nullptr) {
         return nullptr;
     }
-    auto *b = reinterpret_cast<PyBaseObject *>(self);
-    clingo_theory_base_t const *theory = nullptr;
-    if (!clingo_base_theory(b->base, &theory)) {
-        return py_handle_error();
-    }
-    return py_theory_base_new(reinterpret_cast<PyTypeObject *>(state->theory_base_type), theory);
+    return py_theory_base_new(reinterpret_cast<PyBaseObject *>(self),
+                              reinterpret_cast<PyTypeObject *>(state->theory_base_type));
 }
 
 auto py_base_getset = std::array{
@@ -1758,6 +2003,9 @@ auto py_base_slots = std::array{
     PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_base_subscript)},
     PyType_Slot{Py_sq_contains, reinterpret_cast<void *>(py_base_contains)},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_base_iter)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_base_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_base_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
@@ -1765,7 +2013,7 @@ auto py_base_spec = PyType_Spec{
     "clingo.base.Base",
     sizeof(PyBaseObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING | Py_TPFLAGS_HAVE_GC,
     py_base_slots.data(),
 };
 
@@ -1869,7 +2117,7 @@ void register_base(py::module &m) {
     }
 }
 
-auto py_base_new(PyObject *type, clingo_base_t const *base) -> PyObject * {
+auto py_base_new(PyObject *owner, PyObject *type, clingo_base_t const *base) -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
     auto *obj = to->tp_alloc(to, 0);
     if (obj == nullptr) {
@@ -1877,6 +2125,8 @@ auto py_base_new(PyObject *type, clingo_base_t const *base) -> PyObject * {
     }
     auto *b = reinterpret_cast<PyBaseObject *>(obj);
     b->base = base;
+    b->owner = owner;
+    Py_INCREF(owner);
     return obj;
 }
 

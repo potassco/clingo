@@ -111,6 +111,8 @@ plugins:
             inherited_members: true
             merge_init_into_class: true
             show_if_no_docstring: true
+            show_overloads: true
+            overloads_only: true
             filters:
               - "!^__all__$"
               - "!^_.*[^_]$"

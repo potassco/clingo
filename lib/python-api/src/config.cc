@@ -13,6 +13,7 @@ namespace {
 
 using PyConfigObject = struct {
     PyObject_HEAD clingo_config_t *config;
+    PyObject *owner;
     PyObject *keeper;
     clingo_id_t key;
 };
@@ -41,17 +42,38 @@ auto py_config_cast(PyObject *obj) -> PyConfigObject * {
     return reinterpret_cast<PyConfigObject *>(obj);
 }
 
-auto py_config_alloc(PyObject *type, PyObject *keeper, clingo_config_t *config, clingo_id_t key) -> PyObject * {
+auto py_config_alloc(PyObject *owner, PyObject *keeper, PyObject *type, clingo_config_t *config, clingo_id_t key)
+    -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
     auto *obj = to->tp_alloc(to, 0);
     if (obj == nullptr) {
         return nullptr;
     }
     auto *cfg = reinterpret_cast<PyConfigObject *>(obj);
+    cfg->owner = owner;
     cfg->keeper = keeper;
     cfg->config = config;
     cfg->key = key;
+    Py_INCREF(owner);
+    Py_INCREF(keeper);
     return obj;
+}
+
+auto py_config_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = py_config_cast(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->owner);
+    Py_VISIT(o->keeper);
+    return 0;
+}
+
+auto py_config_clear(PyObject *self) -> int {
+    auto *o = py_config_cast(self);
+    Py_CLEAR(o->owner);
+    Py_CLEAR(o->keeper);
+    o->config = nullptr;
+    o->key = 0;
+    return 0;
 }
 
 auto py_config_type_bits(PyObject *self, clingo_config_type_bitset_t *type) -> int {
@@ -253,7 +275,7 @@ auto py_config_item(PyObject *self, Py_ssize_t index) -> PyObject * {
     if (!clingo_config_array_at(o->config, o->key, static_cast<size_t>(index), &subkey)) {
         return py_handle_error();
     }
-    return py_config_alloc(type, cfg->keeper, o->config, subkey);
+    return py_config_alloc(cfg->keeper, cfg->keeper, type, o->config, subkey);
 }
 
 auto py_config_getattr(PyObject *self, PyObject *name) -> PyObject * {
@@ -279,7 +301,7 @@ auto py_config_getattr(PyObject *self, PyObject *name) -> PyObject * {
     }
 
     auto *o = py_config_cast(self);
-    return py_config_alloc(type, cfg->keeper, o->config, subkey);
+    return py_config_alloc(cfg->owner, cfg->keeper, type, o->config, subkey);
 }
 
 auto py_config_setattr(PyObject *self, PyObject *name, PyObject *value) -> int {
@@ -319,7 +341,7 @@ auto py_config_setattr(PyObject *self, PyObject *name, PyObject *value) -> int {
     }
 
     auto *o = py_config_cast(self);
-    auto sub = steal(py_config_alloc(type, cfg->keeper, o->config, subkey));
+    auto sub = steal(py_config_alloc(cfg->owner, cfg->keeper, type, o->config, subkey));
     if (sub.get() == nullptr) {
         return -1;
     }
@@ -560,7 +582,6 @@ auto py_config_add_entry(PyObject *self, PyObject *args, PyObject *kwargs) -> Py
     auto *o = py_config_cast(self);
     if (!clingo_config_add(o->config, o->key, name, static_cast<size_t>(name_n), desc, static_cast<size_t>(desc_n),
                            &entry, entry_data.release())) {
-        config_entry_free(entry_data);
         return py_handle_error();
     }
 
@@ -628,11 +649,17 @@ auto py_config_slots = std::array{
     PyType_Slot{Py_tp_getset, py_config_getset.data()},
     PyType_Slot{Py_sq_length, reinterpret_cast<void *>(py_config_len)},
     PyType_Slot{Py_sq_item, reinterpret_cast<void *>(py_config_item)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_config_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_config_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{0, nullptr},
 };
 
 auto py_config_spec = PyType_Spec{
-    "clingo.config.Config", sizeof(PyConfigObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.config.Config",
+    sizeof(PyConfigObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
     py_config_slots.data(),
 };
 
@@ -684,12 +711,13 @@ auto py_config_type_ref() -> PyObject * {
     return state->config_type; // borrowed
 }
 
-auto py_config_new(PyObject *type, PyObject *keeper, clingo_config_t *config, clingo_id_t key) -> PyObject * {
+auto py_config_new(PyObject *owner, PyObject *keeper, PyObject *type, clingo_config_t *config, clingo_id_t key)
+    -> PyObject * {
     if (type == nullptr) {
         PyErr_SetString(PyExc_RuntimeError, "config type is unavailable");
         return nullptr;
     }
-    return py_config_alloc(type, keeper, config, key);
+    return py_config_alloc(owner, keeper, type, config, key);
 }
 
 auto py_config_get(PyObject *type, PyObject *obj, clingo_config_t **config, clingo_id_t *key) -> bool {

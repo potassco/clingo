@@ -110,14 +110,26 @@ val: "a"
 
 import typing
 from collections.abc import Callable, Sequence
+from typing import Protocol
 
 __all__: list[str] = ["Config"]
 
-from typing import Protocol
+ValueGetter: typing.TypeAlias = Callable[[], str | None]
+"""
+Get the value of a configuration
+"""
+ValueSetter: typing.TypeAlias = Callable[[str], None]
+"""
+Get the value of a configuration
+"""
+SizeGetter: typing.TypeAlias = Callable[[], int]
+"""
+Get the size of a configuration sequence entry.
+"""
 
-class ArrayGetter(Protocol):
+class SequenceGetter(Protocol):
     """
-    Getter for array configuration entries.
+    Getter for sequence configuration entries.
     """
     def __call__(self, index: int | None = None, /) -> str | None:
         """
@@ -127,9 +139,9 @@ class ArrayGetter(Protocol):
         include returning the first element or a default one.
         """
 
-class ArraySetter(Protocol):
+class SequenceSetter(Protocol):
     """
-    Setter for array configuration entries.
+    Setter for sequence configuration entries.
     """
     def __call__(self, value: str, index: int | None = None, /) -> None:
         """
@@ -195,94 +207,42 @@ class Config:
         Values are automatically converted to strings.
         """
 
-    @typing.overload
     def add_entry(
         self,
         name: str,
         description: str,
+        get: ValueGetter | SequenceGetter | None = None,
+        set: ValueSetter | SequenceSetter | None = None,
+        size: SizeGetter | None = None,
     ) -> None:
         """
         Add a custom configuration entry.
 
-        This overload is used for entries that group other entries and do not
-        have a value.
+        This function extends the root configuration with user-defined entries.
+        Depending on the entry name and callbacks, different types of entries
+        are created. The following examples show typical usage patterns:
 
-        Notes:
-        - Entries can have at most one array parent entry.
-        - Custom entries can be added under the root key. Existing solver
-          configuration entries cannot be extened.
+        - A group entry (for example, `custom`) can be added without any
+          callbacks. This groups other entries and does not have a value.
 
-        Args:
-            name: Name of the new entry.
-            description: Description of the new entry.
-        """
+        - A scalar value entry (for example, `custom.val`) can be added by
+          passing value getter and setter callbacks.
 
-    @typing.overload
-    def add_entry(
-        self,
-        name: str,
-        description: str,
-        get: Callable[[], str | None] | None = None,
-        set: Callable[[str], None] | None = None,
-    ) -> None:
-        """
-        Add a custom configuration entry.
+        - A sequence entry (for example, `custom.arr[]`) can be added by passing
+          a size getter callback. Child entries should then use sequence getter
+          and setter callbacks to access the values of individual elements.
 
-        This overload is used for entries that have a value and are not part of
-        a sequence. At least one get or set callback must be provided.
+        - A sequence element entry (for example, `custom.arr[].val`) can be added
+          by passing sequence getter and setter callbacks. The index of the
+          element is passed to the callbacks. The index must be optional and is
+          omitted if the entry is accessed without an index (for example,
+          `custom.arr.val`). It is up to the user to decide how to handle this
+          case. Possibilities include accessing the first element or a default
+          one.
 
-        Args:
-            name: Name of the new entry.
-            description: Description of the new entry.
-            get: Callable to get the value.
-            set: Callable to set the value.
-        """
-
-    @typing.overload
-    def add_entry(
-        self,
-        name: str,
-        description: str,
-        get: ArrayGetter | None = None,
-        set: ArraySetter | None = None,
-        size: Callable[[], int] | None = None,
-    ) -> None:
-        """
-        Add a custom configuration entry.
-
-        This overload is used for entries that are part of a sequence. At least
-        one get, set, or size callbacks must be provided.
-
-        It is up to the user to handle array insertion. Possible options
-        include increasing the size of an array upon assignment of values or by
-        setting a special size field that controls the size of the array.
-
-        Args:
-            name: Name of the new entry.
-            description: Description of the new entry.
-            get: Callable to get the value.
-            set: Callable to set the value.
-            size: Callable to get the size.
-        """
-
-    @typing.overload
-    def add_entry(
-        self,
-        name: str,
-        description: str,
-        get: Callable[[], str | None] | None = None,
-        set: Callable[[str], None] | None = None,
-        size: Callable[[], int] | None = None,
-    ) -> None:
-        """
-        Add a custom configuration entry.
-
-        This overload is used for entries that are part of a sequence but set
-        meta values that apply to all array entries. At least one get, set, or
-        size callbacks must be provided.
-
-        This could for example be used to get/set the array size, specify
-        default values, etc.
+        Apart from the requirement that there is at most one sequence entry on
+        any chain of config entries, callbacks can be freely combined and there
+        is some freedom in how to implement them.
 
         Args:
             name: Name of the new entry.
