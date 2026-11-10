@@ -89,7 +89,11 @@ template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *wha
         return true;
     }
     if constexpr (std::is_unsigned_v<T>) {
-        auto v = PyLong_AsUnsignedLong(obj);
+        auto i = steal(PyNumber_Index(obj));
+        if (i.get() == nullptr) {
+            return false;
+        }
+        auto v = PyLong_AsUnsignedLong(i.get());
         if (PyErr_Occurred() != nullptr) {
             PyErr_Format(PyExc_TypeError, "%s must be a non-negative integer", what);
             return false;
@@ -703,6 +707,7 @@ auto py_backend_new(PyObject *type, clingo_backend_t *backend, PyObject *owner) 
 
 auto py_backend_traverse(PyObject *self, visitproc visit, void *arg) -> int {
     auto *b = py_backend_cast(self);
+    Py_VISIT(Py_TYPE(self));
     Py_VISIT(b->owner);
     return 0;
 }
@@ -1351,6 +1356,7 @@ void py_backend_manager_invalidate(PyBackendManagerObject *mgr) {
 
 auto py_backend_manager_traverse(PyObject *self, visitproc visit, void *arg) -> int {
     auto *mgr = py_backend_manager_cast(self);
+    Py_VISIT(Py_TYPE(self));
     Py_VISIT(mgr->owner);
     Py_VISIT(mgr->backend_obj);
     return 0;
