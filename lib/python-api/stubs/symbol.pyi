@@ -62,6 +62,9 @@ def Function(
         name: The name of the function.
         arguments: The arguments in the form of a list of symbols.
         is_positive: Whether the function is positive.
+
+    Returns:
+        The constructed function symbol.
     """
 
 def Number(lib: Library, number: int, /) -> Symbol:
@@ -71,6 +74,9 @@ def Number(lib: Library, number: int, /) -> Symbol:
     Args:
         lib: A library object to store the number in.
         number: The given number.
+
+    Returns:
+        The constructed number symbol.
     """
 
 def String(lib: Library, string: str, /) -> Symbol:
@@ -80,6 +86,9 @@ def String(lib: Library, string: str, /) -> Symbol:
     Args:
         lib: A library object to store the string in.
         string: The given string.
+
+    Returns:
+        The constructed string symbol.
     """
 
 def Tuple_(lib: Library, arguments: Sequence[Symbol], /) -> Symbol:
@@ -91,6 +100,9 @@ def Tuple_(lib: Library, arguments: Sequence[Symbol], /) -> Symbol:
     Args:
         lib: A library object to store the tuple in.
         arguments: The arguments in form of a list of symbols.
+
+    Returns:
+        The constructed tuple symbol.
     """
 
 def parse_term(lib: Library, string: str, /) -> Symbol:
@@ -102,6 +114,9 @@ def parse_term(lib: Library, string: str, /) -> Symbol:
     Args:
         lib: A library object to store parsed symbols in.
         string: The string to be parsed.
+
+    Returns:
+        The parsed symbol.
     """
 
 Infimum: Symbol
@@ -161,43 +176,82 @@ class Symbol:
     objects.
     """
 
-    def __eq__(self, value):
+    def __eq__(self, value: object, /) -> bool:
         """
         Compare with another object for equality.
+
+        Args:
+            value: The object to compare with.
+
+        Returns:
+            Whether the two objects are equal.
         """
 
-    def __ne__(self, value):
+    def __ne__(self, value: object, /) -> bool:
         """
         Compare with another object for inequality.
+
+        Args:
+            value: The object to compare with.
+
+        Returns:
+            Whether the two objects are not equal.
         """
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """
         Compute a hash value for this symbol.
+
+        Returns:
+            The hash value.
         """
 
-    def __ge__(self, value):
+    def __ge__(self, value: object, /) -> bool:
         """
         Compare with another object for greater than or equal.
+
+        Args:
+            value: The object to compare with.
+
+        Returns:
+            Whether this symbol is greater than or equal to the other object.
         """
 
-    def __gt__(self, value):
+    def __gt__(self, value: object, /) -> bool:
         """
         Compare with another object for greater than.
+
+        Args:
+            value: The object to compare with.
+
+        Returns:
+            Whether this symbol is greater than the other object.
         """
 
-    def __le__(self, value):
+    def __le__(self, value: object, /) -> bool:
         """
         Compare with another object for less than or equal.
+
+        Args:
+            value: The object to compare with.
+
+        Returns:
+            Whether this symbol is less than or equal to the other object.
         """
 
-    def __lt__(self, value):
+    def __lt__(self, value: object, /) -> bool:
         """
         Compare with another object for less than.
+
+        Args:
+            value: The object to compare with.
+
+        Returns:
+            Whether this symbol is less than the other object.
         """
 
     @typing.overload
-    def match(self, name: str, arity: int = 0, is_positive: bool = True) -> bool:
+    def match(self, name: str, /, arity: int = 0, is_positive: bool = True) -> bool:
         """
         Check if this is a function symbol with the given signature.
 
@@ -211,7 +265,7 @@ class Symbol:
         """
 
     @typing.overload
-    def match(self, arity: int = 0) -> bool:
+    def match(self, arity: int, /) -> bool:
         """
         Check if this is a tuple symbol with the given arity.
 
@@ -222,10 +276,23 @@ class Symbol:
             Whether the tuple matches.
         """
 
+    def match(self, *args, arity: int = 0, is_positive: bool = True) -> bool:
+        """
+        Check if this is a function or tuple symbol with the given signature.
+
+        Args:
+            name (str): The name of the function.
+            arity: The arity of the function.
+            is_positive: Whether to match positive or negative signatures.
+
+        Returns:
+            Whether the function or tuple matches.
+        """
+
     @property
     def arguments(self) -> Sequence[Symbol]:
         """
-        The list of arguments.
+        The list of arguments a function or tuple.
         """
 
     @property
@@ -249,19 +316,19 @@ class Symbol:
     @property
     def name(self) -> str:
         """
-        The name.
+        The name of a function symbol.
         """
 
     @property
     def number(self) -> int:
         """
-        The numeric value.
+        The numeric value of a number symbol.
         """
 
     @property
     def signature(self) -> tuple[str, int, bool] | None:
         """
-        Get the signature of function symbols.
+        The signature of function symbols.
 
         The Boolean in the signature is True if the associated symbol is positive.
         """
@@ -269,7 +336,7 @@ class Symbol:
     @property
     def string(self) -> str:
         """
-        The string value.
+        The string value of a string symbol.
         """
 
     @property

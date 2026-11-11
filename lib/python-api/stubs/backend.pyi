@@ -404,6 +404,7 @@ class Backend:
         head and body are specified as sequences of literals.
 
         Rule types based on head length (when choice is False):
+
         - Empty head: Integrity constraint
         - Single literal head: Normal rule
         - Multiple literals head: Disjunctive rule
@@ -426,6 +427,7 @@ class Backend:
 
         If the theory atom does not exist yet, the method assigns a program atom based
         on these rules:
+
         - If a specific atom value is provided, that value is used.
         - If None is given, a fresh program atom is introduced.
         - For program directives, value zero is used.
@@ -564,6 +566,9 @@ class BackendManager:
     def __enter__(self) -> Backend:
         """
         Initialize the backend.
+
+        Returns:
+            The initialized backend.
         """
 
     def __exit__(
@@ -574,4 +579,9 @@ class BackendManager:
     ) -> None:
         """
         Finalize the backend.
+
+        Args:
+            type: The exception type, if an exception occurred.
+            value: The exception instance, if an exception occurred.
+            traceback: The traceback object, if an exception occurred.
         """

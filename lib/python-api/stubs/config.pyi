@@ -185,26 +185,45 @@ class Config:
       to strings.
     """
 
-    def __getattr__(self, name: str) -> Config:
+    def __getattr__(self, name: str, /) -> Config:
         """
         Get the configuration entry with the given name.
+
+        Args:
+            name: The name of the config entry.
+
+        Returns:
+            The configuration entry with the given name.
         """
 
-    def __getitem__(self, index: int) -> Config:
+    def __getitem__(self, index: int, /) -> Config:
         """
         Get the index-th element of a sequence.
+
+        Args:
+            index: Index of the element to get.
+
+        Returns:
+            The index-th element of the sequence.
         """
 
     def __len__(self) -> int:
         """
         Get the length of a sequence config.
+
+        Returns:
+            The length of the sequence.
         """
 
-    def __setattr__(self, name: str, value: object) -> None:
+    def __setattr__(self, name: str, value: object, /) -> None:
         """
         Set the value with the given name.
 
         Values are automatically converted to strings.
+
+        Args:
+            name: Name of the configuration entry.
+            value: Value to set.
         """
 
     def add_entry(
@@ -279,13 +298,13 @@ class Config:
     @property
     def value(self) -> str | None:
         """
-        Get the string value of the configuration entry.
+        Get/set the string value of the configuration entry.
+
+        When setting a value, it is automatically converted to a string.
         """
 
     @value.setter
-    def value(self, value: object) -> None:
+    def value(self, value: object, /) -> None:
         """
         Set the value of the configuration entry.
-
-        Values are automatically converted to strings.
         """

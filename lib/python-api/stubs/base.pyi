@@ -89,19 +89,34 @@ class Atom:
     A class providing information about symbolic atoms.
     """
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: object, /) -> bool:
         """
         Compare with another object for equality.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the two objects are equal.
         """
 
-    def __ne__(self, other: object) -> bool:
+    def __ne__(self, other: object, /) -> bool:
         """
         Compare with another object for inequality.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the two objects are not equal.
         """
 
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
+
+        Returns:
+            The hash value of the object.
         """
 
     @property
@@ -123,28 +138,46 @@ class AtomBase:
     Implements a mapping from symbols to atoms.
     """
 
-    def __contains__(self, key: Symbol) -> bool:
+    def __contains__(self, key: Symbol, /) -> bool:
         """
         Check if the map contains the given key.
+
+        Args:
+            key: The key to check.
+
+        Returns:
+            Whether the key is present in the map.
         """
 
-    def __getitem__(self, key: Symbol) -> Atom:
+    def __getitem__(self, key: Symbol, /) -> Atom:
         """
         Get the value for the given key.
+
+        Args:
+            key: The key to look up.
+
+        Returns:
+            The value for the given key.
         """
 
     def __iter__(self) -> Iterator[Symbol]:
         """
         Get an iterator over the keys in the map.
+
+        Returns:
+            An iterator over the keys in the map.
         """
 
     def __len__(self) -> int:
         """
         Get the number elements in the map.
+
+        Returns:
+            The number of elements in the map.
         """
 
     @typing.overload
-    def get(self, key: Symbol) -> Atom | None:
+    def get(self, key: Symbol, default: None = None) -> Atom | None:
         """
         Get the value for the given key or None if absent.
         """
@@ -155,19 +188,43 @@ class AtomBase:
         Get the value for the given key or the default if absent.
         """
 
+    def get(self, key: Symbol, default: _T | None = None) -> Atom | _T | None:
+        """
+        Get the value for the given key or the default if absent.
+
+        If the key is not present in the map, the default value is returned.
+        If no default value is given, `None` is returned.
+
+        Args:
+            key: The key to look up.
+            default: The default value to return if the key is absent.
+
+        Returns:
+            The value for the given key or the default if absent.
+        """
+
     def items(self) -> Iterator[tuple[Symbol, Atom]]:
         """
         Get an iterator over the items in the map.
+
+        Returns:
+            An iterator over the items in the map.
         """
 
     def keys(self) -> Iterator[Symbol]:
         """
         Get an iterator over the keys in the map.
+
+        Returns:
+            An iterator over the keys in the map.
         """
 
     def values(self) -> Iterator[Atom]:
         """
         Get an iterator over the values in the map.
+
+        Returns:
+            An iterator over the values in the map.
         """
 
 class Term:
@@ -175,19 +232,34 @@ class Term:
     A class providing information about terms.
     """
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: object, /) -> bool:
         """
         Compare with another object for equality.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the two objects are equal.
         """
 
-    def __ne__(self, other: object) -> bool:
+    def __ne__(self, other: object, /) -> bool:
         """
         Compare with another object for inequality.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the two objects are not equal.
         """
 
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
+
+        Returns:
+            The hash value of the object.
         """
 
     @property
@@ -211,28 +283,46 @@ class TermBase:
     Implements a mapping from symbols to terms.
     """
 
-    def __contains__(self, key: Symbol) -> bool:
+    def __contains__(self, key: Symbol, /) -> bool:
         """
         Check if the map contains the given key.
+
+        Args:
+            key: The key to check.
+
+        Returns:
+            Whether the key is present in the map.
         """
 
-    def __getitem__(self, key: Symbol) -> Term:
+    def __getitem__(self, key: Symbol, /) -> Term:
         """
         Get the value for the given key.
+
+        Args:
+            key: The key to look up.
+
+        Returns:
+            The value for the given key.
         """
 
     def __iter__(self) -> Iterator[Symbol]:
         """
         Get an iterator over the keys in the map.
+
+        Returns:
+            An iterator over the keys in the map.
         """
 
     def __len__(self) -> int:
         """
         Get the number elements in the map.
+
+        Returns:
+            The number of elements in the map.
         """
 
     @typing.overload
-    def get(self, key: Symbol) -> Term | None:
+    def get(self, key: Symbol, default: None = None) -> Term | None:
         """
         Get the value for the given key or None if absent.
         """
@@ -243,19 +333,43 @@ class TermBase:
         Get the value for the given key or the default if absent.
         """
 
+    def get(self, key: Symbol, default: _T | None = None) -> Term | _T | None:
+        """
+        Get the value for the given key or the default if absent.
+
+        If the key is not present in the map, the default value is returned.
+        If no default value is given, `None` is returned.
+
+        Args:
+            key: The key to look up.
+            default: The default value to return if the key is absent.
+
+        Returns:
+            The value for the given key or the default if absent.
+        """
+
     def items(self) -> Iterator[tuple[Symbol, Term]]:
         """
         Get an iterator over the items in the map.
+
+        Returns:
+            An iterator over the items in the map.
         """
 
     def keys(self) -> Iterator[Symbol]:
         """
         Get an iterator over the keys in the map.
+
+        Returns:
+            An iterator over the keys in the map.
         """
 
     def values(self) -> Iterator[Term]:
         """
         Get an iterator over the values in the map.
+
+        Returns:
+            An iterator over the values in the map.
         """
 
 class TheoryTerm:
@@ -263,19 +377,34 @@ class TheoryTerm:
     A view to inspect a theory term.
     """
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: object, /) -> bool:
         """
         Compare with another object for equality.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the two objects are equal.
         """
 
-    def __ne__(self, other: object) -> bool:
+    def __ne__(self, other: object, /) -> bool:
         """
         Compare with another object for inequality.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the two objects are not equal.
         """
 
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
+
+        Returns:
+            The hash value of the object.
         """
 
     @property
@@ -307,19 +436,34 @@ class TheoryElement:
     A view to inspect a theory element.
     """
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: object, /) -> bool:
         """
         Compare with another object for equality.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the two objects are equal.
         """
 
-    def __ne__(self, other: object) -> bool:
+    def __ne__(self, other: object, /) -> bool:
         """
         Compare with another object for inequality.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the two objects are not equal.
         """
 
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
+
+        Returns:
+            The hash value of the object.
         """
 
     @property
@@ -349,19 +493,34 @@ class TheoryAtom:
     A view to inspect a theory atom.
     """
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: object, /) -> bool:
         """
         Compare with another object for equality.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the two objects are equal.
         """
 
-    def __ne__(self, other: object) -> bool:
+    def __ne__(self, other: object, /) -> bool:
         """
         Compare with another object for inequality.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the two objects are not equal.
         """
 
     def __hash__(self) -> int:
         """
         Compute a hash for the object.
+
+        Returns:
+            The hash value of the object.
         """
 
     @property
@@ -395,24 +554,42 @@ class TheoryBase:
     Implements a sequence of theory atoms.
     """
 
-    def __contains__(self, value: TheoryAtom) -> bool:
+    def __contains__(self, value: TheoryAtom, /) -> bool:
         """
         Check whether the sequence contains the given value.
+
+        Args:
+            value: The value to check.
+
+        Returns:
+            Whether the value is present in the sequence.
         """
 
-    def __getitem__(self, index: int) -> TheoryAtom:
+    def __getitem__(self, index: int, /) -> TheoryAtom:
         """
         Get the value at the given index.
+
+        Args:
+            index: The index to look up.
+
+        Returns:
+            The value at the given index.
         """
 
     def __iter__(self) -> Iterator[TheoryAtom]:
         """
         Get an iterator for the sequence.
+
+        Returns:
+            An iterator for the sequence.
         """
 
     def __len__(self) -> int:
         """
         Get the size of the sequence.
+
+        Returns:
+            The size of the sequence.
         """
 
 class Base:
@@ -423,32 +600,31 @@ class Base:
     the term and theory bases.
     """
 
-    @typing.overload
-    def __contains__(self, key: tuple[str, int, bool]) -> bool:
+    def __contains__(
+        self, key: tuple[str, int, bool] | tuple[str, int] | Symbol, /
+    ) -> bool:
         """
-        Check if there is an atom base with the given signature.
+        Check if there is an atom base for the given signature or an atom for the given symbol.
+
+        Signatures are given as a tuple of the form `(name, arity, sign)` or
+        `(name, arity)`. The latter form is a shortcut assuming the sign is
+        positive.
+
+        Args:
+            key: The signature or symbol to look up.
+
+        Returns:
+            Whether the signature or symbol is present in the base.
         """
 
     @typing.overload
-    def __contains__(self, signature: tuple[str, int]) -> bool:
-        """
-        Check if there is an atom base with the given (short) signature.
-        """
-
-    @typing.overload
-    def __contains__(self, symbol: Symbol) -> bool:
-        """
-        Check if there is an atom with the given symbol.
-        """
-
-    @typing.overload
-    def __getitem__(self, key: tuple[str, int, bool]) -> AtomBase:
+    def __getitem__(self, signature: tuple[str, int, bool], /) -> AtomBase:
         """
         Get the atom base with the given signature.
         """
 
     @typing.overload
-    def __getitem__(self, signature: tuple[str, int]) -> AtomBase:
+    def __getitem__(self, signature: tuple[str, int], /) -> AtomBase:
         """
         Get the atom base with the given (short) signature.
 
@@ -456,23 +632,48 @@ class Base:
         """
 
     @typing.overload
-    def __getitem__(self, symbol: Symbol) -> Atom:
+    def __getitem__(self, symbol: Symbol, /) -> Atom:
         """
         Get the atom with the given symbol.
+        """
+
+    def __getitem__(
+        self, key: tuple[str, int, bool] | tuple[str, int] | Symbol, /
+    ) -> AtomBase | Atom:
+        """
+        Get the atom base for the given signature or the atom for the given symbol.
+
+        Signatures are given as a tuple of the form `(name, arity, sign)` or
+        `(name, arity)`. They are mapped to the corresponding atom base. The
+        latter form is a shortcut assuming the sign is positive.
+
+        Symbols are mapped to the corresponding atom.
+
+        Args:
+            key: The signature or symbol to look up.
+
+        Returns:
+            The atom base or atom for the given signature or symbol.
         """
 
     def __iter__(self) -> Iterator[tuple[str, int, bool]]:
         """
         Get an iterator over the keys in the map.
+
+        Returns:
+            An iterator over the keys in the map.
         """
 
     def __len__(self) -> int:
         """
         Get the number elements in the map.
+
+        Returns:
+            The number of elements in the map.
         """
 
     @typing.overload
-    def get(self, key: tuple[str, int, bool]) -> AtomBase | None:
+    def get(self, key: tuple[str, int, bool], default: None = None) -> AtomBase | None:
         """
         Get the atom base for the given signature or None if absent.
         """
@@ -484,7 +685,7 @@ class Base:
         """
 
     @typing.overload
-    def get(self, key: tuple[str, int]) -> AtomBase | None:
+    def get(self, key: tuple[str, int], default: None = None) -> AtomBase | None:
         """
         Get the atom base for the given (short) signature or the default if absent.
         """
@@ -496,7 +697,7 @@ class Base:
         """
 
     @typing.overload
-    def get(self, key: Symbol) -> Atom | None:
+    def get(self, key: Symbol, default: None = None) -> Atom | None:
         """
         Get the atom for the given symbol or None if absent.
         """
@@ -507,7 +708,32 @@ class Base:
         Get the atom for the given symbol or the default if absent.
         """
 
-    def is_current(self, literal: int) -> bool:
+    def get(
+        self,
+        key: tuple[str, int, bool] | tuple[str, int] | Symbol,
+        default: _T | None = None,
+    ) -> AtomBase | Atom | _T | None:
+        """
+        Get the atom base or atom for the given signature or symbol or the default if absent.
+
+        Signatures are given as a tuple of the form `(name, arity, sign)` or
+        `(name, arity)`. They are mapped to the corresponding atom base. The
+        latter form is a shortcut assuming the sign is positive.
+
+        Symbols are mapped to the corresponding atom.
+
+        If the key is not present in the base, the default value is returned.
+        If no default value is given, `None` is returned.
+
+        Args:
+            key: The signature or symbol to look up.
+            default: The default value to return if the key is absent.
+
+        Returns:
+            The atom base or atom for the given signature or symbol, or the default if absent.
+        """
+
+    def is_current(self, literal: int, /) -> bool:
         """
         Check whether a literal has been introduced in the current step.
 
@@ -516,46 +742,51 @@ class Base:
 
         Args:
             literal: The literal to check.
+
         Returns:
             Whether the literal is subject to projection.
         """
 
-    def is_external(self, literal: int) -> bool:
+    def is_external(self, literal: int, /) -> bool:
         """
         Check whether the given program literal corresponds to an external.
 
         Args:
             literal: The literal to check.
+
         Returns:
             Whether the literal is external.
         """
 
-    def is_fact(self, literal: int) -> bool:
+    def is_fact(self, literal: int, /) -> bool:
         """
         Check whether the literal is a fact.
 
         Args:
             literal: The literal to check.
+
         Returns:
             Whether the literal is a fact.
         """
 
-    def is_projected(self, literal: int) -> bool:
+    def is_projected(self, literal: int, /) -> bool:
         """
         Check whether the literal is part of a `#project` directive.
 
         Args:
             literal: The literal to check.
+
         Returns:
             Whether the literal is subject to projection.
         """
 
-    def is_shown(self, literal: int) -> bool:
+    def is_shown(self, literal: int, /) -> bool:
         """
         Check whether the literal is shown via a `#show` directive.
 
         Args:
             literal: The literal to check.
+
         Returns:
             Whether the literal is shown.
         """
@@ -563,16 +794,25 @@ class Base:
     def items(self) -> Iterator[tuple[tuple[str, int, bool], AtomBase]]:
         """
         Get an iterator over the items in the map.
+
+        Returns:
+            An iterator over the items in the map.
         """
 
     def keys(self) -> Iterator[tuple[str, int, bool]]:
         """
         Get an iterator over the keys in the map.
+
+        Returns:
+            An iterator over the keys in the map.
         """
 
     def values(self) -> Iterator[AtomBase]:
         """
         Get an iterator over the values in the map.
+
+        Returns:
+            An iterator over the values in the map.
         """
 
     @property
