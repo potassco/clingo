@@ -72,16 +72,12 @@ class StatsView:
         Checks whether the given key is in the element, which must be a map.
         """
 
-    @typing.overload
-    def __getitem__(self, index: int) -> StatsView:
+    def __getitem__(self, key: int | str, /) -> StatsView:
         """
-        Return the element at the given index.
-        """
+        Look up the value with the given key.
 
-    @typing.overload
-    def __getitem__(self, key: str) -> StatsView:
-        """
-        Lookup the value with the given key.
+        Values can be accessed by index if the element is an array or by name
+        if the element is a map.
         """
 
     def __iter__(self) -> Iterator[str | StatsView]:
@@ -129,16 +125,12 @@ class Stats(StatsView):
     Class representing solver stats.
     """
 
-    @typing.overload
-    def __getitem__(self, index: int) -> Stats:
+    def __getitem__(self, key: int | str, /) -> Stats:
         """
-        Return the element at the given index.
-        """
+        Look up the value with the given key.
 
-    @typing.overload
-    def __getitem__(self, key: str) -> Stats:
-        """
-        Lookup the value with the given key.
+        Values can be accessed by index if the element is an array or by name
+        if the element is a map.
         """
 
     def __iter__(self) -> Iterator[str | Stats]:
@@ -256,7 +248,7 @@ class StatsMapView:
 
     def __getitem__(self, key: str) -> StatsView:
         """
-        Lookup the value with the given key.
+        Look up the value with the given key.
         """
 
     def __iter__(self) -> Iterator[str]:
@@ -280,10 +272,11 @@ class StatsMapView:
         Return the value for `key` if present, otherwise return `None`.
 
         Args:
-            key: The key to lookup.
+            key: The key to look up.
+
         Returns:
             The value associated with the key or `None` if the key is not
-            found.
+                found.
         """
 
     @typing.overload
@@ -292,11 +285,25 @@ class StatsMapView:
         Return the value for `key` if present, otherwise return `default`.
 
         Args:
-            key: The key to lookup.
+            key: The key to look up.
             default: The default value to return if the key is not found.
+
         Returns:
             The value associated with the key or the default value if the key
-            is not found.
+                is not found.
+        """
+
+    def get(self, key: str, default: _T | None = None) -> StatsView | _T | None:
+        """
+        Return the value for `key` if present, otherwise return `default`.
+
+        Args:
+            key: The key to look up.
+            default: The default value to return if the key is not found.
+
+        Returns:
+            The value associated with the key or the default value if the key
+                is not found.
         """
 
     def items(self) -> Iterator[tuple[str, StatsView]]:
@@ -328,7 +335,7 @@ class StatsMap(StatsMapView):
 
     def __getitem__(self, key: str) -> Stats:
         """
-        Lookup the value with the given key.
+        Look up the value with the given key.
         """
 
     def __setitem__(self, key: str, value: object) -> None:
@@ -337,15 +344,16 @@ class StatsMap(StatsMapView):
         """
 
     @typing.overload
-    def get(self, key: str) -> Stats | None:
+    def get(self, key: str, default: None = None) -> Stats | None:
         """
         Return the value for `key` if present, otherwise return `None`.
 
         Args:
-            key: The key to lookup.
+            key: The key to look up.
+
         Returns:
             The value associated with the key or `None` if the key is not
-            found.
+                found.
         """
 
     @typing.overload
@@ -354,11 +362,25 @@ class StatsMap(StatsMapView):
         Return the value for `key` if present, otherwise return `default`.
 
         Args:
-            key: The key to lookup.
+            key: The key to look up.
             default: The default value to return if the key is not found.
+
         Returns:
             The value associated with the key or the default value if the key
-            is not found.
+                is not found.
+        """
+
+    def get(self, key: str, default: _T | None = None) -> StatsView | _T | None:
+        """
+        Return the value for `key` if present, otherwise return `default`.
+
+        Args:
+            key: The key to look up.
+            default: The default value to return if the key is not found.
+
+        Returns:
+            The value associated with the key or the default value if the key
+                is not found
         """
 
     def setdefault(self, key: str, default: object) -> Stats:
@@ -366,8 +388,9 @@ class StatsMap(StatsMapView):
         Insert key with default if not already in the map.
 
         Args:
-            key: The key to lookup.
+            key: The key to look up.
             default: The default value to insert.
+
         Returns:
             The newly inserted value or the existing value.
         """
