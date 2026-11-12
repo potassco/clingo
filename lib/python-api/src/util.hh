@@ -551,4 +551,57 @@ inline void free_object(PyObject *self) {
     }
 }
 
+template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *what) -> bool {
+    if (obj == nullptr) {
+        return true;
+    }
+    if constexpr (std::is_unsigned_v<T>) {
+        auto i = steal(PyNumber_Index(obj));
+        if (i.get() == nullptr) {
+            return false;
+        }
+        auto v = PyLong_AsUnsignedLong(i.get());
+        if (PyErr_Occurred() != nullptr) {
+            PyErr_Format(PyExc_TypeError, "%s must be a non-negative integer", what);
+            return false;
+        }
+        if (std::cmp_greater(v, std::numeric_limits<T>::max())) {
+            PyErr_Format(PyExc_OverflowError, "%s is out of range", what);
+            return false;
+        }
+        *out = static_cast<T>(v);
+    } else {
+        auto v = PyLong_AsLong(obj);
+        if (PyErr_Occurred() != nullptr) {
+            PyErr_Format(PyExc_TypeError, "%s must be an integer", what);
+            return false;
+        }
+        if (std::cmp_less(v, std::numeric_limits<T>::min()) || std::cmp_greater(v, std::numeric_limits<T>::max())) {
+            PyErr_Format(PyExc_OverflowError, "%s is out of range", what);
+            return false;
+        }
+        *out = static_cast<T>(v);
+    }
+    return true;
+}
+
+template <class T> auto py_cast(PyObject *obj) -> T * {
+    try {
+        auto res = py::handle{obj}.cast<T *>();
+        if (res == nullptr) {
+            PyErr_SetString(PyExc_TypeError, "object is not of the expected type");
+        }
+        return res;
+    } catch (py::error_already_set &e) {
+        e.restore();
+        return nullptr;
+    } catch (py::cast_error &) {
+        PyErr_SetString(PyExc_TypeError, "object is not of the expected type");
+        return nullptr;
+    } catch (std::exception const &e) {
+        PyErr_SetString(PyExc_TypeError, e.what());
+        return nullptr;
+    }
+}
+
 } // namespace PyClingo

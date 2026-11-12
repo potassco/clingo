@@ -8,9 +8,8 @@ typedef struct {
     clingo_symbol_t syms[3];
 } fake_data_t;
 
-static bool fake_destroy(void *self) {
+static void fake_destroy(void *self) {
     free(self);
-    return true;
 }
 
 static bool fake_info(void *self, clingo_string_t *name, int *maj, int *min, int *rev, clingo_string_t *hash) {
@@ -93,6 +92,46 @@ static bool fake_assignment_get_value(void *self, uint32_t thread_id, size_t idx
     return true;
 }
 
+static bool fake_rewrite_ast(void *self, clingo_ast_t *ast, clingo_ast_callback_t cb, void *data) {
+    (void)self;
+    return cb(ast, data);
+}
+
+static bool fake_register_theory(void *self, clingo_control_t *control) {
+    (void)self;
+    (void)control;
+    return true;
+}
+
+static bool fake_prepare(void *self, clingo_control_t *control) {
+    (void)self;
+    (void)control;
+    return true;
+}
+
+static bool fake_on_model(void *self, clingo_model_t *model) {
+    (void)self;
+    (void)model;
+    return true;
+}
+
+static bool fake_on_stats(void *self, clingo_stats_t *stats) {
+    (void)self;
+    (void)stats;
+    return true;
+}
+
+static bool fake_register_options(void *self, clingo_options_t *options) {
+    (void)self;
+    (void)options;
+    return true;
+}
+
+static bool fake_validate_options(void *self) {
+    (void)self;
+    return true;
+}
+
 CLINGO_VISIBILITY_DEFAULT
 bool fake_theory_create(clingo_lib_t *lib, clingo_theory_t *theory) {
     (void)lib;
@@ -107,10 +146,18 @@ bool fake_theory_create(clingo_lib_t *lib, clingo_theory_t *theory) {
 
     memset(theory, 0, sizeof(*theory));
     theory->self = d;
-    theory->destroy = (void (*)(void *))fake_destroy;
-    theory->info = fake_info;
+    theory->destroy = fake_destroy;
     theory->lookup_symbol = fake_lookup_symbol;
+    theory->rewrite_ast = fake_rewrite_ast;
+    theory->register_theory = fake_register_theory;
+    theory->prepare = fake_prepare;
+    theory->on_model = fake_on_model;
+    theory->on_stats = fake_on_stats;
+    theory->register_options = fake_register_options;
+    theory->validate_options = fake_validate_options;
+    theory->info = fake_info;
     theory->assignment_next = fake_assignment_next;
     theory->assignment_get_value = fake_assignment_get_value;
+
     return true;
 }

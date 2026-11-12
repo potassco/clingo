@@ -9,7 +9,6 @@
 #include "util.hh"
 
 #include <array>
-#include <limits>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -82,40 +81,6 @@ auto get_state_from_self(PyObject *self) -> BackendModuleState * {
         return nullptr;
     }
     return get_state(mod);
-}
-
-template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *what) -> bool {
-    if (obj == nullptr) {
-        return true;
-    }
-    if constexpr (std::is_unsigned_v<T>) {
-        auto i = steal(PyNumber_Index(obj));
-        if (i.get() == nullptr) {
-            return false;
-        }
-        auto v = PyLong_AsUnsignedLong(i.get());
-        if (PyErr_Occurred() != nullptr) {
-            PyErr_Format(PyExc_TypeError, "%s must be a non-negative integer", what);
-            return false;
-        }
-        if (std::cmp_greater(v, std::numeric_limits<T>::max())) {
-            PyErr_Format(PyExc_OverflowError, "%s is out of range", what);
-            return false;
-        }
-        *out = static_cast<T>(v);
-    } else {
-        auto v = PyLong_AsLong(obj);
-        if (PyErr_Occurred() != nullptr) {
-            PyErr_Format(PyExc_TypeError, "%s must be an integer", what);
-            return false;
-        }
-        if (std::cmp_less(v, std::numeric_limits<T>::min()) || std::cmp_greater(v, std::numeric_limits<T>::max())) {
-            PyErr_Format(PyExc_OverflowError, "%s is out of range", what);
-            return false;
-        }
-        *out = static_cast<T>(v);
-    }
-    return true;
 }
 
 auto parse_symbol(BackendModuleState *state, PyObject *obj, clingo_symbol_t *sym, char const *what) -> bool {

@@ -4,10 +4,15 @@ Unit tests for the clingo.theory module.
 
 import ctypes
 import os
+from collections.abc import Callable
+from typing import cast
 
 import pytest
+from clingo.app import AppOptions
+from clingo.ast import Statement, parse_string
+from clingo.control import Control
 from clingo.core import Library
-from clingo.symbol import Number, Symbol
+from clingo.symbol import Number
 from clingo.theory import Theory
 
 
@@ -99,25 +104,19 @@ class TestTheory:
 
         assignment = theory.assignment(0)
 
-        idx = assignment.lookup(Number(self.lib, 10))
-        assert idx == 0
-        assert assignment.lookup(Number(self.lib, 999)) is None
+        symbol = Number(self.lib, 10)
+        assert assignment.get(symbol) == 0
+        assert assignment.get(Number(self.lib, 999)) is None
 
-        symbol, value = assignment.at(0)
-        assert symbol == Number(self.lib, 10)
-        assert value == 7
-
-        symbol, value = assignment.at(1)
-        assert symbol == Number(self.lib, 20)
-        assert value == pytest.approx(3.5)
-
-        symbol, value = assignment.at(2)
-        assert symbol == Number(self.lib, 30)
-        assert isinstance(value, Symbol)
-        assert value == Number(self.lib, 10)
+        assert assignment[0] == assignment[symbol] == 7
+        assert assignment[1] == pytest.approx(3.5)
+        assert assignment[2] == Number(self.lib, 10)
 
         with pytest.raises(IndexError):
-            assignment.at(3)
+            assignment[3]
+
+        with pytest.raises(IndexError):
+            assignment[Number(self.lib, 999)]
 
         values = list(assignment)
         assert len(values) == 3
@@ -139,3 +138,57 @@ class TestTheory:
         assert theory.value(0, Number(self.lib, 20)) == pytest.approx(3.5)
         assert theory.value(0, Number(self.lib, 30)) == Number(self.lib, 10)
         assert theory.value(0, Number(self.lib, 999)) is None
+
+    def test_api(self, tmp_path):
+        """
+        Exercise all callable methods.
+        """
+        plugin = _load_fake_theory()
+        cap = _create_capsule(plugin)
+        theory = Theory(self.lib, cap)
+
+        control = Control(self.lib)
+
+        assert theory.register(control) is None
+        with pytest.raises(TypeError):
+            theory.register_options(cast(AppOptions, None))
+
+        assert theory.validate_options() is None
+        assert theory.prepare(control) is None
+
+        statements = []
+        parse_string(self.lib, "a.", statements.append)
+        assert statements
+
+        rewritten = []
+        assert theory.rewrite(statements[0], rewritten.append) is None
+        assert rewritten
+
+        with pytest.raises(TypeError):
+            theory.rewrite(statements[0], cast(Callable[[Statement], None], None))
+
+        assert theory.rewrite_string(self.lib, control, "b.") is None
+
+        path = tmp_path / "rewrite.lp"
+        path.write_text("c.\n", encoding="utf-8")
+        assert theory.rewrite_files(self.lib, control, [str(path)]) is None
+
+        control.parse_string("d.")
+        control.ground([("base", [])])
+
+        seen_model = False
+        seen_stats = False
+
+        def _on_model(model):
+            nonlocal seen_model
+            seen_model = True
+            assert theory.on_model(model) is None
+
+        def _on_stats(step, accu):
+            nonlocal seen_stats
+            seen_stats = True
+            assert theory.on_stats(step, accu) is None
+
+        control.solve(on_model=_on_model, on_stats=_on_stats)
+        assert seen_model
+        assert seen_stats
