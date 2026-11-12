@@ -1,3 +1,16 @@
+#ifdef CLINGO_NO_VISIBILITY
+#define FAKE_VISIBILITY_DEFAULT
+#elif defined __EMSCRIPTEN__
+#include <emscripten.h>
+#define FAKE_VISIBILITY_DEFAULT EMSCRIPTEN_KEEPALIVE
+#elif defined _WIN32 || defined __CYGWIN__
+#define FAKE_VISIBILITY_DEFAULT __declspec(dllexport)
+#elif __GNUC__ >= 4
+#define FAKE_VISIBILITY_DEFAULT __attribute__((visibility("default")))
+#else
+#define FAKE_VISIBILITY_DEFAULT
+#endif
+
 #include <clingo/theory.h>
 
 #include <stdbool.h>
@@ -132,7 +145,7 @@ static bool fake_validate_options(void *self) {
     return true;
 }
 
-CLINGO_VISIBILITY_DEFAULT
+FAKE_VISIBILITY_DEFAULT
 bool fake_theory_create(clingo_lib_t *lib, clingo_theory_t *theory) {
     (void)lib;
     fake_data_t *d = (fake_data_t *)calloc(1, sizeof(fake_data_t));
