@@ -818,7 +818,10 @@ auto py_symbol_slots = std::array{
 };
 
 auto py_symbol_spec = PyType_Spec{
-    "clingo.symbol.Symbol", sizeof(PySymbolObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.symbol.Symbol",
+    sizeof(PySymbolObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_IMMUTABLETYPE,
     py_symbol_slots.data(),
 };
 

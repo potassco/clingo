@@ -12,9 +12,6 @@
 
 #include <array>
 #include <cstring>
-#include <string>
-#include <string_view>
-#include <vector>
 
 namespace PyClingo {
 
@@ -31,10 +28,10 @@ using PyTheoryAssignmentObject = struct {
 
 using PyTheoryAssignmentIterObject = struct {
     PyObject_HEAD PyObject *owner;
+    size_t index;
     uint32_t thread_id;
     bool init;
     bool has_value;
-    size_t index;
 };
 
 struct TheoryModuleState {
@@ -66,6 +63,15 @@ auto py_theory_cast(PyObject *obj) -> PyTheoryObject * {
     return reinterpret_cast<PyTheoryObject *>(obj);
 }
 
+auto py_theory_check(PyObject *obj) -> PyTheoryObject * {
+    auto *ret = py_theory_cast(obj);
+    if (ret->theory.self == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "theory is not initialized");
+        return nullptr;
+    }
+    return ret;
+}
+
 auto py_theory_assignment_cast(PyObject *obj) -> PyTheoryAssignmentObject * {
     return reinterpret_cast<PyTheoryAssignmentObject *>(obj);
 }
@@ -89,39 +95,42 @@ auto parse_symbol(TheoryModuleState *state, PyObject *obj, clingo_symbol_t *sym,
     return true;
 }
 
-auto parse_string_sequence(PyObject *obj, std::vector<std::string> *out) -> bool {
-    auto seq = steal(PySequence_Fast(obj, "files must be a sequence of strings"));
+auto parse_string_sequence(PyObject *obj, PyGuard &seq, PyBuffer<clingo_string_t> &out) -> bool {
+    char const *what = "files must be a sequence of strings";
+
+    auto seq_fast = steal(PySequence_Fast(obj, what));
+    if (seq_fast.get() == nullptr) {
+        return false;
+    }
+
+    seq = steal(PySequence_Tuple(seq_fast.get()));
     if (seq.get() == nullptr) {
         return false;
     }
-    auto n = PySequence_Fast_GET_SIZE(seq.get());
+
+    auto n = PyTuple_GET_SIZE(seq.get());
     if (n < 0) {
         return false;
     }
 
-    out->clear();
-    out->reserve(static_cast<size_t>(n));
+    auto count = static_cast<size_t>(n);
+    if (!out.alloc(count)) {
+        return false;
+    }
 
-    auto **items = PySequence_Fast_ITEMS(seq.get());
+    auto *it = out.data();
     for (Py_ssize_t i = 0; i < n; ++i) {
-        if (PyUnicode_Check(items[i]) == 0) {
+        auto *item = PyTuple_GET_ITEM(seq.get(), i);
+        if (PyUnicode_Check(item) == 0) {
             PyErr_SetString(PyExc_TypeError, "files must be a sequence of strings");
             return false;
         }
         Py_ssize_t len = 0;
-        const auto *s = PyUnicode_AsUTF8AndSize(items[i], &len);
+        const auto *s = PyUnicode_AsUTF8AndSize(item, &len);
         if (s == nullptr) {
             return false;
         }
-        out->emplace_back(s, static_cast<size_t>(len));
-    }
-    return true;
-}
-
-auto theory_is_ready(PyTheoryObject *o) -> bool {
-    if (o->theory.self == nullptr) {
-        PyErr_SetString(PyExc_RuntimeError, "theory is not initialized");
-        return false;
+        *it = clingo_string_t{s, static_cast<size_t>(len)};
     }
     return true;
 }
@@ -175,7 +184,7 @@ auto py_theory_assignment_iter_new(PyObject *type, PyObject *owner, uint32_t thr
     a->init = true;
     a->has_value = true;
     a->index = 0;
-    Py_XINCREF(owner);
+    Py_INCREF(owner);
     return obj;
 }
 
@@ -198,8 +207,8 @@ auto py_theory_assignment_iter_next(PyObject *self) -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "assignment iterator is invalid");
         return nullptr;
     }
-    auto *o = py_theory_cast(a->owner);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(a->owner);
+    if (o == nullptr) {
         return nullptr;
     }
     if (o->theory.assignment_next == nullptr || o->theory.assignment_get_value == nullptr) {
@@ -276,7 +285,7 @@ auto py_theory_assignment_new(PyObject *type, PyObject *owner, uint32_t thread_i
     auto *a = py_theory_assignment_cast(obj);
     a->owner = owner;
     a->thread_id = thread_id;
-    Py_XINCREF(owner);
+    Py_INCREF(owner);
     return obj;
 }
 
@@ -290,8 +299,8 @@ auto py_theory_assignment_get(PyObject *self, PyObject *arg) -> PyObject * {
     if (state == nullptr) {
         return nullptr;
     }
-    auto *o = py_theory_cast(a->owner);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(a->owner);
+    if (o == nullptr) {
         return nullptr;
     }
 
@@ -322,8 +331,8 @@ auto py_theory_assignment_at(PyObject *self, PyObject *arg) -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "assignment is invalid");
         return nullptr;
     }
-    auto *o = py_theory_cast(a->owner);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(a->owner);
+    if (o == nullptr) {
         return nullptr;
     }
 
@@ -464,8 +473,8 @@ auto py_theory_clear([[maybe_unused]] PyObject *self) -> int {
 }
 
 auto py_theory_register(PyObject *self, PyObject *arg) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
     if (o->theory.register_theory == nullptr) {
@@ -483,12 +492,8 @@ auto py_theory_register(PyObject *self, PyObject *arg) -> PyObject * {
     Py_RETURN_NONE;
 }
 
-struct RewriteData {
-    PyObject *callback;
-};
-
 auto rewrite_ast_cb(clingo_ast_t *ast, void *data) -> bool {
-    auto *d = static_cast<RewriteData *>(data);
+    auto *callback = static_cast<PyObject *>(data);
     py::object stm;
     try {
         stm = AST::convert_stm(ast);
@@ -499,7 +504,7 @@ auto rewrite_ast_cb(clingo_ast_t *ast, void *data) -> bool {
         PyErr_SetString(PyExc_TypeError, e.what());
         return false;
     }
-    auto ret = steal(PyObject_CallFunctionObjArgs(d->callback, stm.ptr(), nullptr));
+    auto ret = steal(PyObject_CallFunctionObjArgs(callback, stm.ptr(), nullptr));
     if (ret.get() == nullptr) {
         return store_python_error("rewrite callback failed");
     }
@@ -507,8 +512,8 @@ auto rewrite_ast_cb(clingo_ast_t *ast, void *data) -> bool {
 }
 
 auto py_theory_rewrite(PyObject *self, PyObject *args) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
 
@@ -530,7 +535,6 @@ auto py_theory_rewrite(PyObject *self, PyObject *args) -> PyObject * {
         Py_RETURN_NONE;
     }
 
-    RewriteData data{callback};
     clingo_ast_t *stm = nullptr;
     try {
         stm = AST::convert_stm(stm_obj);
@@ -541,7 +545,7 @@ auto py_theory_rewrite(PyObject *self, PyObject *args) -> PyObject * {
         PyErr_SetString(PyExc_TypeError, e.what());
         return nullptr;
     }
-    if (!o->theory.rewrite_ast(o->theory.self, stm, rewrite_ast_cb, &data)) {
+    if (!o->theory.rewrite_ast(o->theory.self, stm, rewrite_ast_cb, callback)) {
         return py_handle_error();
     }
 
@@ -567,8 +571,8 @@ auto parse_rewrite_cb(clingo_ast_t *ast, void *data) -> bool {
 }
 
 auto py_theory_rewrite_string(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
 
@@ -609,8 +613,8 @@ auto py_theory_rewrite_string(PyObject *self, PyObject *args, PyObject *kwargs) 
 }
 
 auto py_theory_rewrite_files(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
 
@@ -623,8 +627,9 @@ auto py_theory_rewrite_files(PyObject *self, PyObject *args, PyObject *kwargs) -
         return nullptr;
     }
 
-    std::vector<std::string> files;
-    if (!parse_string_sequence(files_obj, &files)) {
+    PyGuard seq;
+    PyBuffer<clingo_string_t> files;
+    if (!parse_string_sequence(files_obj, seq, files)) {
         return nullptr;
     }
 
@@ -643,9 +648,8 @@ auto py_theory_rewrite_files(PyObject *self, PyObject *args, PyObject *kwargs) -
     }
     auto guard = Guard<clingo_program_t *, clingo_program_free>(prg);
 
-    auto cfiles = transform_vec(files, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
     ParseData data{prg, &o->theory};
-    if (!clingo_ast_parse_files(*lib, cfiles.data(), cfiles.size(), ctl->c_ptr(), parse_rewrite_cb, &data)) {
+    if (!clingo_ast_parse_files(*lib, files.data(), files.size(), ctl->c_ptr(), parse_rewrite_cb, &data)) {
         return py_handle_error();
     }
     if (!clingo_control_join(ctl->c_ptr(), prg)) {
@@ -656,8 +660,8 @@ auto py_theory_rewrite_files(PyObject *self, PyObject *args, PyObject *kwargs) -
 }
 
 auto py_theory_register_options(PyObject *self, PyObject *arg) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
     if (o->theory.register_options == nullptr) {
@@ -682,8 +686,8 @@ auto py_theory_register_options(PyObject *self, PyObject *arg) -> PyObject * {
 }
 
 auto py_theory_validate_options(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
     if (o->theory.validate_options != nullptr) {
@@ -695,8 +699,8 @@ auto py_theory_validate_options(PyObject *self, [[maybe_unused]] PyObject *args)
 }
 
 auto py_theory_prepare(PyObject *self, PyObject *arg) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
     if (o->theory.prepare == nullptr) {
@@ -715,8 +719,8 @@ auto py_theory_prepare(PyObject *self, PyObject *arg) -> PyObject * {
 }
 
 auto py_theory_on_model(PyObject *self, PyObject *arg) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
     if (o->theory.on_model == nullptr) {
@@ -735,8 +739,8 @@ auto py_theory_on_model(PyObject *self, PyObject *arg) -> PyObject * {
 }
 
 auto py_theory_on_stats(PyObject *self, PyObject *args) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
     if (o->theory.on_stats == nullptr) {
@@ -767,8 +771,8 @@ auto py_theory_on_stats(PyObject *self, PyObject *args) -> PyObject * {
 }
 
 auto py_theory_value(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
 
@@ -818,8 +822,8 @@ auto py_theory_value(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObje
 }
 
 auto py_theory_assignment(PyObject *self, PyObject *arg) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
 
@@ -842,8 +846,8 @@ auto py_theory_assignment(PyObject *self, PyObject *arg) -> PyObject * {
 }
 
 auto py_theory_get_version(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
     if (o->theory.info == nullptr) {
@@ -861,8 +865,8 @@ auto py_theory_get_version(PyObject *self, [[maybe_unused]] void *arg) -> PyObje
 }
 
 auto py_theory_get_name(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
     if (o->theory.info == nullptr) {
@@ -878,8 +882,8 @@ auto py_theory_get_name(PyObject *self, [[maybe_unused]] void *arg) -> PyObject 
 }
 
 auto py_theory_get_commit_hash(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
     if (o->theory.info == nullptr) {
@@ -895,8 +899,8 @@ auto py_theory_get_commit_hash(PyObject *self, [[maybe_unused]] void *arg) -> Py
 }
 
 auto py_theory_get_has_assignment(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
-    auto *o = py_theory_cast(self);
-    if (!theory_is_ready(o)) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
     auto ok = o->theory.assignment_next != nullptr && o->theory.assignment_get_value != nullptr;
