@@ -6,8 +6,11 @@
 #include <pybind11/stl.h>
 
 #include <compare> // IWYU pragma: keep
+#include <concepts>
+#include <limits>
 #include <ranges>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
 namespace PyClingo {
@@ -560,9 +563,12 @@ template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *wha
         if (i.get() == nullptr) {
             return false;
         }
-        auto v = PyLong_AsUnsignedLong(i.get());
-        if (PyErr_Occurred() != nullptr) {
-            PyErr_Format(PyExc_TypeError, "%s must be a non-negative integer", what);
+        auto v = PyLong_AsUnsignedLongLong(i.get());
+        if (v == std::numeric_limits<unsigned long long>::max() && PyErr_Occurred() != nullptr) {
+            if (PyErr_ExceptionMatches(PyExc_OverflowError) != 0) {
+                PyErr_Clear();
+                PyErr_Format(PyExc_OverflowError, "%s is out of range", what);
+            }
             return false;
         }
         if (std::cmp_greater(v, std::numeric_limits<T>::max())) {
@@ -571,9 +577,12 @@ template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *wha
         }
         *out = static_cast<T>(v);
     } else {
-        auto v = PyLong_AsLong(obj);
-        if (PyErr_Occurred() != nullptr) {
-            PyErr_Format(PyExc_TypeError, "%s must be an integer", what);
+        auto v = PyLong_AsLongLong(obj);
+        if (v == -1 && PyErr_Occurred() != nullptr) {
+            if (PyErr_ExceptionMatches(PyExc_OverflowError) != 0) {
+                PyErr_Clear();
+                PyErr_Format(PyExc_OverflowError, "%s is out of range", what);
+            }
             return false;
         }
         if (std::cmp_less(v, std::numeric_limits<T>::min()) || std::cmp_greater(v, std::numeric_limits<T>::max())) {

@@ -136,12 +136,12 @@ auto parse_symbol(TheoryModuleState *state, PyObject *obj, clingo_symbol_t *sym,
 auto parse_string_sequence(PyObject *obj, PyGuard &seq, PyBuffer<clingo_string_t> &out) -> bool {
     char const *what = "files must be a sequence of strings";
 
-    auto seq_fast = steal(PySequence_Fast(obj, what));
-    if (seq_fast.get() == nullptr) {
+    if (PyUnicode_Check(obj) != 0 || PyBytes_Check(obj) != 0) {
+        PyErr_SetString(PyExc_TypeError, what);
         return false;
     }
 
-    seq = steal(PySequence_Tuple(seq_fast.get()));
+    seq = steal(PySequence_Tuple(obj));
     if (seq.get() == nullptr) {
         return false;
     }
@@ -160,7 +160,7 @@ auto parse_string_sequence(PyObject *obj, PyGuard &seq, PyBuffer<clingo_string_t
     for (Py_ssize_t i = 0; i < n; ++i) {
         auto *item = PyTuple_GET_ITEM(seq.get(), i);
         if (PyUnicode_Check(item) == 0) {
-            PyErr_SetString(PyExc_TypeError, "files must be a sequence of strings");
+            PyErr_SetString(PyExc_TypeError, what);
             return false;
         }
         Py_ssize_t len = 0;
@@ -261,12 +261,11 @@ auto py_theory_assignment_iter_next(PyObject *self) -> PyObject * {
         if (a->has_value) {
             auto symbol = Guard<clingo_symbol_t, clingo_symbol_release>{};
             auto value = ValueGuard{};
-            bool has_value = true;
             if (!o->theory.assignment_get_value(o->theory.self, a->thread_id, a->index, &symbol.get(), &value.get(),
-                                                &has_value)) {
+                                                &a->has_value)) {
                 return py_handle_error();
             }
-            if (!has_value) {
+            if (!a->has_value) {
                 PyErr_SetNone(PyExc_StopIteration);
                 return nullptr;
             }
@@ -511,6 +510,7 @@ auto py_theory_clear([[maybe_unused]] PyObject *self) -> int {
         o->theory.destroy(o->theory.self);
     }
     std::memset(&o->theory, 0, sizeof(o->theory));
+    o->initialized = false;
     return 0;
 }
 
@@ -519,13 +519,12 @@ auto py_theory_register(PyObject *self, PyObject *arg) -> PyObject * {
     if (o == nullptr) {
         return nullptr;
     }
-    if (o->theory.register_theory == nullptr) {
-        Py_RETURN_NONE;
-    }
-
     auto *ctl = py_cast<Control>(arg);
     if (ctl == nullptr) {
         return nullptr;
+    }
+    if (o->theory.register_theory == nullptr) {
+        Py_RETURN_NONE;
     }
     if (!o->theory.register_theory(o->theory.self, ctl->c_ptr())) {
         return py_handle_error();
@@ -702,10 +701,6 @@ auto py_theory_register_options(PyObject *self, PyObject *arg) -> PyObject * {
     if (o == nullptr) {
         return nullptr;
     }
-    if (o->theory.register_options == nullptr) {
-        Py_RETURN_NONE;
-    }
-
     clingo_options_t *opt = nullptr;
     try {
         opt = convert_options(arg);
@@ -716,10 +711,12 @@ auto py_theory_register_options(PyObject *self, PyObject *arg) -> PyObject * {
         PyErr_SetString(PyExc_TypeError, e.what());
         return nullptr;
     }
+    if (o->theory.register_options == nullptr) {
+        Py_RETURN_NONE;
+    }
     if (!o->theory.register_options(o->theory.self, opt)) {
         return py_handle_error();
     }
-
     Py_RETURN_NONE;
 }
 
@@ -741,13 +738,12 @@ auto py_theory_prepare(PyObject *self, PyObject *arg) -> PyObject * {
     if (o == nullptr) {
         return nullptr;
     }
-    if (o->theory.prepare == nullptr) {
-        Py_RETURN_NONE;
-    }
-
     auto *ctl = py_cast<Control>(arg);
     if (ctl == nullptr) {
         return nullptr;
+    }
+    if (o->theory.prepare == nullptr) {
+        Py_RETURN_NONE;
     }
     if (!o->theory.prepare(o->theory.self, ctl->c_ptr())) {
         return py_handle_error();
@@ -761,18 +757,16 @@ auto py_theory_on_model(PyObject *self, PyObject *arg) -> PyObject * {
     if (o == nullptr) {
         return nullptr;
     }
-    if (o->theory.on_model == nullptr) {
-        Py_RETURN_NONE;
-    }
-
     auto *model = py_cast<Model>(arg);
     if (model == nullptr) {
         return nullptr;
     }
+    if (o->theory.on_model == nullptr) {
+        Py_RETURN_NONE;
+    }
     if (!o->theory.on_model(o->theory.self, const_cast<clingo_model_t *>(model->c_ptr()))) {
         return py_handle_error();
     }
-
     Py_RETURN_NONE;
 }
 
@@ -781,10 +775,6 @@ auto py_theory_on_stats(PyObject *self, PyObject *args) -> PyObject * {
     if (o == nullptr) {
         return nullptr;
     }
-    if (o->theory.on_stats == nullptr) {
-        Py_RETURN_NONE;
-    }
-
     PyObject *step = nullptr;
     PyObject *accu = nullptr;
     if (PyArg_ParseTuple(args, "OO:on_stats", &step, &accu) == 0) {
@@ -802,6 +792,9 @@ auto py_theory_on_stats(PyObject *self, PyObject *args) -> PyObject * {
         return nullptr;
     }
 
+    if (o->theory.on_stats == nullptr) {
+        Py_RETURN_NONE;
+    }
     if (!o->theory.on_stats(o->theory.self, stats)) {
         return py_handle_error();
     }
@@ -836,7 +829,8 @@ auto py_theory_value(PyObject *self, PyObject *args) -> PyObject * {
     }
 
     if (o->theory.lookup_symbol == nullptr || o->theory.assignment_get_value == nullptr) {
-        Py_RETURN_NONE;
+        PyErr_SetString(PyExc_NotImplementedError, "lookup_symbol or assignment_get_value not implemented");
+        return nullptr;
     }
 
     size_t index = 0;
@@ -1082,7 +1076,7 @@ void register_theory(pybind11::module &m) {
     }
     Py_INCREF(state->symbol_type);
 
-    if (!add_type(theory_mod.get(), "TheoryAssignmentIter", &py_theory_assignment_iter_spec,
+    if (!add_type(theory_mod.get(), "_TheoryAssignmentIter", &py_theory_assignment_iter_spec,
                   &state->assignment_iter_type) ||
         !add_type(theory_mod.get(), "TheoryAssignment", &py_theory_assignment_spec, &state->assignment_type) ||
         !add_type(theory_mod.get(), "Theory", &py_theory_spec, &state->theory_type)) {

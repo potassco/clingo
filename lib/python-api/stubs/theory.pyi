@@ -52,6 +52,9 @@ class TheoryAssignment:
         """
         Get the value index of the symbol in the assignment.
 
+        The resulting index can be used to retrieve the value using
+        `__getitem__`.
+
         Args:
             symbol: The symbol to lookup.
 

@@ -18,6 +18,9 @@ from clingo.stats import Stats
 from clingo.symbol import Function, Number
 from clingo.theory import Theory
 
+CAPSULE_NAME_GOOD = b"clingo_theory_create"
+CAPSULE_NAME_BAD = b"wrong_name"
+
 
 def _load_fake_theory():
     """
@@ -26,13 +29,7 @@ def _load_fake_theory():
     path = os.environ.get(
         "PYCLINGO_FAKE_THEORY", "./build/debug/bin/python/fake_theory.so"
     )
-    try:
-        return ctypes.CDLL(path)
-    except OSError:
-        pass
-    pytest.skip(
-        "fake_theory plugin not found (build tests with CLINGO_BUILD_TESTS=ON) "
-    )
+    return ctypes.CDLL(path)
 
 
 def _capsule_new(ptr: int, name: bytes):
@@ -45,7 +42,7 @@ def _capsule_new(ptr: int, name: bytes):
     return cap_new(ctypes.c_void_p(ptr), name, None)
 
 
-def _create_capsule(lib: ctypes.CDLL, name: bytes = b"clingo_theory_create"):
+def _create_capsule(lib: ctypes.CDLL, name: bytes = CAPSULE_NAME_GOOD):
     """
     Build a theory-create capsule from fake_theory.
     """
@@ -88,7 +85,7 @@ class TestTheory:
         Theory constructor validates capsule name.
         """
         plugin = _load_fake_theory()
-        cap = _create_capsule(plugin, b"wrong_name")
+        cap = _create_capsule(plugin, CAPSULE_NAME_BAD)
         with pytest.raises(ValueError):
             Theory(self.lib, cap)
 
