@@ -19,6 +19,7 @@ namespace {
 
 using PyTheoryObject = struct {
     PyObject_HEAD clingo_theory_t theory;
+    bool initialized;
 };
 
 using PyTheoryAssignmentObject = struct {
@@ -102,7 +103,7 @@ auto py_theory_cast(PyObject *obj) -> PyTheoryObject * {
 
 auto py_theory_check(PyObject *obj) -> PyTheoryObject * {
     auto *ret = py_theory_cast(obj);
-    if (ret->theory.self == nullptr) {
+    if (!ret->initialized) {
         PyErr_SetString(PyExc_RuntimeError, "theory is not initialized");
         return nullptr;
     }
@@ -448,15 +449,16 @@ auto py_theory_assignment_iter(PyObject *self) -> PyObject * {
     return py_theory_assignment_iter_new(state->assignment_iter_type, a->owner, a->thread_id);
 }
 
-auto py_theory_init(PyObject *self, PyObject *args) -> int {
+auto py_theory_init(PyObject *self, PyObject *args, PyObject *kwargs) -> int {
     PyObject *lib_obj = nullptr;
     PyObject *create_obj = nullptr;
-    if (PyArg_ParseTuple(args, "OO:Theory", &lib_obj, &create_obj) == 0) {
+    static constexpr auto kwlist = std::array<char const *, 3>{"", "", nullptr};
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO|:Theory", cast_kw(kwlist), &lib_obj, &create_obj) == 0) {
         return -1;
     }
 
     auto *o = py_theory_cast(self);
-    if (o->theory.self != nullptr) {
+    if (o->initialized) {
         PyErr_SetString(PyExc_RuntimeError, "theory is already initialized");
         return -1;
     }
@@ -466,6 +468,9 @@ auto py_theory_init(PyObject *self, PyObject *args) -> int {
     }
     const auto *cap_name = PyCapsule_GetName(create_obj);
     if (cap_name == nullptr) {
+        if (PyErr_Occurred() == nullptr) {
+            PyErr_SetString(PyExc_ValueError, "theory initialization function expected");
+        }
         return -1;
     }
     if (std::strcmp(cap_name, "clingo_theory_create") != 0) {
@@ -491,7 +496,7 @@ auto py_theory_init(PyObject *self, PyObject *args) -> int {
         py_handle_error();
         return -1;
     }
-
+    o->initialized = true;
     return 0;
 }
 

@@ -1,6 +1,4 @@
-#ifdef CLINGO_NO_VISIBILITY
-#define FAKE_VISIBILITY_DEFAULT
-#elif defined __EMSCRIPTEN__
+#if defined __EMSCRIPTEN__
 #include <emscripten.h>
 #define FAKE_VISIBILITY_DEFAULT EMSCRIPTEN_KEEPALIVE
 #elif defined _WIN32 || defined __CYGWIN__
