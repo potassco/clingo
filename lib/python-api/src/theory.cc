@@ -37,6 +37,7 @@ using PyTheoryAssignmentIterObject = struct {
 
 struct TheoryModuleState {
     PyObject *symbol_type{nullptr};
+    PyObject *app_options_type{nullptr};
     PyObject *theory_type{nullptr};
     PyObject *assignment_type{nullptr};
     PyObject *assignment_iter_type{nullptr};
@@ -129,46 +130,6 @@ auto parse_symbol(TheoryModuleState *state, PyObject *obj, clingo_symbol_t *sym,
     if (res == 0) {
         PyErr_Format(PyExc_TypeError, "%s must be a Symbol", what);
         return false;
-    }
-    return true;
-}
-
-auto parse_string_sequence(PyObject *obj, PyGuard &seq, PyBuffer<clingo_string_t> &out) -> bool {
-    char const *what = "files must be a sequence of strings";
-
-    if (PyUnicode_Check(obj) != 0 || PyBytes_Check(obj) != 0) {
-        PyErr_SetString(PyExc_TypeError, what);
-        return false;
-    }
-
-    seq = steal(PySequence_Tuple(obj));
-    if (seq.get() == nullptr) {
-        return false;
-    }
-
-    auto n = PyTuple_GET_SIZE(seq.get());
-    if (n < 0) {
-        return false;
-    }
-
-    auto count = static_cast<size_t>(n);
-    if (!out.alloc(count)) {
-        return false;
-    }
-
-    auto *it = out.data();
-    for (Py_ssize_t i = 0; i < n; ++i) {
-        auto *item = PyTuple_GET_ITEM(seq.get(), i);
-        if (PyUnicode_Check(item) == 0) {
-            PyErr_SetString(PyExc_TypeError, what);
-            return false;
-        }
-        Py_ssize_t len = 0;
-        const auto *s = PyUnicode_AsUTF8AndSize(item, &len);
-        if (s == nullptr) {
-            return false;
-        }
-        *it++ = clingo_string_t{s, static_cast<size_t>(len)};
     }
     return true;
 }
@@ -666,7 +627,7 @@ auto py_theory_rewrite_files(PyObject *self, PyObject *args) -> PyObject * {
 
     PyGuard seq;
     PyBuffer<clingo_string_t> files;
-    if (!parse_string_sequence(files_obj, seq, files)) {
+    if (!parse_string_sequence(files_obj, seq, files, "files must be a sequence of strings")) {
         return nullptr;
     }
 
@@ -701,14 +662,12 @@ auto py_theory_register_options(PyObject *self, PyObject *arg) -> PyObject * {
     if (o == nullptr) {
         return nullptr;
     }
-    clingo_options_t *opt = nullptr;
-    try {
-        opt = convert_options(arg);
-    } catch (py::error_already_set &e) {
-        e.restore();
+    auto *mod = get_state_from_self(self);
+    if (mod == nullptr) {
         return nullptr;
-    } catch (std::exception const &e) {
-        PyErr_SetString(PyExc_TypeError, e.what());
+    }
+    clingo_options_t *opt = py_app_options_check(mod->app_options_type, arg);
+    if (opt == nullptr) {
         return nullptr;
     }
     if (o->theory.register_options == nullptr) {
@@ -1023,6 +982,7 @@ auto theory_module_traverse(PyObject *module, visitproc visit, void *arg) -> int
         return 0;
     }
     Py_VISIT(state->symbol_type);
+    Py_VISIT(state->app_options_type);
     Py_VISIT(state->theory_type);
     Py_VISIT(state->assignment_type);
     Py_VISIT(state->assignment_iter_type);
@@ -1035,6 +995,7 @@ auto theory_module_clear(PyObject *module) -> int {
         return 0;
     }
     Py_CLEAR(state->symbol_type);
+    Py_CLEAR(state->app_options_type);
     Py_CLEAR(state->theory_type);
     Py_CLEAR(state->assignment_type);
     Py_CLEAR(state->assignment_iter_type);
@@ -1075,6 +1036,12 @@ void register_theory(pybind11::module &m) {
         throw py::error_already_set();
     }
     Py_INCREF(state->symbol_type);
+
+    state->app_options_type = py_app_options_type_ref();
+    if (state->app_options_type == nullptr) {
+        throw py::error_already_set();
+    }
+    Py_INCREF(state->app_options_type);
 
     if (!add_type(theory_mod.get(), "_TheoryAssignmentIter", &py_theory_assignment_iter_spec,
                   &state->assignment_iter_type) ||

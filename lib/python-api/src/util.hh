@@ -1,5 +1,7 @@
 #pragma once
 
+#include <clingo/core.h>
+
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
@@ -654,5 +656,43 @@ template <class T> struct PyBuffer {
     T *ptr_{nullptr};
     size_t n_{0};
 };
+
+inline auto parse_string_sequence(PyObject *obj, PyGuard &seq, PyBuffer<clingo_string_t> &out, char const *what)
+    -> bool {
+    if (PyUnicode_Check(obj) != 0 || PyBytes_Check(obj) != 0) {
+        PyErr_SetString(PyExc_TypeError, what);
+        return false;
+    }
+    seq = steal(PySequence_Tuple(obj));
+    if (seq.get() == nullptr) {
+        return false;
+    }
+    auto n = PyTuple_Size(seq.get());
+    if (n < 0) {
+        return false;
+    }
+    if (!out.alloc(static_cast<size_t>(n))) {
+        return false;
+    }
+    auto *it = out.data();
+    for (Py_ssize_t i = 0; i < n; ++i) {
+        auto *item = PyTuple_GetItem(seq.get(), i);
+        if (item == nullptr) {
+            return false;
+        }
+        if (PyUnicode_Check(item) == 0) {
+            PyErr_SetString(PyExc_TypeError, what);
+            return false;
+        }
+        Py_ssize_t len = 0;
+        const auto *s = PyUnicode_AsUTF8AndSize(item, &len);
+        if (s == nullptr) {
+            return false;
+        }
+        *it++ = clingo_string_t{s, static_cast<size_t>(len)};
+    }
+
+    return true;
+}
 
 } // namespace PyClingo

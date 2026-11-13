@@ -82,6 +82,21 @@ void handle_error_no_code(bool res, int code) {
     }
 }
 
+auto report_main_error(bool res, int code, clingo_string_t name) -> bool {
+    // NOLINTNEXTLINE
+    if (!res || (code & 65) == 65 || (code & 33) == 33) {
+        clingo_string_t str;
+        clingo_result_t rc = clingo_result_success;
+        clingo_get_error(&rc, &str);
+        if (rc != clingo_result_success) {
+            fprintf(stderr, "*** ERROR: (%.*s): %.*s\n", static_cast<int>(name.size), name.data,
+                    static_cast<int>(str.size), str.data);
+        }
+        return false;
+    }
+    return true;
+}
+
 auto store_error() -> bool {
     try {
         throw;
@@ -119,20 +134,49 @@ auto store_error() -> bool {
 }
 
 static auto exc_str(PyObject *ptype, PyObject *pvalue, PyObject *ptrace) -> PyObject * {
-    auto tb = steal(PyImport_ImportModule("traceback"));
-    if (tb.get() == nullptr) {
+    auto mod = steal(PyImport_ImportModule("traceback"));
+    if (mod.get() == nullptr) {
+        return nullptr;
+    }
+    auto te = steal(PyObject_CallMethod(mod.get(), "TracebackException", "OOO", ptype != nullptr ? ptype : Py_None,
+                                        pvalue != nullptr ? pvalue : Py_None, ptrace != nullptr ? ptrace : Py_None));
+    if (te.get() == nullptr) {
         return nullptr;
     }
 
-    auto format_exception = steal(PyObject_GetAttrString(tb.get(), "format_exception"));
-    if (format_exception.get() == nullptr || PyCallable_Check(format_exception.get()) == 0) {
+    auto only_it = steal(PyObject_CallMethod(te.get(), "format_exception_only", nullptr));
+    if (only_it.get() == nullptr) {
+        return nullptr;
+    }
+    auto only = steal(PySequence_List(only_it.get()));
+    if (only.get() == nullptr) {
         return nullptr;
     }
 
-    auto lines = steal(PyObject_CallFunctionObjArgs(format_exception.get(), ptype != nullptr ? ptype : Py_None,
-                                                    pvalue != nullptr ? pvalue : Py_None,
-                                                    ptrace != nullptr ? ptrace : Py_None, nullptr));
-    if (lines.get() == nullptr) {
+    // Chain and traceback; the final exception line(s) come last.
+    auto full_it = steal(PyObject_CallMethod(te.get(), "format", nullptr));
+    if (full_it.get() == nullptr) {
+        return nullptr;
+    }
+    auto full = steal(PySequence_List(full_it.get()));
+    if (full.get() == nullptr) {
+        return nullptr;
+    }
+
+    auto n_only = PyList_Size(only.get());
+    auto n_full = PyList_Size(full.get());
+    if (n_only < 0 || n_full < 0) {
+        return nullptr;
+    }
+
+    // Drop the trailing exception line(s) from the full output: they are
+    // already on top.
+    auto rest = steal(PyList_GetSlice(full.get(), 0, n_full > n_only ? n_full - n_only : 0));
+    if (rest.get() == nullptr) {
+        return nullptr;
+    }
+    auto all = steal(PySequence_Concat(only.get(), rest.get()));
+    if (all.get() == nullptr) {
         return nullptr;
     }
 
@@ -140,8 +184,7 @@ static auto exc_str(PyObject *ptype, PyObject *pvalue, PyObject *ptrace) -> PyOb
     if (sep.get() == nullptr) {
         return nullptr;
     }
-
-    return PyUnicode_Join(sep.get(), lines.get());
+    return PyUnicode_Join(sep.get(), all.get());
 }
 
 auto store_python_error(std::string_view fallback) -> bool {

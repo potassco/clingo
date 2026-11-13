@@ -290,6 +290,7 @@ class Rewriter:
                         "config.pyi",
                         "backend.pyi",
                         "theory.pyi",
+                        "app.pyi",
                     ):
                         with (
                             open(gen_path, "r", encoding="utf8") as hnd,
