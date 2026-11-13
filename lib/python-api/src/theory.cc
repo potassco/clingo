@@ -41,6 +41,43 @@ struct TheoryModuleState {
     PyObject *assignment_iter_type{nullptr};
 };
 
+// NOTE: this is fine because the default constructed symbol does not need to be released.
+using SymbolGuard = Guard<clingo_symbol_t, clingo_symbol_release>;
+
+class ValueGuard {
+  public:
+    ValueGuard() = default;
+    ~ValueGuard() {
+        if (value_.type == clingo_theory_value_type_symbol) {
+            clingo_symbol_release(value_.symbol);
+        }
+    }
+    ValueGuard(ValueGuard const &) = delete;
+    auto operator=(ValueGuard const &) -> ValueGuard & = delete;
+    ValueGuard(ValueGuard &&other) noexcept : value_{std::exchange(other.value_, default_value_)} {}
+    auto operator=(ValueGuard &&other) noexcept -> ValueGuard & {
+        if (this != &other) {
+            if (value_.type == clingo_theory_value_type_symbol) {
+                clingo_symbol_release(value_.symbol);
+            }
+            value_ = std::exchange(other.value_, default_value_);
+        }
+        return *this;
+    }
+    auto get() -> clingo_theory_value_t & { return value_; }
+    [[nodiscard]] auto get() const -> clingo_theory_value_t const & { return value_; }
+    void destroy() {
+        if (value_.type == clingo_theory_value_type_symbol) {
+            clingo_symbol_release(value_.symbol);
+        }
+        value_ = default_value_;
+    }
+
+  private:
+    static constexpr auto default_value_ = clingo_theory_value_t{clingo_theory_value_type_int, {0}};
+    clingo_theory_value_t value_{default_value_};
+};
+
 auto get_state(PyObject *module) -> TheoryModuleState * {
     auto *state = static_cast<TheoryModuleState *>(PyModule_GetState(module));
     if (state == nullptr) {
@@ -130,7 +167,7 @@ auto parse_string_sequence(PyObject *obj, PyGuard &seq, PyBuffer<clingo_string_t
         if (s == nullptr) {
             return false;
         }
-        *it = clingo_string_t{s, static_cast<size_t>(len)};
+        *it++ = clingo_string_t{s, static_cast<size_t>(len)};
     }
     return true;
 }
@@ -221,10 +258,11 @@ auto py_theory_assignment_iter_next(PyObject *self) -> PyObject * {
             return py_handle_error();
         }
         if (a->has_value) {
-            clingo_symbol_t symbol = 0;
-            clingo_theory_value_t value{};
+            auto symbol = Guard<clingo_symbol_t, clingo_symbol_release>{};
+            auto value = ValueGuard{};
             bool has_value = true;
-            if (!o->theory.assignment_get_value(o->theory.self, a->thread_id, a->index, &symbol, &value, &has_value)) {
+            if (!o->theory.assignment_get_value(o->theory.self, a->thread_id, a->index, &symbol.get(), &value.get(),
+                                                &has_value)) {
                 return py_handle_error();
             }
             if (!has_value) {
@@ -235,7 +273,7 @@ auto py_theory_assignment_iter_next(PyObject *self) -> PyObject * {
             if (state == nullptr) {
                 return nullptr;
             }
-            return py_symbol_value_pair(state, symbol, value);
+            return py_symbol_value_pair(state, symbol.get(), value.get());
         }
     }
 
@@ -378,10 +416,10 @@ auto py_theory_assignment_at(PyObject *self, PyObject *arg) -> PyObject * {
         return nullptr;
     }
 
-    clingo_symbol_t symbol = 0;
-    clingo_theory_value_t value{};
+    SymbolGuard symbol{};
+    ValueGuard value{};
     bool has_value = true;
-    if (!o->theory.assignment_get_value(o->theory.self, a->thread_id, index, &symbol, &value, &has_value)) {
+    if (!o->theory.assignment_get_value(o->theory.self, a->thread_id, index, &symbol.get(), &value.get(), &has_value)) {
         return py_handle_error();
     }
     if (!has_value) {
@@ -392,7 +430,7 @@ auto py_theory_assignment_at(PyObject *self, PyObject *arg) -> PyObject * {
     if (state == nullptr) {
         return nullptr;
     }
-    return py_value_to_object(state, value);
+    return py_value_to_object(state, value.get());
 }
 
 auto py_theory_assignment_iter(PyObject *self) -> PyObject * {
@@ -410,11 +448,10 @@ auto py_theory_assignment_iter(PyObject *self) -> PyObject * {
     return py_theory_assignment_iter_new(state->assignment_iter_type, a->owner, a->thread_id);
 }
 
-auto py_theory_init(PyObject *self, PyObject *args, PyObject *kwargs) -> int {
-    static constexpr auto kwlist = std::array<char const *, 3>{"library", "create", nullptr};
+auto py_theory_init(PyObject *self, PyObject *args) -> int {
     PyObject *lib_obj = nullptr;
     PyObject *create_obj = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO:Theory", cast_kw(kwlist), &lib_obj, &create_obj) == 0) {
+    if (PyArg_ParseTuple(args, "OO:Theory", &lib_obj, &create_obj) == 0) {
         return -1;
     }
 
@@ -570,19 +607,17 @@ auto parse_rewrite_cb(clingo_ast_t *ast, void *data) -> bool {
         d->prg);
 }
 
-auto py_theory_rewrite_string(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+auto py_theory_rewrite_string(PyObject *self, PyObject *args) -> PyObject * {
     auto *o = py_theory_check(self);
     if (o == nullptr) {
         return nullptr;
     }
 
-    static constexpr auto kwlist = std::array<char const *, 4>{"lib", "control", "program", nullptr};
     PyObject *lib_obj = nullptr;
     PyObject *ctl_obj = nullptr;
     char const *text = nullptr;
     Py_ssize_t n = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OOs#:rewrite_string", cast_kw(kwlist), &lib_obj, &ctl_obj, &text,
-                                    &n) == 0) {
+    if (PyArg_ParseTuple(args, "OOs#:rewrite_string", &lib_obj, &ctl_obj, &text, &n) == 0) {
         return nullptr;
     }
 
@@ -612,18 +647,16 @@ auto py_theory_rewrite_string(PyObject *self, PyObject *args, PyObject *kwargs) 
     Py_RETURN_NONE;
 }
 
-auto py_theory_rewrite_files(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+auto py_theory_rewrite_files(PyObject *self, PyObject *args) -> PyObject * {
     auto *o = py_theory_check(self);
     if (o == nullptr) {
         return nullptr;
     }
 
-    static constexpr auto kwlist = std::array<char const *, 4>{"lib", "control", "files", nullptr};
     PyObject *lib_obj = nullptr;
     PyObject *ctl_obj = nullptr;
     PyObject *files_obj = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OOO:rewrite_files", cast_kw(kwlist), &lib_obj, &ctl_obj,
-                                    &files_obj) == 0) {
+    if (PyArg_ParseTuple(args, "OOO:rewrite_files", &lib_obj, &ctl_obj, &files_obj) == 0) {
         return nullptr;
     }
 
@@ -770,16 +803,15 @@ auto py_theory_on_stats(PyObject *self, PyObject *args) -> PyObject * {
     Py_RETURN_NONE;
 }
 
-auto py_theory_value(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+auto py_theory_value(PyObject *self, PyObject *args) -> PyObject * {
     auto *o = py_theory_check(self);
     if (o == nullptr) {
         return nullptr;
     }
 
-    static constexpr auto kwlist = std::array<char const *, 3>{"thread_id", "symbol", nullptr};
     PyObject *thread_id_obj = nullptr;
     PyObject *symbol_obj = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO:value", cast_kw(kwlist), &thread_id_obj, &symbol_obj) == 0) {
+    if (PyArg_ParseTuple(args, "OO:value", &thread_id_obj, &symbol_obj) == 0) {
         return nullptr;
     }
 
@@ -811,14 +843,14 @@ auto py_theory_value(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObje
         Py_RETURN_NONE;
     }
 
-    clingo_theory_value_t value{};
-    if (!o->theory.assignment_get_value(o->theory.self, thread_id, index, nullptr, &value, &found)) {
+    auto value = ValueGuard{};
+    if (!o->theory.assignment_get_value(o->theory.self, thread_id, index, nullptr, &value.get(), &found)) {
         return py_handle_error();
     }
     if (!found) {
         Py_RETURN_NONE;
     }
-    return py_value_to_object(state, value);
+    return py_value_to_object(state, value.get());
 }
 
 auto py_theory_assignment(PyObject *self, PyObject *arg) -> PyObject * {
@@ -939,14 +971,14 @@ auto py_theory_methods = std::array{
     PyMethodDef{"rewrite", py_theory_rewrite, METH_VARARGS, PyDoc_STR("")},
     PyMethodDef{
         "rewrite_string",
-        py_c_function_cast(py_theory_rewrite_string),
-        METH_VARARGS | METH_KEYWORDS,
+        py_theory_rewrite_string,
+        METH_VARARGS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "rewrite_files",
-        py_c_function_cast(py_theory_rewrite_files),
-        METH_VARARGS | METH_KEYWORDS,
+        py_theory_rewrite_files,
+        METH_VARARGS,
         PyDoc_STR(""),
     },
     PyMethodDef{"register_options", py_theory_register_options, METH_O, PyDoc_STR("")},
@@ -954,7 +986,7 @@ auto py_theory_methods = std::array{
     PyMethodDef{"prepare", py_theory_prepare, METH_O, PyDoc_STR("")},
     PyMethodDef{"on_model", py_theory_on_model, METH_O, PyDoc_STR("")},
     PyMethodDef{"on_stats", py_theory_on_stats, METH_VARARGS, PyDoc_STR("")},
-    PyMethodDef{"value", py_c_function_cast(py_theory_value), METH_VARARGS | METH_KEYWORDS, PyDoc_STR("")},
+    PyMethodDef{"value", py_theory_value, METH_VARARGS, PyDoc_STR("")},
     PyMethodDef{"assignment", py_theory_assignment, METH_O, PyDoc_STR("")},
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
@@ -983,8 +1015,7 @@ auto py_theory_slots = std::array{
 };
 
 auto py_theory_spec = PyType_Spec{
-    "clingo.theory.Theory", sizeof(PyTheoryObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,
-    py_theory_slots.data(),
+    "clingo.theory.Theory", sizeof(PyTheoryObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, py_theory_slots.data(),
 };
 
 auto theory_module_traverse(PyObject *module, visitproc visit, void *arg) -> int {

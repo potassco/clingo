@@ -37,7 +37,7 @@ class TheoryAssignment:
             An iterator over the symbol value pairs.
         """
 
-    def __getitem__(self, index: int | Symbol) -> ValueType:
+    def __getitem__(self, index: int | Symbol, /) -> ValueType:
         """
         Get the value at the given index in the assignment.
 
@@ -48,7 +48,7 @@ class TheoryAssignment:
             The value at the given index.
         """
 
-    def get(self, symbol: Symbol) -> int | None:
+    def get(self, symbol: Symbol, /) -> int | None:
         """
         Get the value index of the symbol in the assignment.
 
@@ -64,7 +64,7 @@ class Theory:
     Object to call functions from a C-library implementing a custom theory.
     """
 
-    def __init__(self, library: Library, create: object) -> None:
+    def __init__(self, library: Library, create: object, /) -> None:
         """
         Construct a theory object.
 
@@ -74,7 +74,7 @@ class Theory:
                 A capsule object holding a function pointer to initialize the theory.
         """
 
-    def assignment(self, thread_id: int) -> TheoryAssignment:
+    def assignment(self, thread_id: int, /) -> TheoryAssignment:
         """
         Get the symbols and values currently assigned by the theory
 
@@ -89,7 +89,7 @@ class Theory:
             An iterable over symbol value pairs.
         """
 
-    def on_model(self, model: Model) -> None:
+    def on_model(self, model: Model, /) -> None:
         """
         Notify the theory about the given model.
 
@@ -101,7 +101,7 @@ class Theory:
             model: The current model.
         """
 
-    def on_stats(self, step: Stats, accu: Stats) -> None:
+    def on_stats(self, step: Stats, accu: Stats, /) -> None:
         """
         Let the theory update statistics.
 
@@ -112,7 +112,7 @@ class Theory:
             accu: The accumulated statistics.
         """
 
-    def prepare(self, control: Control) -> None:
+    def prepare(self, control: Control, /) -> None:
         """
         Prepare the theory for solving.
 
@@ -120,7 +120,7 @@ class Theory:
             control: The control object used for solving.
         """
 
-    def register(self, control: Control) -> None:
+    def register(self, control: Control, /) -> None:
         """
         Register the theory with the given control object.
 
@@ -131,7 +131,7 @@ class Theory:
             control: The control object to register the theory with.
         """
 
-    def register_options(self, options: AppOptions) -> None:
+    def register_options(self, options: AppOptions, /) -> None:
         """
         Register theory related options.
 
@@ -142,9 +142,7 @@ class Theory:
         """
 
     def rewrite(
-        self,
-        statement: Statement,
-        callback: Callable[[Statement], None],
+        self, statement: Statement, callback: Callable[[Statement], None], /
     ) -> None:
         """
         Rewrite the given statement and pass the result to the callback.
@@ -158,10 +156,7 @@ class Theory:
         """
 
     def rewrite_files(
-        self,
-        lib: Library,
-        control: Control,
-        files: Sequence[str],
+        self, lib: Library, control: Control, files: Sequence[str], /
     ) -> None:
         """
         Rewrite the program in the given files and add it to the control.
@@ -172,7 +167,7 @@ class Theory:
             files: The files to parse.
         """
 
-    def rewrite_string(self, lib: Library, control: Control, program: str) -> None:
+    def rewrite_string(self, lib: Library, control: Control, program: str, /) -> None:
         """
         Rewrite the given program adding it to the control object.
 
@@ -189,7 +184,7 @@ class Theory:
         See also: `clingo.app.App.validate_options`
         """
 
-    def value(self, thread_id: int, symbol: Symbol) -> ValueType | None:
+    def value(self, thread_id: int, symbol: Symbol, /) -> ValueType | None:
         """
         Get the value of the symbol in the assignment of the given thread.
 

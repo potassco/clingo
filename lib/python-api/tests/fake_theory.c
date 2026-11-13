@@ -18,11 +18,16 @@
 #include <string.h>
 
 typedef struct {
+    clingo_lib_t *lib;
     clingo_symbol_t syms[3];
 } fake_data_t;
 
 static void fake_destroy(void *self) {
-    free(self);
+    if (self != NULL) {
+        fake_data_t *d = self;
+        clingo_symbol_release(d->syms[2]);
+        free(self);
+    }
 }
 
 static bool fake_info(void *self, clingo_string_t *name, int *maj, int *min, int *rev, clingo_string_t *hash) {
@@ -91,6 +96,7 @@ static bool fake_assignment_get_value(void *self, uint32_t thread_id, size_t idx
     *has_value = true;
     if (sym) {
         *sym = d->syms[idx];
+        clingo_symbol_acquire(*sym);
     }
     if (idx == 0) {
         val->type = clingo_theory_value_type_int;
@@ -100,7 +106,9 @@ static bool fake_assignment_get_value(void *self, uint32_t thread_id, size_t idx
         val->double_number = 3.5;
     } else {
         val->type = clingo_theory_value_type_symbol;
-        val->symbol = d->syms[0];
+        if (!clingo_symbol_create_function(d->lib, "foo", 3, NULL, 0, true, &val->symbol)) {
+            return false;
+        }
     }
     return true;
 }
@@ -147,15 +155,19 @@ static bool fake_validate_options(void *self) {
 
 FAKE_VISIBILITY_DEFAULT
 bool fake_theory_create(clingo_lib_t *lib, clingo_theory_t *theory) {
-    (void)lib;
     fake_data_t *d = (fake_data_t *)calloc(1, sizeof(fake_data_t));
     if (!d) {
         return false;
     }
 
+    d->lib = lib;
     d->syms[0] = clingo_symbol_create_number(10);
     d->syms[1] = clingo_symbol_create_number(20);
-    d->syms[2] = clingo_symbol_create_number(30);
+    char const *large_number = "1234567890123456789012345678901234567890";
+    if (!clingo_symbol_create_number_str(lib, large_number, strlen(large_number), d->syms + 2)) {
+        free(d);
+        return false;
+    }
 
     memset(theory, 0, sizeof(*theory));
     theory->self = d;

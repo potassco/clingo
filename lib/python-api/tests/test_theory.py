@@ -12,7 +12,7 @@ from clingo.app import AppOptions
 from clingo.ast import Statement, parse_string
 from clingo.control import Control
 from clingo.core import Library
-from clingo.symbol import Number
+from clingo.symbol import Function, Number
 from clingo.theory import Theory
 
 
@@ -96,6 +96,8 @@ class TestTheory:
         plugin = _load_fake_theory()
         cap = _create_capsule(plugin)
         theory = Theory(self.lib, cap)
+        fun = Function(self.lib, "foo")
+        large = Number(self.lib, 1234567890123456789012345678901234567890)
 
         assert theory.version == (1, 2, 3)
         assert theory.name == "fake-theory"
@@ -110,7 +112,7 @@ class TestTheory:
 
         assert assignment[0] == assignment[symbol] == 7
         assert assignment[1] == pytest.approx(3.5)
-        assert assignment[2] == Number(self.lib, 10)
+        assert assignment[2] == fun
 
         with pytest.raises(IndexError):
             assignment[3]
@@ -123,8 +125,8 @@ class TestTheory:
         assert values[0] == (Number(self.lib, 10), 7)
         assert values[1][0] == Number(self.lib, 20)
         assert values[1][1] == pytest.approx(3.5)
-        assert values[2][0] == Number(self.lib, 30)
-        assert values[2][1] == Number(self.lib, 10)
+        assert values[2][0] == large
+        assert values[2][1] == fun
 
     def test_value(self):
         """
@@ -133,10 +135,12 @@ class TestTheory:
         plugin = _load_fake_theory()
         cap = _create_capsule(plugin)
         theory = Theory(self.lib, cap)
+        fun = Function(self.lib, "foo")
+        large = Number(self.lib, 1234567890123456789012345678901234567890)
 
         assert theory.value(0, Number(self.lib, 10)) == 7
         assert theory.value(0, Number(self.lib, 20)) == pytest.approx(3.5)
-        assert theory.value(0, Number(self.lib, 30)) == Number(self.lib, 10)
+        assert theory.value(0, large) == fun
         assert theory.value(0, Number(self.lib, 999)) is None
 
     def test_api(self, tmp_path):
