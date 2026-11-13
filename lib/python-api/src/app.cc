@@ -1,475 +1,887 @@
-#include <iostream>
-#include <utility>
+#define PY_SSIZE_T_CLEAN
 
 #include "app.hh"
+
 #include "control.hh"
+#include "core.hh"
+#include "solve.hh"
 #include "util.hh"
+
+#include <array>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 namespace PyClingo {
 
 namespace {
 
-struct Flag {
-    bool value = false;
+struct AppModuleState {
+    PyObject *flag_type{nullptr};
+    PyObject *options_type{nullptr};
+    PyObject *app_type{nullptr};
 };
 
-class Options {
-  public:
-    using Parser = std::function<void(std::string_view)>;
-
-    Options(clingo_options_t *opts, py::list &parsers) : opts_{opts}, parsers_{&parsers} {}
-
-    void add(std::string_view group, std::string_view option, std::string_view description, Annotation<Parser> parser,
-             bool multi, std::optional<std::string_view> argument) {
-        parsers_->append(parser);
-        static constexpr auto cparser = [](char const *value, size_t size, void *data) -> bool {
-            auto parser = py::handle{static_cast<PyObject *>(data)};
-            CLINGO_TRY {
-                py::cast<Parser>(parser)({value, size});
-            }
-            CLINGO_CATCH;
-        };
-        handle_error(clingo_options_add(opts_, group.data(), group.size(), option.data(), option.size(),
-                                        description.data(), description.size(), cparser,
-                                        static_cast<void *>(parser.ptr()), multi, argument ? argument->data() : nullptr,
-                                        argument ? argument->size() : 0));
-    }
-
-    void add_flag(std::string_view group, std::string_view option, std::string_view description,
-                  Annotation<Flag> const &flag) {
-        auto &cflag = flag.cast<Flag &>();
-        handle_error(clingo_options_add_flag(opts_, group.data(), group.size(), option.data(), option.size(),
-                                             description.data(), description.size(), &cflag.value));
-    }
-
-    void set_default_value(std::string_view option, std::string_view value) {
-        handle_error(clingo_options_set_default_value(opts_, option.data(), option.size(), value.data(), value.size()));
-    }
-
-    auto c_ptr() -> clingo_options_t * { return opts_; }
-
-  private:
-    //! The C options object.
-    clingo_options_t *opts_;
-    //! The list of parsers.
-    py::list *parsers_;
+using PyFlagObject = struct {
+    PyObject_HEAD bool value;
 };
 
-class App : public reference_keeper<App> {
-  public:
-    App(std::optional<std::string> program_name, std::optional<std::string> version,
-        std::optional<std::string> commit_hash)
-        : program_name_{std::move(program_name)}, version_{std::move(version)}, commit_hash_{std::move(commit_hash)} {}
-    App(App const &other) = delete;
-    App(App &&other) = delete;
-    auto operator=(App const &other) -> App & = delete;
-    auto operator=(App const &&) -> App & = delete;
-
-    void main(Annotation<Control> const &control, std::span<std::string const> files) {
-        PYBIND11_OVERRIDE_NAME(void, App, "main", no_op_, control, files);
-    }
-
-    void print_model(Model model, std::function<void()> printer) {
-        PYBIND11_OVERRIDE_NAME(void, App, "print_model", no_op_, model, printer);
-    }
-
-    void register_options(Options options) { PYBIND11_OVERRIDE_NAME(void, App, "register_options", no_op_, options); }
-
-    void validate_options() { PYBIND11_OVERRIDE_NAME(void, App, "validate_options", no_op_); }
-
-    auto program_name() -> std::string_view {
-        return program_name_ ? std::string_view{*program_name_} : CLINGO_EXECUTABLE;
-    }
-
-    auto version() -> std::string_view {
-        assert(version_);
-        return *version_;
-    }
-
-    auto commit_hash() -> std::string_view {
-        assert(commit_hash_);
-        return *commit_hash_;
-    }
-
-    auto prepare() -> clingo_application_t {
-        return {
-            program_name_ ? get_program_name_ : nullptr,
-            version_ ? get_version_ : nullptr,
-            commit_hash_ ? get_commit_hash_ : nullptr,
-            has_override_("main") ? &main_ : nullptr,
-            has_override_("print_model") ? print_model_ : nullptr,
-            has_override_("register_options") ? register_options_ : nullptr,
-            has_override_("validate_options") ? validate_options_ : nullptr,
-        };
-    }
-
-  private:
-    template <class... Args> void no_op_([[maybe_unused]] Args const &...args) {}
-
-    auto has_override_(char const *name) const -> bool { return static_cast<bool>(py::get_override(this, name)); }
-
-    static void get_program_name_(void *data, clingo_string_t *res) {
-        auto &app = *static_cast<App *>(data);
-        try {
-            auto str = app.program_name();
-            res->data = str.data();
-            res->size = str.size();
-        } catch (std::exception const &e) {
-            fprintf(stderr, "panic: %s\n", e.what());
-            std::terminate();
-        }
-    }
-
-    static void get_version_(void *data, clingo_string_t *res) {
-        auto &app = *static_cast<App *>(data);
-        try {
-            auto str = app.version();
-            res->data = str.data();
-            res->size = str.size();
-        } catch (std::exception const &e) {
-            fprintf(stderr, "panic: %s\n", e.what());
-            std::terminate();
-        }
-    }
-
-    static void get_commit_hash_(void *data, clingo_string_t *res) {
-        auto &app = *static_cast<App *>(data);
-        try {
-            auto str = app.commit_hash();
-            res->data = str.data();
-            res->size = str.size();
-        } catch (std::exception const &e) {
-            fprintf(stderr, "panic: %s\n", e.what());
-            std::terminate();
-        }
-    }
-
-    static auto main_(clingo_control_t *ctl, clingo_string_t const *files, size_t size, void *data) -> bool {
-        auto &app = *static_cast<App *>(data);
-        CLINGO_TRY {
-            auto pyctl = Control::cast(ctl, true);
-            auto pyfiles = transform(std::span{files, size}, [](auto const &x) { return std::string{x.data, x.size}; });
-            app.main(pyctl, pyfiles);
-        }
-        CLINGO_CATCH;
-    }
-
-    static auto print_model_(clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data,
-                             void *data) -> bool {
-        auto &app = *static_cast<App *>(data);
-        CLINGO_TRY {
-            auto acquire = py::gil_scoped_acquire{};
-            // NOTE: Python seems to directly write large buffers
-            std::cout.flush();
-            app.print_model(Model{model}, [printer, printer_data] { handle_error(printer(printer_data)); });
-            py::module_::import("sys").attr("stdout").attr("flush")();
-        }
-        CLINGO_CATCH;
-    }
-
-    static auto register_options_(clingo_options_t *options, void *data) -> bool {
-        auto &app = *static_cast<App *>(data);
-        CLINGO_TRY {
-            app.register_options(Options{options, app.list_});
-        }
-        CLINGO_CATCH;
-    }
-
-    static auto validate_options_(void *data) -> bool {
-        auto &app = *static_cast<App *>(data);
-        try {
-            app.validate_options();
-        } catch (py::error_already_set &e) {
-            if (e.matches(PyExc_ValueError)) {
-                auto str = app.program_name();
-                std::string msg = py::str(e.value());
-                fprintf(stderr, "*** ERROR: (%.*s): %s\n", static_cast<int>(str.size()), str.data(), msg.c_str());
-            }
-            return store_error();
-        } catch (...) {
-            return store_error();
-        }
-        return true;
-    }
-
-    //! The applications name.
-    std::optional<std::string> program_name_;
-    //! The applications version.
-    std::optional<std::string> version_;
-    //! The applications commit hash.
-    std::optional<std::string> commit_hash_;
+using PyOptionsObject = struct {
+    PyObject_HEAD clingo_options_t *opts;
+    PyObject *keep;
 };
 
-auto pyentry() -> int {
-    py::module sys = py::module::import("sys");
-    py::module app = py::module::import("clingo.app");
-    py::module core = py::module::import("clingo.core");
-    py::module script = py::module::import("clingo.script");
+using PyAppObject = struct {
+    PyObject_HEAD PyObject *program_name;
+    PyObject *version;
+    PyObject *commit_hash;
+    PyObject *keep;
+    AppModuleState *state;
+};
 
-    py::object clingo_main = app.attr("clingo_main");
-    py::object Library = core.attr("Library");
-    py::object enable_python = script.attr("enable_python");
+struct PrinterData {
+    clingo_default_model_printer_t printer;
+    void *data;
+    bool valid;
+};
 
-    auto argv = sys.attr("argv").attr("__getitem__")(py::slice{py::int_{1}, py::none(), py::none()}).cast<py::list>();
-    py::object lib = Library();
-    enable_python(lib);
-    return py::cast<int>(clingo_main(lib, argv));
+constexpr auto printer_capsule_name = "clingo.app.default_printer";
+
+// module state
+
+auto get_state(PyObject *module) -> AppModuleState * {
+    auto *state = static_cast<AppModuleState *>(PyModule_GetState(module));
+    if (state == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "app module state is unavailable");
+        return nullptr;
+    }
+    return state;
 }
 
-auto pymain(Library &lib, std::span<std::string const> arguments, std::optional<App *> app) -> int {
-    auto capp = std::optional<clingo_application_t>{};
-    if (app) {
-        capp.emplace(app.value()->prepare());
+auto get_state_from_self(PyObject *self) -> AppModuleState * {
+    auto *mod = PyType_GetModule(Py_TYPE(self));
+    if (mod == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "failed to resolve app module");
+        return nullptr;
     }
-    auto cargs = transform(arguments, [](auto const &x) { return clingo_string_t{x.data(), x.size()}; });
-    auto code = 0;
-    auto ret = clingo_main(lib, cargs.data(), cargs.size(), capp ? &*capp : nullptr,
-                           app ? static_cast<void *>(*app) : nullptr, &code);
+    return get_state(mod);
+}
+
+auto py_flag_cast(PyObject *obj) -> PyFlagObject * {
+    return reinterpret_cast<PyFlagObject *>(obj);
+}
+
+auto py_options_cast(PyObject *obj) -> PyOptionsObject * {
+    return reinterpret_cast<PyOptionsObject *>(obj);
+}
+
+auto py_app_cast(PyObject *obj) -> PyAppObject * {
+    return reinterpret_cast<PyAppObject *>(obj);
+}
+
+// helpers
+
+auto app_str(PyObject *str) noexcept -> clingo_string_t {
+    Py_ssize_t size = 0;
+    auto const *data = PyUnicode_AsUTF8AndSize(str, &size);
+    if (data == nullptr) {
+        PyErr_Clear();
+        fprintf(stderr, "panic: invalid application string\n");
+        std::abort();
+    }
+    return clingo_string_t{data, static_cast<size_t>(size)};
+}
+
+auto app_program_name(PyAppObject const *app) noexcept -> clingo_string_t {
+    if (app != nullptr && app->program_name != nullptr) {
+        return app_str(app->program_name);
+    }
+    return clingo_string_t{CLINGO_EXECUTABLE, std::strlen(CLINGO_EXECUTABLE)};
+}
+
+// NOTE: these two are the only places creating pybind11 wrapped objects.
+auto new_control(clingo_control_t *ctl) noexcept -> PyObject * {
+    try {
+        py::object obj = Control::cast(ctl, true);
+        return obj.release().ptr();
+    } catch (py::error_already_set &e) {
+        e.restore();
+    } catch (std::exception const &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    } catch (...) {
+        PyErr_SetString(PyExc_RuntimeError, "unknown error");
+    }
+    return nullptr;
+}
+
+auto new_model(clingo_model_t const *model) noexcept -> PyObject * {
+    try {
+        py::object obj = py::cast(Model{model});
+        return obj.release().ptr();
+    } catch (py::error_already_set &e) {
+        e.restore();
+    } catch (std::exception const &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    } catch (...) {
+        PyErr_SetString(PyExc_RuntimeError, "unknown error");
+    }
+    return nullptr;
+}
+
+void report_value_error() noexcept {
+    PyObject *type = nullptr;
+    PyObject *value = nullptr;
+    PyObject *tb = nullptr;
+    PyErr_Fetch(&type, &value, &tb);
+    PyErr_NormalizeException(&type, &value, &tb);
+    if (type != nullptr && PyErr_GivenExceptionMatches(type, PyExc_ValueError) != 0) {
+        auto msg = steal(value != nullptr ? PyObject_Str(value) : nullptr);
+        Py_XDECREF(type);
+        Py_XDECREF(value);
+        Py_XDECREF(tb);
+        Py_ssize_t size = 0;
+        char const *str = msg.get() != nullptr ? PyUnicode_AsUTF8AndSize(msg.get(), &size) : nullptr;
+        if (str != nullptr) {
+            clingo_set_error(clingo_result_invalid, str, static_cast<size_t>(size));
+            return;
+        }
+    } else {
+        PyErr_Restore(type, value, tb);
+    }
+    if (PyErr_Occurred() == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "validate_options failed");
+    }
+    store_python_error("validate_options failed");
+}
+
+// Flag
+
+auto py_flag_init(PyObject *self, PyObject *args, PyObject *kwargs) -> int {
+    static constexpr auto kwlist = std::array<char const *, 2>{"value", nullptr};
+    int value = 0;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "|p:Flag", cast_kw(kwlist), &value) == 0) {
+        return -1;
+    }
+    py_flag_cast(self)->value = value != 0;
+    return 0;
+}
+
+auto py_flag_get_value(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
+    return PyBool_FromLong(py_flag_cast(self)->value ? 1 : 0);
+}
+
+auto py_flag_set_value(PyObject *self, PyObject *value, [[maybe_unused]] void *arg) -> int {
+    if (value == nullptr) {
+        PyErr_SetString(PyExc_TypeError, "cannot delete value");
+        return -1;
+    }
+    auto res = PyObject_IsTrue(value);
+    if (res < 0) {
+        return -1;
+    }
+    py_flag_cast(self)->value = res != 0;
+    return 0;
+}
+
+auto py_flag_getset = std::array{
+    PyGetSetDef{"value", py_flag_get_value, py_flag_set_value, PyDoc_STR("Get/set the value of the flag."), nullptr},
+    PyGetSetDef{nullptr, nullptr, nullptr, nullptr, nullptr},
+};
+
+auto py_flag_slots = std::array{
+    PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Boolean flag with value management."))},
+    PyType_Slot{Py_tp_new, reinterpret_cast<void *>(PyType_GenericNew)},
+    PyType_Slot{Py_tp_init, reinterpret_cast<void *>(py_flag_init)},
+    PyType_Slot{Py_tp_getset, py_flag_getset.data()},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_flag_spec = PyType_Spec{
+    "clingo.app.Flag", sizeof(PyFlagObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, py_flag_slots.data(),
+};
+
+// AppOptions
+
+auto py_options_new(PyObject *type, clingo_options_t *opts, PyObject *keep) -> PyObject * {
+    auto *obj = PyType_GenericAlloc(reinterpret_cast<PyTypeObject *>(type), 0);
+    if (obj == nullptr) {
+        return nullptr;
+    }
+    auto *o = py_options_cast(obj);
+    o->opts = opts;
+    o->keep = keep;
+    Py_INCREF(keep);
+    return obj;
+}
+
+auto py_options_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *o = py_options_cast(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(o->keep);
+    return 0;
+}
+
+auto py_options_clear(PyObject *self) -> int {
+    auto *o = py_options_cast(self);
+    Py_CLEAR(o->keep);
+    return 0;
+}
+
+auto py_options_check(PyObject *self) -> PyOptionsObject * {
+    auto *o = py_options_cast(self);
+    if (o->opts == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "options are only valid during register_options");
+        return nullptr;
+    }
+    return o;
+}
+
+auto options_parser_cb(char const *value, size_t size, void *data) -> bool {
+    auto str = steal(PyUnicode_FromStringAndSize(value, static_cast<Py_ssize_t>(size)));
+    if (str.get() == nullptr) {
+        return store_python_error("decoding option value failed");
+    }
+    auto ret = steal(PyObject_CallOneArg(static_cast<PyObject *>(data), str.get()));
+    if (ret.get() == nullptr) {
+        return store_python_error("option parser failed");
+    }
+    return true;
+}
+
+auto py_options_add(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    auto *o = py_options_check(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
+
+    static constexpr auto kwlist =
+        std::array<char const *, 7>{"group", "option", "description", "parser", "multi", "argument", nullptr};
+    char const *group = nullptr;
+    char const *option = nullptr;
+    char const *description = nullptr;
+    char const *argument = nullptr;
+    Py_ssize_t group_n = 0;
+    Py_ssize_t option_n = 0;
+    Py_ssize_t description_n = 0;
+    Py_ssize_t argument_n = 0;
+    PyObject *parser = nullptr;
+    int multi = 0;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#s#O|pz#:add", cast_kw(kwlist), &group, &group_n, &option,
+                                    &option_n, &description, &description_n, &parser, &multi, &argument,
+                                    &argument_n) == 0) {
+        return nullptr;
+    }
+    if (PyCallable_Check(parser) == 0) {
+        PyErr_SetString(PyExc_TypeError, "parser must be callable");
+        return nullptr;
+    }
+    if (PyList_Append(o->keep, parser) < 0) {
+        return nullptr;
+    }
+    if (!clingo_options_add(o->opts, group, static_cast<size_t>(group_n), option, static_cast<size_t>(option_n),
+                            description, static_cast<size_t>(description_n), options_parser_cb,
+                            static_cast<void *>(parser), multi != 0, argument,
+                            argument != nullptr ? static_cast<size_t>(argument_n) : 0)) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_options_add_flag(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    auto *o = py_options_check(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+
+    static constexpr auto kwlist = std::array<char const *, 5>{"group", "option", "description", "flag", nullptr};
+    char const *group = nullptr;
+    char const *option = nullptr;
+    char const *description = nullptr;
+    Py_ssize_t group_n = 0;
+    Py_ssize_t option_n = 0;
+    Py_ssize_t description_n = 0;
+    PyObject *flag = nullptr;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#s#O:add_flag", cast_kw(kwlist), &group, &group_n, &option,
+                                    &option_n, &description, &description_n, &flag) == 0) {
+        return nullptr;
+    }
+    if (PyObject_TypeCheck(flag, reinterpret_cast<PyTypeObject *>(state->flag_type)) == 0) {
+        PyErr_SetString(PyExc_TypeError, "flag must be a Flag");
+        return nullptr;
+    }
+    if (PyList_Append(o->keep, flag) < 0) {
+        return nullptr;
+    }
+    if (!clingo_options_add_flag(o->opts, group, static_cast<size_t>(group_n), option, static_cast<size_t>(option_n),
+                                 description, static_cast<size_t>(description_n), &py_flag_cast(flag)->value)) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_options_set_default_value(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+    auto *o = py_options_check(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
+
+    static constexpr auto kwlist = std::array<char const *, 3>{"option", "value", nullptr};
+    char const *option = nullptr;
+    char const *value = nullptr;
+    Py_ssize_t option_n = 0;
+    Py_ssize_t value_n = 0;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#:set_default_value", cast_kw(kwlist), &option, &option_n, &value,
+                                    &value_n) == 0) {
+        return nullptr;
+    }
+    if (!clingo_options_set_default_value(o->opts, option, static_cast<size_t>(option_n), value,
+                                          static_cast<size_t>(value_n))) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_options_methods = std::array{
+    PyMethodDef{
+        "add",
+        py_c_function_cast(py_options_add),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR("Add an option with a custom parser."),
+    },
+    PyMethodDef{
+        "add_flag",
+        py_c_function_cast(py_options_add_flag),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR("Add a Boolean flag option."),
+    },
+    PyMethodDef{
+        "set_default_value",
+        py_c_function_cast(py_options_set_default_value),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR("Set the default value of an existing clingo option."),
+    },
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
+auto py_options_slots = std::array{
+    PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Manager for application options and their definitions."))},
+    PyType_Slot{Py_tp_methods, py_options_methods.data()},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_options_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_options_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_options_spec = PyType_Spec{
+    "clingo.app.AppOptions",
+    sizeof(PyOptionsObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    py_options_slots.data(),
+};
+
+// App
+
+auto set_opt_str_ok(PyObject *value, char const *what) -> bool {
+    if (value == Py_None) {
+        return true;
+    }
+    if (PyUnicode_Check(value) == 0) {
+        PyErr_Format(PyExc_TypeError, "%s must be a str or None", what);
+        return false;
+    }
+    return PyUnicode_AsUTF8AndSize(value, nullptr) != nullptr;
+}
+
+void set_opt_str(PyObject **slot, PyObject *value) {
+    auto *old = *slot;
+    if (value == Py_None) {
+        value = nullptr;
+    }
+    Py_XINCREF(value);
+    *slot = value;
+    Py_XDECREF(old);
+}
+
+auto py_app_new(PyTypeObject *type, [[maybe_unused]] PyObject *args, [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+    auto *obj = PyType_GenericAlloc(type, 0);
+    if (obj == nullptr) {
+        return nullptr;
+    }
+    auto *a = py_app_cast(obj);
+    a->keep = PyList_New(0);
+    if (a->keep == nullptr) {
+        Py_DECREF(obj);
+        return nullptr;
+    }
+    return obj;
+}
+
+auto py_app_init(PyObject *self, PyObject *args, PyObject *kwargs) -> int {
+    static constexpr auto kwlist = std::array<char const *, 4>{"program_name", "version", "commit_hash", nullptr};
+    PyObject *name = Py_None;
+    PyObject *version = Py_None;
+    PyObject *hash = Py_None;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "|OOO:App", cast_kw(kwlist), &name, &version, &hash) == 0) {
+        return -1;
+    }
+    if (!set_opt_str_ok(name, "program_name") || !set_opt_str_ok(version, "version") ||
+        !set_opt_str_ok(hash, "commit_hash")) {
+        return -1;
+    }
+    auto *a = py_app_cast(self);
+    set_opt_str(&a->program_name, name);
+    set_opt_str(&a->version, version);
+    set_opt_str(&a->commit_hash, hash);
+    return 0;
+}
+
+auto py_app_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *a = py_app_cast(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(a->program_name);
+    Py_VISIT(a->version);
+    Py_VISIT(a->commit_hash);
+    Py_VISIT(a->keep);
+    return 0;
+}
+
+auto py_app_clear(PyObject *self) -> int {
+    auto *a = py_app_cast(self);
+    Py_CLEAR(a->program_name);
+    Py_CLEAR(a->version);
+    Py_CLEAR(a->commit_hash);
+    Py_CLEAR(a->keep);
+    return 0;
+}
+
+auto py_app_noop([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    Py_RETURN_NONE;
+}
+
+auto py_app_noop_kw([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args, [[maybe_unused]] PyObject *kwargs)
+    -> PyObject * {
+    Py_RETURN_NONE;
+}
+
+auto py_app_methods = std::array{
+    PyMethodDef{
+        "register_options",
+        py_app_noop,
+        METH_O,
+        PyDoc_STR("Register command-line options."),
+    },
+    PyMethodDef{
+        "validate_options",
+        py_app_noop,
+        METH_NOARGS,
+        PyDoc_STR("Validate options; raise ValueError."),
+    },
+    PyMethodDef{
+        "print_model",
+        py_c_function_cast(py_app_noop_kw),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR("Print the given model in a custom format."),
+    },
+    PyMethodDef{
+        "main",
+        py_c_function_cast(py_app_noop_kw),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR("Run the main execution flow of the application."),
+    },
+    PyMethodDef{
+        nullptr,
+        nullptr,
+        0,
+        nullptr,
+    },
+};
+
+// Callbacks passed to clingo. The data pointer is the App instance.
+
+void app_get_program_name_cb(void *data, clingo_string_t *res) {
+    *res = app_str(py_app_cast(static_cast<PyObject *>(data))->program_name);
+}
+
+void app_get_version_cb(void *data, clingo_string_t *res) {
+    *res = app_str(py_app_cast(static_cast<PyObject *>(data))->version);
+}
+
+void app_get_commit_hash_cb(void *data, clingo_string_t *res) {
+    *res = app_str(py_app_cast(static_cast<PyObject *>(data))->commit_hash);
+}
+
+auto app_main_cb(clingo_control_t *ctl, clingo_string_t const *files, size_t size, void *data) -> bool {
+    auto *app = static_cast<PyObject *>(data);
+    auto pyctl = steal(new_control(ctl));
+    if (pyctl.get() == nullptr) {
+        return store_python_error("creating control failed");
+    }
+    auto pyfiles = steal(PyList_New(static_cast<Py_ssize_t>(size)));
+    if (pyfiles.get() == nullptr) {
+        return store_python_error("creating file list failed");
+    }
+    for (size_t i = 0; i < size; ++i) {
+        auto *str = PyUnicode_FromStringAndSize(files[i].data, static_cast<Py_ssize_t>(files[i].size));
+        if (str == nullptr) {
+            return store_python_error("decoding file name failed");
+        }
+        // NOTE: steals the reference to str
+        if (PyList_SetItem(pyfiles.get(), static_cast<Py_ssize_t>(i), str) < 0) {
+            return store_python_error("creating file list failed");
+        }
+    }
+    auto ret = steal(PyObject_CallMethod(app, "main", "OO", pyctl.get(), pyfiles.get()));
+    if (ret.get() == nullptr) {
+        return store_python_error("main failed");
+    }
+    return true;
+}
+
+auto py_printer_call(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    auto *pd = static_cast<PrinterData *>(PyCapsule_GetPointer(self, printer_capsule_name));
+    if (pd == nullptr) {
+        return nullptr;
+    }
+    if (!pd->valid) {
+        PyErr_SetString(PyExc_RuntimeError, "default printer is only valid during print_model");
+        return nullptr;
+    }
+    if (!pd->printer(pd->data)) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+void printer_capsule_free(PyObject *cap) {
+    PyMem_Free(PyCapsule_GetPointer(cap, printer_capsule_name));
+}
+
+auto py_printer_def =
+    PyMethodDef{"default_printer", py_printer_call, METH_NOARGS, PyDoc_STR("Print the model in the default format.")};
+
+auto app_print_model_cb(clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data,
+                        void *data) -> bool {
+    auto *app = static_cast<PyObject *>(data);
+    auto gil = GILGuard{};
+    // NOTE: Python seems to directly write large buffers
+    fflush(stdout);
+
+    auto pymodel = steal(new_model(model));
+    if (pymodel.get() == nullptr) {
+        return store_python_error("creating model failed");
+    }
+
+    auto *pd = static_cast<PrinterData *>(PyMem_Malloc(sizeof(PrinterData)));
+    if (pd == nullptr) {
+        PyErr_NoMemory();
+        return store_python_error("creating printer failed");
+    }
+    *pd = PrinterData{printer, printer_data, true};
+    auto cap = steal(PyCapsule_New(pd, printer_capsule_name, printer_capsule_free));
+    if (cap.get() == nullptr) {
+        PyMem_Free(pd);
+        return store_python_error("creating printer failed");
+    }
+    auto fun = steal(PyCFunction_New(&py_printer_def, cap.get()));
+    if (fun.get() == nullptr) {
+        return store_python_error("creating printer failed");
+    }
+
+    auto ret = steal(PyObject_CallMethod(app, "print_model", "OO", pymodel.get(), fun.get()));
+    // NOTE: the printer must not be used once the model is gone
+    pd->valid = false;
+    if (ret.get() == nullptr) {
+        return store_python_error("print_model failed");
+    }
+
+    auto out = borrow(PySys_GetObject("stdout"));
+    if (out.get() != nullptr && out.get() != Py_None) {
+        auto res = steal(PyObject_CallMethod(out.get(), "flush", nullptr));
+        if (res.get() == nullptr) {
+            return store_python_error("flushing stdout failed");
+        }
+    }
+    return true;
+}
+
+auto app_register_options_cb(clingo_options_t *options, void *data) -> bool {
+    auto *app = static_cast<PyObject *>(data);
+    auto *a = py_app_cast(app);
+    auto opts = steal(py_options_new(a->state->options_type, options, a->keep));
+    if (opts.get() == nullptr) {
+        return store_python_error("creating options failed");
+    }
+    auto ret = steal(PyObject_CallMethod(app, "register_options", "O", opts.get()));
+    // NOTE: the options object must not be used after this point
+    py_options_cast(opts.get())->opts = nullptr;
+    if (ret.get() == nullptr) {
+        return store_python_error("register_options failed");
+    }
+    return true;
+}
+
+auto app_validate_options_cb(void *data) -> bool {
+    auto *app = static_cast<PyObject *>(data);
+    auto ret = steal(PyObject_CallMethod(app, "validate_options", nullptr));
+    if (ret.get() != nullptr) {
+        return true;
+    }
+    report_value_error();
+    return false;
+}
+
+// Check if the given method has been overridden in a subclass.
+auto has_override(PyObject *self, PyObject *base_type, char const *name) -> int {
+    auto cur = steal(PyObject_GetAttrString(reinterpret_cast<PyObject *>(Py_TYPE(self)), name));
+    if (cur.get() == nullptr) {
+        return -1;
+    }
+    auto base = steal(PyObject_GetAttrString(base_type, name));
+    if (base.get() == nullptr) {
+        return -1;
+    }
+    return cur.get() != base.get() ? 1 : 0;
+}
+
+auto app_prepare(PyObject *self, AppModuleState *state, clingo_application_t *out) -> bool {
+    auto has_main = has_override(self, state->app_type, "main");
+    auto has_print_model = has_override(self, state->app_type, "print_model");
+    auto has_register_options = has_override(self, state->app_type, "register_options");
+    auto has_validate_options = has_override(self, state->app_type, "validate_options");
+    if (has_main < 0 || has_print_model < 0 || has_register_options < 0 || has_validate_options < 0) {
+        return false;
+    }
+    auto *app = py_app_cast(self);
+    app->state = state;
+    *out = clingo_application_t{
+        app->program_name != nullptr ? app_get_program_name_cb : nullptr,
+        app->version != nullptr ? app_get_version_cb : nullptr,
+        app->commit_hash != nullptr ? app_get_commit_hash_cb : nullptr,
+        has_main != 0 ? app_main_cb : nullptr,
+        has_print_model != 0 ? app_print_model_cb : nullptr,
+        has_register_options != 0 ? app_register_options_cb : nullptr,
+        has_validate_options != 0 ? app_validate_options_cb : nullptr,
+    };
+    return true;
+}
+
+auto py_app_slots = std::array{
+    PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Interface to implement a custom clingo-based application."))},
+    PyType_Slot{Py_tp_new, reinterpret_cast<void *>(py_app_new)},
+    PyType_Slot{Py_tp_init, reinterpret_cast<void *>(py_app_init)},
+    PyType_Slot{Py_tp_methods, py_app_methods.data()},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_app_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_app_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_app_spec = PyType_Spec{
+    "clingo.app.App",    sizeof(PyAppObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
+    py_app_slots.data(),
+};
+
+// module functions
+
+auto run_main(AppModuleState *state, PyObject *lib_obj, PyObject *args_obj, PyObject *app_obj) -> PyObject * {
+    auto *lib = py_cast<Library>(lib_obj);
+    if (lib == nullptr) {
+        return nullptr;
+    }
+
+    PyGuard seq;
+    PyBuffer<clingo_string_t> cargs;
+    if (!parse_string_sequence(args_obj, seq, cargs, "arguments must be a sequence of strings")) {
+        return nullptr;
+    }
+
+    PyObject *app = nullptr;
+    if (app_obj != nullptr && app_obj != Py_None) {
+        if (PyObject_TypeCheck(app_obj, reinterpret_cast<PyTypeObject *>(state->app_type)) == 0) {
+            PyErr_SetString(PyExc_TypeError, "app must be an App");
+            return nullptr;
+        }
+        app = app_obj;
+    }
+
+    auto capp = clingo_application_t{};
+    if (app != nullptr && !app_prepare(app, state, &capp)) {
+        return nullptr;
+    }
+
+    int code = 0;
+    auto ok = clingo_main(*lib, cargs.data(), cargs.size(), app != nullptr ? &capp : nullptr, static_cast<void *>(app),
+                          &code);
     // NOTE: Clasp's main is noexcept, it will report whether an exception was
     // caught via the exit code. Whenever an exception is rethrown from within
     // the internal C++ API, the clingo error will be cleared and *only* be
     // reported by clasp. In this case, no clingo error is set but the exit
     // code indicates an error.
-    try {
-        handle_error_no_code(ret, code);
-    } catch (py::error_already_set const &e) {
-        auto name = app ? app.value()->program_name() : CLINGO_EXECUTABLE;
-        fprintf(stderr, "*** ERROR: (%.*s): %s\n", static_cast<int>(name.size()), name.data(), e.what());
-    } catch (std::exception const &e) {
-        auto name = app ? app.value()->program_name() : CLINGO_EXECUTABLE;
-        fprintf(stderr, "*** ERROR: (%.*s): %s\n", static_cast<int>(name.size()), name.data(), e.what());
-    }
-    return code;
+    report_main_error(ok, code, app_program_name(app != nullptr ? py_app_cast(app) : nullptr));
+    return PyLong_FromLong(code);
 }
+
+auto py_clingo_main(PyObject *module, PyObject *args, PyObject *kwargs) -> PyObject * {
+    auto *state = get_state(module);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    static constexpr auto kwlist = std::array<char const *, 4>{"lib", "arguments", "app", nullptr};
+    PyObject *lib = nullptr;
+    PyObject *arguments = nullptr;
+    PyObject *app = Py_None;
+    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO|O:clingo_main", cast_kw(kwlist), &lib, &arguments, &app) == 0) {
+        return nullptr;
+    }
+    return run_main(state, lib, arguments, app);
+}
+
+auto py_pyclingo(PyObject *module, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    auto *state = get_state(module);
+    if (state == nullptr) {
+        return nullptr;
+    }
+
+    auto sys = steal(PyImport_ImportModule("sys"));
+    auto core = steal(PyImport_ImportModule("clingo.core"));
+    auto script = steal(PyImport_ImportModule("clingo.script"));
+    if (sys.get() == nullptr || core.get() == nullptr || script.get() == nullptr) {
+        return nullptr;
+    }
+
+    auto library = steal(PyObject_GetAttrString(core.get(), "Library"));
+    auto enable_python = steal(PyObject_GetAttrString(script.get(), "enable_python"));
+    auto argv = steal(PyObject_GetAttrString(sys.get(), "argv"));
+    if (library.get() == nullptr || enable_python.get() == nullptr || argv.get() == nullptr) {
+        return nullptr;
+    }
+
+    auto args = steal(PySequence_GetSlice(argv.get(), 1, PY_SSIZE_T_MAX));
+    if (args.get() == nullptr) {
+        return nullptr;
+    }
+    auto lib = steal(PyObject_CallNoArgs(library.get()));
+    if (lib.get() == nullptr) {
+        return nullptr;
+    }
+    auto ret = steal(PyObject_CallOneArg(enable_python.get(), lib.get()));
+    if (ret.get() == nullptr) {
+        return nullptr;
+    }
+    return run_main(state, lib.get(), args.get(), nullptr);
+}
+
+auto app_module_methods = std::array{
+    PyMethodDef{
+        "clingo_main",
+        py_c_function_cast(py_clingo_main),
+        METH_VARARGS | METH_KEYWORDS,
+        PyDoc_STR("Entry point for running a clingo application; returns the exit code."),
+    },
+    PyMethodDef{
+        "_pyclingo",
+        py_pyclingo,
+        METH_NOARGS,
+        PyDoc_STR("Entry point of the clingo executable."),
+    },
+    PyMethodDef{
+        nullptr,
+        nullptr,
+        0,
+        nullptr,
+    },
+};
+
+auto app_module_traverse(PyObject *module, visitproc visit, void *arg) -> int {
+    auto *state = static_cast<AppModuleState *>(PyModule_GetState(module));
+    if (state == nullptr) {
+        return 0;
+    }
+    Py_VISIT(state->flag_type);
+    Py_VISIT(state->options_type);
+    Py_VISIT(state->app_type);
+    return 0;
+}
+
+auto app_module_clear(PyObject *module) -> int {
+    auto *state = static_cast<AppModuleState *>(PyModule_GetState(module));
+    if (state == nullptr) {
+        return 0;
+    }
+    Py_CLEAR(state->flag_type);
+    Py_CLEAR(state->options_type);
+    Py_CLEAR(state->app_type);
+    return 0;
+}
+
+void app_module_free(void *module) {
+    app_module_clear(static_cast<PyObject *>(module));
+}
+
+PyModuleDef app_def = {
+    PyModuleDef_HEAD_INIT,
+    "clingo.app",
+    PyDoc_STR("Module to create custom clingo-based applications."),
+    static_cast<Py_ssize_t>(sizeof(AppModuleState)),
+    app_module_methods.data(),
+    nullptr,
+    app_module_traverse,
+    app_module_clear,
+    app_module_free,
+};
 
 } // namespace
 
-auto convert_options(py::handle hnd) -> clingo_options_t * {
-    return hnd.cast<Options &>().c_ptr();
+auto py_app_options_type_ref() -> PyObject * {
+    auto mod = steal(PyImport_ImportModule("clingo.app"));
+    if (mod.get() == nullptr) {
+        return nullptr;
+    }
+    auto *state = reinterpret_cast<AppModuleState *>(PyModule_GetState(mod.get()));
+    if (state == nullptr) {
+        return nullptr;
+    }
+    if (state->options_type == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "clingo.app.AppOptions type not initialized");
+        return nullptr;
+    }
+    return state->options_type;
+}
+
+auto py_app_options_check(PyObject *type, PyObject *obj) -> clingo_options_t * {
+    if (PyObject_TypeCheck(obj, reinterpret_cast<PyTypeObject *>(type)) == 0) {
+        PyErr_SetString(PyExc_TypeError, "object is not of type AppOptions");
+        return nullptr;
+    }
+    auto *o = py_options_check(obj);
+    if (o == nullptr) {
+        return nullptr;
+    }
+    return o->opts;
 }
 
 void register_app(pybind11::module &m) {
-    using namespace PyClingo;
+    auto app_mod = PyGuard{nullptr};
+    if (!add_submodule(m.ptr(), &app_def, &app_mod.get())) {
+        throw py::error_already_set();
+    }
 
-    auto app = m.def_submodule("app", R"(
-Module to create custom clingo-based applications.
+    auto *state = get_state(app_mod.get());
+    if (state == nullptr) {
+        throw py::error_already_set();
+    }
 
-This module provides application-level functionality for working with clingo,
-including an application class, options definitions, and helper routines.
-
-# Examples
-
-The following example shows how to run clingo without customization:
-
-```python
-import sys
-from clingo.app import clingo_main
-from clingo.core import Library
-from clingo.script import enable_python
-
-with Library() as lib:
-    enable_python(lib)
-    clingo_main(lib, sys.argv[1:])
-```
-
-The next example shows how to write a simple clingo-based application that adds
-an option to print atoms in models in order:
-
-```python
-from typing import Callable, Sequence
-import sys
-from clingo.app import App, AppOptions, Flag, clingo_main
-from clingo.core import Library
-from clingo.control import Control
-from clingo.solve import Model
-from clingo.symbol import Symbol
-
-Parts = Sequence[Sequence[tuple[str, Sequence[Symbol]]]]
-
-class MyApp(App):
-    def __init__(self) -> None:
-        super().__init__("my-app", "1.0.0")
-        self._order = Flag()
-
-    def print_model(self, model: Model, default_printer: Callable[[], None]) -> None:
-        if self._order.value:
-            print(" ".join(str(sym) for sym in sorted(model.symbols(shown=True))))
-        else:
-            default_printer()
-
-    def register_options(self, options: AppOptions) -> None:
-        options.add_flag(
-            "MyApp", "order", "Print atoms in models in order.", self._order
-        )
-
-    def main(self, control: Control, files: Sequence[str], parts: Parts) -> None:
-        control.parse_files(files)
-        control.main(parts)
-
-with Library() as lib:
-    sys.exit(clingo_main(lib, sys.argv[1:], MyApp()))
-```
-)"_d);
-
-    py::class_<Flag>(app, "Flag", R"(
-Boolean flag with value management.
-
-Represents command-line toggle options.
-)"_d)
-        .def(py::init<bool>(), py::arg("value") = false, R"(
-Initializes the flag with the provided value.
-
-Args:
-    value:
-        The initial boolean value of the flag (default is False).
-)"_d)
-        .def_readwrite("value", &Flag::value, "Get/set the value of the flag.");
-
-    py::class_<Options>(app, "AppOptions", R"(
-Manager for application options and their definitions.
-
-Provides interface to add/configures various option types:
-
-- argument options,
-- flag options, and
-- multi-value options.
-)"_d)
-        .def("add", &Options::add, py::arg("group"), py::arg("option"), py::arg("description"), py::arg("parser"),
-             py::arg("multi") = false, py::arg("argument") = std::nullopt, R"(
-Adds an option with a custom parser.
-
-An option's group name acts like a section header; all options with the same
-group name are displayed under it in the help output. The option name is the
-identifier following the two dashes on the command line and it's value is
-parsed by the given parser.
-
-Args:
-    group:
-        The option group or category.
-    option:
-        The option name (after --).
-    description:
-        A brief description of the option.
-    parser:
-        A callable to process the string input for this option.
-    multi:
-        Whether the option can accept multiple values (default is False).
-    argument:
-        An optional string indicating the argument type or format.
-)"_d)
-        .def("add_flag", &Options::add_flag, py::arg("group"), py::arg("option"), py::arg("description"),
-             py::arg("flag"), R"(
-Add a Boolean flag option.
-
-Similar to `add_option` but used for Boolean options that can be toggled on or
-off.
-
-Args:
-    group:
-        The option group or category.
-    option:
-        The option name or flag identifier.
-    description:
-        A brief description of the flag option.
-    flag:
-        A Flag object that holds the value of the flag.
-)"_d)
-        .def("set_default_value", &Options::set_default_value, py::arg("option"), py::arg("value"), R"(
-Set the default value for an existing clingo option.
-
-This function can be used to adjust the default value of a clingo option, which
-will be used if no value is given on the command-line.
-
-Args:
-    option:
-        The name of the option for which a default value should be set.
-    value:
-        The new default value to set.
-)"_d);
-
-    py::class_<App>(app, "App", py::custom_type_setup(&App::setup), R"(
-Interface to implement a custom Clingo-based application.
-
-This class encapsulates the main execution flow of a Clingo-based application.
-It provides methods for executing the program, printing models, registering
-application options, and validating the configuration.
-)"_d)
-        .def(py::init<std::optional<std::string>, std::optional<std::string>, std::optional<std::string>>(),
-             py::arg("program_name") = std::nullopt, py::arg("version") = std::nullopt,
-             py::arg("commit_hash") = std::nullopt, R"(
-Initializes the application with a program name and its version.
-
-If no name is given, `"clingo"` is used. If no version is given, the current
-clingo version is used.
-
-Args:
-    program_name:
-        The name of the application.
-    version:
-        The version string of the application.
-    commit_hash:
-        The version control commit hash of the application.
-
-)"_d)
-        .def("register_options", &App::register_options, py::arg("options"), R"(
-Register command-line options for the application.
-
-Args:
-    options:
-        An instance of AppOptions to add new options.
-)"_d)
-        .def("validate_options", &App::validate_options, R"(
-Validate the options passed to the application.
-
-Once the application options have been set, this method confirms that they are
-valid. If an error is detected, a ValueError should be raised.
-)"_d)
-        .def("print_model", &App::print_model, py::arg("model"), py::arg("default_printer"), R"(
-Print the given model in a custom format.
-
-The default printer can be used to print the model as clingo would. A possible
-use case would be to use the printer and then print additional information
-below the model.
-
-Args:
-    model:
-        The current model held by the solver.
-    default_printer:
-        A callable that prints the model in default format.
-)"_d)
-        .def("main", &App::main, py::arg("control"), py::arg("files"), R"(
-Run the main execution flow of the application.
-
-This method is invoked after Clingo's control object has been configured. It
-processes input files, executes the control flow, and handles output.
-
-Args:
-    control:
-        The Clingo control object for managing grounding and solving.
-    files:
-        A list of filenames representing the input logic programs.
-)"_d);
-
-    app.def("clingo_main", &pymain, py::arg("lib"), py::arg("arguments"), py::arg("app") = std::nullopt,
-            R"(
-Entry point for running the Clingo application.
-
-This function initializes necessary components, processes input arguments, and
-then executes the main functionality of the Clingo application. It can
-optionally use a provided App instance to customize this behavior.
-
-Args:
-    lib:
-        The Clingo core library interface.
-    arguments:
-        A list of command-line arguments.
-    app:
-        An optional App instance containing application-specific logic.
-
-Returns:
-    An integer exit code.
-)"_d)
-        .def("_pyclingo", &pyentry);
+    if (!add_type(app_mod.get(), "Flag", &py_flag_spec, &state->flag_type) ||
+        !add_type(app_mod.get(), "AppOptions", &py_options_spec, &state->options_type) ||
+        !add_type(app_mod.get(), "App", &py_app_spec, &state->app_type)) {
+        throw py::error_already_set();
+    }
 }
 
 } // namespace PyClingo

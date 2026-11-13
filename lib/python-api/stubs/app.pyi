@@ -58,21 +58,27 @@ with Library() as lib:
 ```
 """
 
-from __future__ import annotations
-
-import collections.abc
-import typing
+from collections.abc import Callable, Sequence
 
 import clingo.control
 import clingo.core
 import clingo.solve
+from clingo.core import Library
 
 __all__: list[str] = ["App", "AppOptions", "Flag", "clingo_main"]
 
-def _pyclingo() -> int: ...
-def clingo_main(
-    lib: clingo.core.Library, arguments: typing.Sequence[str], app: App | None = None
-) -> int:
+def _pyclingo() -> int:
+    """
+    Entry point for running the Clingo application from Python.
+
+    This runs clingo from python in a similar way to the command line interface
+    and supports embedded Python scripts.
+
+    Returns:
+        The exit code of the Clingo application.
+    """
+
+def clingo_main(lib: Library, arguments: Sequence[str], app: App | None = None) -> int:
     """
     Entry point for running the Clingo application.
 
@@ -133,7 +139,7 @@ class AppOptions:
         group: str,
         option: str,
         description: str,
-        parser: collections.abc.Callable[[str], None],
+        parser: Callable[[str], None],
         multi: bool = False,
         argument: str | None = None,
     ) -> None:
@@ -222,9 +228,7 @@ class App:
                 The version control commit hash of the application.
         """
 
-    def main(
-        self, control: clingo.control.Control, files: typing.Sequence[str]
-    ) -> None:
+    def main(self, control: clingo.control.Control, files: Sequence[str]) -> None:
         """
         Run the main execution flow of the application.
 
@@ -241,7 +245,7 @@ class App:
     def print_model(
         self,
         model: clingo.solve.Model,
-        default_printer: collections.abc.Callable[[], None],
+        default_printer: Callable[[], None],
     ) -> None:
         """
         Print the given model in a custom format.

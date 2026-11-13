@@ -54,6 +54,12 @@ auto py_handle_error() -> std::nullptr_t;
 // Similar to handle_error but also reraises if the code is succsess.
 void handle_error_no_code(bool res, int code);
 
+//! Report an error to stderr.
+//!
+//! An error is reported if res is false or the code indicates an error and a
+//! clingo error is set.
+auto report_main_error(bool res, int code, clingo_string_t name) -> bool;
+
 using Logger = std::function<void(clingo_message_e, std::string_view)>;
 
 static constexpr size_t default_message_limit = 25;

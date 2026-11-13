@@ -8,7 +8,8 @@ namespace PyClingo {
 
 namespace py = pybind11;
 
-auto convert_options(py::handle hnd) -> clingo_options_t *;
+auto py_app_options_type_ref() -> PyObject *;
+auto py_app_options_check(PyObject *type, PyObject *obj) -> clingo_options_t *;
 
 void register_app(pybind11::module &m);
 
