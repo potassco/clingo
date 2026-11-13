@@ -2,58 +2,61 @@
 This module allows for using theories implemented in C from Python.
 """
 
-from __future__ import annotations
+from collections.abc import Callable, Iterator, Sequence
+from typing import TypeAlias
 
-import collections.abc
-import typing
-
-import clingo.app
-import clingo.ast
-import clingo.control
-import clingo.core
-import clingo.solve
-import clingo.stats
-import clingo.symbol
+from clingo.app import AppOptions
+from clingo.ast import Statement
+from clingo.control import Control
+from clingo.core import Library
+from clingo.solve import Model
+from clingo.stats import Stats
+from clingo.symbol import Symbol
 
 __all__: list[str] = ["Theory", "TheoryAssignment"]
+
+ValueType: TypeAlias = Symbol | int | float
+"""
+The value type of a theory value.
+
+It can be a symbol, an integer or a float.
+"""
 
 class TheoryAssignment:
     """
     Assignment of theory values.
     """
 
-    def __iter__(self) -> TheoryAssignment:
-        """
-        Return self.
-        """
-
-    def __next__(
+    def __iter__(
         self,
-    ) -> tuple[clingo.symbol.Symbol, clingo.symbol.Symbol | int | float]:
+    ) -> Iterator[tuple[Symbol, ValueType]]:
         """
-        Get the next symbol value pair.
+        Get an iterator over the symbol value pairs in the assignment.
+
+        Returns:
+            An iterator over the symbol value pairs.
         """
 
-    def at(
-        self, index: int
-    ) -> tuple[clingo.symbol.Symbol, clingo.symbol.Symbol | int | float]:
+    def __getitem__(self, index: int | Symbol, /) -> ValueType:
         """
         Get the value at the given index in the assignment.
 
         Args:
             index: The index of the value
+
         Returns:
-            The value.
+            The value at the given index.
         """
 
-    def lookup(self, symbol: clingo.symbol.Symbol) -> int | None:
+    def get(self, symbol: Symbol, /) -> int | None:
         """
         Get the value index of the symbol in the assignment.
 
         Args:
             symbol: The symbol to lookup.
+
         Returns:
-            The value or None if unnassigned.
+            The index or None if unnassigned.
         """
 
 class Theory:
@@ -61,7 +64,7 @@ class Theory:
     Object to call functions from a C-library implementing a custom theory.
     """
 
-    def __init__(self, library: clingo.core.Library, create: typing.Any) -> None:
+    def __init__(self, library: Library, create: object, /) -> None:
         """
         Construct a theory object.
 
@@ -71,7 +74,7 @@ class Theory:
                 A capsule object holding a function pointer to initialize the theory.
         """
 
-    def assignment(self, thread_id: int) -> TheoryAssignment:
+    def assignment(self, thread_id: int, /) -> TheoryAssignment:
         """
         Get the symbols and values currently assigned by the theory
 
@@ -83,22 +86,22 @@ class Theory:
             thread_id: The id of the thread to query.
 
         Returns:
-            An interable over symbol value pairs.
+            An iterable over symbol value pairs.
         """
 
-    def on_model(self, model: clingo.solve.Model) -> None:
+    def on_model(self, model: Model, /) -> None:
         """
         Notify the theory about the given model.
 
-        Some theories extend the model here are set their internal assignments. This
-        function should be called in the on_model callback of a control's solve
-        function.
+        Some theories extend the model here and set their internal assignments.
+        This function should be called in the on_model callback of a control's
+        solve function.
 
         Args:
             model: The current model.
         """
 
-    def on_stats(self, step: clingo.stats.Stats, accu: clingo.stats.Stats) -> None:
+    def on_stats(self, step: Stats, accu: Stats, /) -> None:
         """
         Let the theory update statistics.
 
@@ -109,15 +112,15 @@ class Theory:
             accu: The accumulated statistics.
         """
 
-    def prepare(self, control: clingo.control.Control) -> None:
+    def prepare(self, control: Control, /) -> None:
         """
         Prepare the theory for solving.
 
         Args:
-            control: The control object using for solving.
+            control: The control object used for solving.
         """
 
-    def register(self, control: clingo.control.Control) -> None:
+    def register(self, control: Control, /) -> None:
         """
         Register the theory with the given control object.
 
@@ -128,7 +131,7 @@ class Theory:
             control: The control object to register the theory with.
         """
 
-    def register_options(self, options: clingo.app.AppOptions) -> None:
+    def register_options(self, options: AppOptions, /) -> None:
         """
         Register theory related options.
 
@@ -139,50 +142,7 @@ class Theory:
         """
 
     def rewrite(
-        self,
-        statement: (
-            clingo.ast.StatementRule
-            | clingo.ast.StatementTheory
-            | clingo.ast.StatementOptimize
-            | clingo.ast.StatementWeakConstraint
-            | clingo.ast.StatementShow
-            | clingo.ast.StatementShowNothing
-            | clingo.ast.StatementShowSignature
-            | clingo.ast.StatementProject
-            | clingo.ast.StatementProjectSignature
-            | clingo.ast.StatementDefined
-            | clingo.ast.StatementExternal
-            | clingo.ast.StatementEdge
-            | clingo.ast.StatementHeuristic
-            | clingo.ast.StatementScript
-            | clingo.ast.StatementInclude
-            | clingo.ast.StatementProgram
-            | clingo.ast.StatementConst
-            | clingo.ast.StatementComment
-        ),
-        callback: collections.abc.Callable[
-            [
-                clingo.ast.StatementRule
-                | clingo.ast.StatementTheory
-                | clingo.ast.StatementOptimize
-                | clingo.ast.StatementWeakConstraint
-                | clingo.ast.StatementShow
-                | clingo.ast.StatementShowNothing
-                | clingo.ast.StatementShowSignature
-                | clingo.ast.StatementProject
-                | clingo.ast.StatementProjectSignature
-                | clingo.ast.StatementDefined
-                | clingo.ast.StatementExternal
-                | clingo.ast.StatementEdge
-                | clingo.ast.StatementHeuristic
-                | clingo.ast.StatementScript
-                | clingo.ast.StatementInclude
-                | clingo.ast.StatementProgram
-                | clingo.ast.StatementConst
-                | clingo.ast.StatementComment
-            ],
-            None,
-        ],
+        self, statement: Statement, callback: Callable[[Statement], None], /
     ) -> None:
         """
         Rewrite the given statement and pass the result to the callback.
@@ -196,42 +156,35 @@ class Theory:
         """
 
     def rewrite_files(
-        self,
-        lib: clingo.core.Library,
-        control: clingo.control.Control,
-        files: typing.Sequence[str],
+        self, lib: Library, control: Control, files: Sequence[str], /
     ) -> None:
         """
         Rewrite the program in the given files and add it to the control.
 
         Args:
             lib: The library to store symbols.
-            control: The target control..
+            control: The target control.
             files: The files to parse.
         """
 
-    def rewrite_string(
-        self, lib: clingo.core.Library, control: clingo.control.Control, program: str
-    ) -> None:
+    def rewrite_string(self, lib: Library, control: Control, program: str, /) -> None:
         """
         Rewrite the given program adding it to the control object.
 
         Args:
             lib: The library to store symbols.
-            control: The target control..
+            control: The target control.
             program: The program to parse.
         """
 
     def validate_options(self) -> None:
         """
-        Check the registered options.
+        Validate the registered options.
 
         See also: `clingo.app.App.validate_options`
         """
 
-    def value(
-        self, thread_id: int, symbol: clingo.symbol.Symbol
-    ) -> clingo.symbol.Symbol | int | float | None:
+    def value(self, thread_id: int, symbol: Symbol, /) -> ValueType | None:
         """
         Get the value of the symbol in the assignment of the given thread.
 
@@ -244,29 +197,29 @@ class Theory:
             symbol: The symbol to lookup.
 
         Returns:
-            The value or None if unnassigned.
+            The value or None if unassigned.
         """
 
     @property
     def commit_hash(self) -> str:
         """
-        Get the commit hash of the theory.
+        The commit hash of the theory.
         """
 
     @property
     def has_assignment(self) -> bool:
         """
-        Check whether the theory supports symbol value assigments.
+        Check whether the theory supports symbol value assignments.
         """
 
     @property
     def name(self) -> str:
         """
-        Get the name of the theory.
+        The name of the theory.
         """
 
     @property
     def version(self) -> tuple[int, int, int]:
         """
-        Get the version of the theory (major, minor, revision).
+        The version of the theory (major, minor, revision).
         """

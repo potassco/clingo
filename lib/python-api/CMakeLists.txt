@@ -116,11 +116,19 @@ if(CLINGO_BUILD_APP)
 endif()
 
 if(CLINGO_BUILD_TESTS)
+    add_library(fake_theory MODULE "tests/fake_theory.c")
+    clingo_target_properties(TARGETS fake_theory FOLDER lib SUBDIR python)
+    set_target_properties(fake_theory PROPERTIES PREFIX "")
+    target_link_libraries(fake_theory PRIVATE clingo)
+
     pytest_discover_tests(
         test_pyclingo
         PYTHON_PATH_PREPEND
             $<TARGET_FILE_DIR:pyclingo>
             "${CLINGO_SOURCE_DIR}/third_party/pytest-cmake/src"
-        LIBRARY_PATH_PREPEND $<TARGET_FILE_DIR:clingo>
-        DEPENDS pyclingo)
+        LIBRARY_PATH_PREPEND
+            $<TARGET_FILE_DIR:clingo>
+        ENVIRONMENT
+            PYCLINGO_FAKE_THEORY=$<TARGET_FILE:fake_theory>
+        DEPENDS pyclingo fake_theory)
 endif()

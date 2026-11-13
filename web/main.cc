@@ -4,6 +4,7 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,7 @@ static constexpr auto message_limit = 25;
 //! @param[in] args the command line arguments
 auto run(std::string input, std::vector<std::string> const &args) -> int {
     static clingo_application_t app = {
+        nullptr,
         nullptr,
         nullptr,
         [](clingo_control_t *control, [[maybe_unused]] clingo_string_t const *files, [[maybe_unused]] size_t files_size,

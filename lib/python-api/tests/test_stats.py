@@ -67,7 +67,7 @@ class TestStats:
         choices = stats["solving"]["solvers"]["choices"]
         assert isinstance(choices, StatsView)
         assert choices.value > 0
-        for x in stats["solving"].map.keys():
+        for x in stats["solving"].map:
             assert isinstance(x, str)
             if x == "solvers":
                 break
@@ -84,7 +84,7 @@ class TestStats:
         costs = stats["summary"]["costs"]
         assert isinstance(costs, StatsView)
         assert costs.nestify() == [1.0]
-        expected = float(1.0)
+        expected = 1.0
         for x in costs:
             assert isinstance(x, StatsView)
             assert isinstance(x.value, float)
@@ -111,7 +111,7 @@ class TestStats:
             step.update({"map": {"val": 10.0, "arr": [1.0, 0.0, 3.0, {"nested": 1.0}]}})
             assert "map" in step
             assert isinstance(step["map"].map, StatsMap)
-            assert sorted(list(step["map"].map.keys())) == ["arr", "val"]
+            assert sorted(step["map"].map) == ["arr", "val"]
             assert len(step["map"]["arr"]) == 4
             assert step["map"]["arr"][1].value == 0.0
             step["map"]["arr"][1].value = 2.0

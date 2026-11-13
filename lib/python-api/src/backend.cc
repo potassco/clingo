@@ -9,7 +9,6 @@
 #include "util.hh"
 
 #include <array>
-#include <limits>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -84,40 +83,6 @@ auto get_state_from_self(PyObject *self) -> BackendModuleState * {
     return get_state(mod);
 }
 
-template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *what) -> bool {
-    if (obj == nullptr) {
-        return true;
-    }
-    if constexpr (std::is_unsigned_v<T>) {
-        auto i = steal(PyNumber_Index(obj));
-        if (i.get() == nullptr) {
-            return false;
-        }
-        auto v = PyLong_AsUnsignedLong(i.get());
-        if (PyErr_Occurred() != nullptr) {
-            PyErr_Format(PyExc_TypeError, "%s must be a non-negative integer", what);
-            return false;
-        }
-        if (std::cmp_greater(v, std::numeric_limits<T>::max())) {
-            PyErr_Format(PyExc_OverflowError, "%s is out of range", what);
-            return false;
-        }
-        *out = static_cast<T>(v);
-    } else {
-        auto v = PyLong_AsLong(obj);
-        if (PyErr_Occurred() != nullptr) {
-            PyErr_Format(PyExc_TypeError, "%s must be an integer", what);
-            return false;
-        }
-        if (std::cmp_less(v, std::numeric_limits<T>::min()) || std::cmp_greater(v, std::numeric_limits<T>::max())) {
-            PyErr_Format(PyExc_OverflowError, "%s is out of range", what);
-            return false;
-        }
-        *out = static_cast<T>(v);
-    }
-    return true;
-}
-
 auto parse_symbol(BackendModuleState *state, PyObject *obj, clingo_symbol_t *sym, char const *what) -> bool {
     if (state == nullptr) {
         return false;
@@ -132,48 +97,6 @@ auto parse_symbol(BackendModuleState *state, PyObject *obj, clingo_symbol_t *sym
     }
     return true;
 }
-
-template <class T> struct PyBuffer {
-    PyBuffer() = default;
-    PyBuffer(PyBuffer const &) = delete;
-    auto operator=(PyBuffer const &) -> PyBuffer & = delete;
-    PyBuffer(PyBuffer &&) = delete;
-    auto operator=(PyBuffer &&) -> PyBuffer & = delete;
-
-    ~PyBuffer() {
-        if (ptr_ != nullptr) {
-            PyMem_Free(ptr_);
-        }
-    }
-
-    auto alloc(size_t n) -> bool {
-        T *new_ptr = nullptr;
-        if (n > 0) {
-            new_ptr = static_cast<T *>(PyMem_Calloc(n, sizeof(T)));
-            if (new_ptr == nullptr) {
-                PyErr_NoMemory();
-                return false;
-            }
-        }
-        if (ptr_ != nullptr) {
-            PyMem_Free(ptr_);
-        }
-        ptr_ = new_ptr;
-        n_ = n;
-        return true;
-    }
-
-    auto data() -> T * { return ptr_; }
-    [[nodiscard]] auto data() const -> T const * { return ptr_; }
-    [[nodiscard]] auto size() const -> size_t { return n_; }
-
-    auto operator[](size_t i) -> T & { return ptr_[i]; }
-    auto operator[](size_t i) const -> T const & { return ptr_[i]; }
-
-  private:
-    T *ptr_{nullptr};
-    size_t n_{0};
-};
 
 template <class T, class F>
 // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)

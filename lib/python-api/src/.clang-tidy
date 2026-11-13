@@ -5,3 +5,4 @@ Checks: >
   -cppcoreguidelines-pro-type-const-cast,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-type-union-access,

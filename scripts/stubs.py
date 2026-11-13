@@ -289,6 +289,7 @@ class Rewriter:
                         "stats.pyi",
                         "config.pyi",
                         "backend.pyi",
+                        "theory.pyi",
                     ):
                         with (
                             open(gen_path, "r", encoding="utf8") as hnd,

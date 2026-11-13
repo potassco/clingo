@@ -139,6 +139,17 @@ information.
     PyClingo::register_script(m);
     PyClingo::register_app(m);
     PyClingo::register_theory(m);
+
+    // TODO: Add lazy loading for the modules registered here:
+    // - Install a finder in sys.meta_path that recognizes these module names.
+    // - Implement the importlib.abc.MetaPathFinder interface:
+    //   - In find_spec(), return a spec for a registered module, created with
+    //     importlib.util.spec_from_loader(name, loader, ...).
+    // - Implement the importlib.abc.Loader interface:
+    //   - In create_module(), create the module and register its independent types
+    //     and functions.
+    //   - In exec_module(), initialize module state that depends on other modules,
+    //     such as cached types imported from those modules.
 }
 
 } // namespace PyClingo
