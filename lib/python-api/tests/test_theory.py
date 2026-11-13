@@ -5,13 +5,16 @@ Unit tests for the clingo.theory module.
 import ctypes
 import os
 from collections.abc import Callable
+from pathlib import Path
 from typing import cast
 
 import pytest
 from clingo.app import AppOptions
-from clingo.ast import Statement, parse_string
+from clingo.ast import Program, Statement, parse_string
 from clingo.control import Control
 from clingo.core import Library
+from clingo.solve import Model
+from clingo.stats import Stats
 from clingo.symbol import Function, Number
 from clingo.theory import Theory
 
@@ -143,7 +146,7 @@ class TestTheory:
         assert theory.value(0, large) == fun
         assert theory.value(0, Number(self.lib, 999)) is None
 
-    def test_api(self, tmp_path):
+    def test_api(self, tmp_path: Path):
         """
         Exercise all callable methods.
         """
@@ -164,18 +167,23 @@ class TestTheory:
         parse_string(self.lib, "a.", statements.append)
         assert statements
 
-        rewritten = []
-        assert theory.rewrite(statements[0], rewritten.append) is None
-        assert rewritten
+        prg = Program(self.lib)
+        for stm in statements:
+            theory.rewrite(stm, prg.add)
+        control.join(prg)
 
         with pytest.raises(TypeError):
             theory.rewrite(statements[0], cast(Callable[[Statement], None], None))
 
         assert theory.rewrite_string(self.lib, control, "b.") is None
 
-        path = tmp_path / "rewrite.lp"
-        path.write_text("c.\n", encoding="utf-8")
-        assert theory.rewrite_files(self.lib, control, [str(path)]) is None
+        path_c = tmp_path / "rewrite_a.lp"
+        path_d = tmp_path / "rewrite_b.lp"
+        path_c.write_text("c.\n", encoding="utf-8")
+        path_d.write_text("d.\n", encoding="utf-8")
+        assert (
+            theory.rewrite_files(self.lib, control, [str(path_c), str(path_d)]) is None
+        )
 
         control.parse_string("d.")
         control.ground([("base", [])])
@@ -183,12 +191,18 @@ class TestTheory:
         seen_model = False
         seen_stats = False
 
-        def _on_model(model):
+        def _on_model(model: Model) -> None:
             nonlocal seen_model
             seen_model = True
+            assert sorted(model.symbols(shown=True)) == [
+                Function(self.lib, "a"),
+                Function(self.lib, "b"),
+                Function(self.lib, "c"),
+                Function(self.lib, "d"),
+            ]
             assert theory.on_model(model) is None
 
-        def _on_stats(step, accu):
+        def _on_stats(step: Stats, accu: Stats) -> None:
             nonlocal seen_stats
             seen_stats = True
             assert theory.on_stats(step, accu) is None
