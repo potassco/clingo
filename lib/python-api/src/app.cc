@@ -36,16 +36,11 @@ using PyAppObject = struct {
     PyObject *version;
     PyObject *commit_hash;
     PyObject *keep;
+    PyObject *printer_fn;
     AppModuleState *state;
-};
-
-struct PrinterData {
     clingo_default_model_printer_t printer;
-    void *data;
-    bool valid;
+    void *printer_data;
 };
-
-constexpr auto printer_capsule_name = "clingo.app.default_printer";
 
 // module state
 
@@ -448,6 +443,7 @@ auto py_app_traverse(PyObject *self, visitproc visit, void *arg) -> int {
     Py_VISIT(a->version);
     Py_VISIT(a->commit_hash);
     Py_VISIT(a->keep);
+    Py_VISIT(a->printer_fn);
     return 0;
 }
 
@@ -457,6 +453,7 @@ auto py_app_clear(PyObject *self) -> int {
     Py_CLEAR(a->version);
     Py_CLEAR(a->commit_hash);
     Py_CLEAR(a->keep);
+    Py_CLEAR(a->printer_fn);
     return 0;
 }
 
@@ -544,26 +541,16 @@ auto app_main_cb(clingo_control_t *ctl, clingo_string_t const *files, size_t siz
 }
 
 auto py_printer_call(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
-    auto *pd = static_cast<PrinterData *>(PyCapsule_GetPointer(self, printer_capsule_name));
-    if (pd == nullptr) {
-        return nullptr;
-    }
-    if (!pd->valid) {
+    auto *app = py_app_cast(self);
+    if (app->printer == nullptr) {
         PyErr_SetString(PyExc_RuntimeError, "default printer is only valid during print_model");
         return nullptr;
     }
-    if (!pd->printer(pd->data)) {
+    if (!app->printer(app->printer_data)) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
 }
-
-void printer_capsule_free(PyObject *cap) {
-    PyMem_Free(PyCapsule_GetPointer(cap, printer_capsule_name));
-}
-
-auto py_printer_def =
-    PyMethodDef{"default_printer", py_printer_call, METH_NOARGS, PyDoc_STR("Print the model in the default format.")};
 
 auto app_print_model_cb(clingo_model_t const *model, clingo_default_model_printer_t printer, void *printer_data,
                         void *data) -> bool {
@@ -577,29 +564,15 @@ auto app_print_model_cb(clingo_model_t const *model, clingo_default_model_printe
         return store_python_error("creating model failed");
     }
 
-    auto *pd = static_cast<PrinterData *>(PyMem_Malloc(sizeof(PrinterData)));
-    if (pd == nullptr) {
-        PyErr_NoMemory();
-        return store_python_error("creating printer failed");
-    }
-    *pd = PrinterData{printer, printer_data, true};
-    auto cap = steal(PyCapsule_New(pd, printer_capsule_name, printer_capsule_free));
-    if (cap.get() == nullptr) {
-        PyMem_Free(pd);
-        return store_python_error("creating printer failed");
-    }
-    auto fun = steal(PyCFunction_New(&py_printer_def, cap.get()));
-    if (fun.get() == nullptr) {
-        return store_python_error("creating printer failed");
-    }
-
-    auto ret = steal(PyObject_CallMethod(app, "print_model", "OO", pymodel.get(), fun.get()));
-    // NOTE: the printer must not be used once the model is gone
-    pd->valid = false;
+    auto *a = py_app_cast(app);
+    a->printer = printer;
+    a->printer_data = printer_data;
+    auto ret = steal(PyObject_CallMethod(app, "print_model", "OO", pymodel.get(), a->printer_fn));
+    a->printer = nullptr;
+    a->printer_data = nullptr;
     if (ret.get() == nullptr) {
         return store_python_error("print_model failed");
     }
-
     auto out = borrow(PySys_GetObject("stdout"));
     if (out.get() != nullptr && out.get() != Py_None) {
         auto res = steal(PyObject_CallMethod(out.get(), "flush", nullptr));
@@ -649,6 +622,9 @@ auto has_override(PyObject *self, PyObject *base_type, char const *name) -> int 
     return cur.get() != base.get() ? 1 : 0;
 }
 
+auto py_printer_def =
+    PyMethodDef{"default_printer", py_printer_call, METH_NOARGS, PyDoc_STR("Print the model in the default format.")};
+
 auto app_prepare(PyObject *self, AppModuleState *state, clingo_application_t *out) -> bool {
     auto has_main = has_override(self, state->app_type, "main");
     auto has_print_model = has_override(self, state->app_type, "print_model");
@@ -658,6 +634,12 @@ auto app_prepare(PyObject *self, AppModuleState *state, clingo_application_t *ou
         return false;
     }
     auto *app = py_app_cast(self);
+    if (has_print_model != 0 && app->printer_fn == nullptr) {
+        app->printer_fn = PyCFunction_New(&py_printer_def, self);
+        if (app->printer_fn == nullptr) {
+            return false;
+        }
+    }
     app->state = state;
     *out = clingo_application_t{
         app->program_name != nullptr ? app_get_program_name_cb : nullptr,
