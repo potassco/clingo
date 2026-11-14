@@ -193,7 +193,7 @@ auto py_flag_slots = std::array{
 };
 
 auto py_flag_spec = PyType_Spec{
-    "clingo.app.Flag", sizeof(PyFlagObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, py_flag_slots.data(),
+    "clingo.app.Flag", sizeof(PyFlagObject), 0, Py_TPFLAGS_DEFAULT, py_flag_slots.data(),
 };
 
 // AppOptions

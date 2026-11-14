@@ -29,9 +29,6 @@ from clingo.app import App, AppOptions, Flag, clingo_main
 from clingo.core import Library
 from clingo.control import Control
 from clingo.solve import Model
-from clingo.symbol import Symbol
-
-Parts = Sequence[Sequence[tuple[str, Sequence[Symbol]]]]
 
 class MyApp(App):
     def __init__(self) -> None:
@@ -49,9 +46,9 @@ class MyApp(App):
             "MyApp", "order", "Print atoms in models in order.", self._order
         )
 
-    def main(self, control: Control, files: Sequence[str], parts: Parts) -> None:
+    def main(self, control: Control, files: Sequence[str]) -> None:
         control.parse_files(files)
-        control.main(parts)
+        control.main()
 
 with Library() as lib:
     sys.exit(clingo_main(lib, sys.argv[1:], MyApp()))
@@ -60,10 +57,9 @@ with Library() as lib:
 
 from collections.abc import Callable, Sequence
 
-import clingo.control
-import clingo.core
-import clingo.solve
+from clingo.control import Control
 from clingo.core import Library
+from clingo.solve import Model
 
 __all__: list[str] = ["App", "AppOptions", "Flag", "clingo_main"]
 
@@ -146,10 +142,10 @@ class AppOptions:
         """
         Adds an option with a custom parser.
 
-        An option's group name acts like a section header; all options with the same
-        group name are displayed under it in the help output. The option name is the
-        identifier following the two dashes on the command line and it's value is
-        parsed by the given parser.
+        An option's group name acts like a section header; all options with the
+        same group name are displayed under it in the help output. The option
+        name is the identifier following the two dashes on the command line and
+        its value is parsed by the given parser.
 
         Args:
             group:
@@ -170,7 +166,7 @@ class AppOptions:
         """
         Add a Boolean flag option.
 
-        Similar to `add_option` but used for Boolean options that can be toggled on or
+        Similar to `add` but used for Boolean options that can be toggled on or
         off.
 
         Args:
@@ -228,7 +224,7 @@ class App:
                 The version control commit hash of the application.
         """
 
-    def main(self, control: clingo.control.Control, files: Sequence[str]) -> None:
+    def main(self, control: Control, files: Sequence[str]) -> None:
         """
         Run the main execution flow of the application.
 
@@ -244,7 +240,7 @@ class App:
 
     def print_model(
         self,
-        model: clingo.solve.Model,
+        model: Model,
         default_printer: Callable[[], None],
     ) -> None:
         """
