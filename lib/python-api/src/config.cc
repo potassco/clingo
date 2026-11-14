@@ -699,7 +699,7 @@ PyModuleDef config_def = {
 
 } // namespace
 
-auto py_config_type_ref() -> PyObject * {
+auto py_config_type() -> PyObject * {
     auto mod = steal(PyImport_ImportModule("clingo.config"));
     if (mod.get() == nullptr) {
         return nullptr;
@@ -708,7 +708,12 @@ auto py_config_type_ref() -> PyObject * {
     if (state == nullptr) {
         return nullptr;
     }
-    return state->config_type; // borrowed
+    if (state->config_type == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "config type is unavailable");
+        return nullptr;
+    }
+    Py_INCREF(state->config_type);
+    return state->config_type;
 }
 
 auto py_config_new(PyObject *owner, PyObject *keeper, PyObject *type, clingo_config_t *config, clingo_id_t key)

@@ -741,7 +741,7 @@ auto py_theory_on_stats(PyObject *self, PyObject *args) -> PyObject * {
     }
     (void)accu;
 
-    auto *type = py_stats_type_ref();
+    auto type = steal(py_stats_type());
     if (type == nullptr) {
         return nullptr;
     }
@@ -1031,17 +1031,15 @@ void register_theory(pybind11::module &m) {
         throw py::error_already_set();
     }
 
-    state->symbol_type = py_symbol_type_ref();
+    state->symbol_type = py_symbol_type();
     if (state->symbol_type == nullptr) {
         throw py::error_already_set();
     }
-    Py_INCREF(state->symbol_type);
 
-    state->app_options_type = py_app_options_type_ref();
+    state->app_options_type = py_app_options_type();
     if (state->app_options_type == nullptr) {
         throw py::error_already_set();
     }
-    Py_INCREF(state->app_options_type);
 
     if (!add_type(theory_mod.get(), "_TheoryAssignmentIter", &py_theory_assignment_iter_spec,
                   &state->assignment_iter_type) ||

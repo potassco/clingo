@@ -2091,11 +2091,10 @@ void register_base(py::module &m) {
         throw py::error_already_set();
     }
 
-    state->symbol_type = py_symbol_type_ref();
+    state->symbol_type = py_symbol_type();
     if (state->symbol_type == nullptr) {
         throw py::error_already_set();
     }
-    Py_INCREF(state->symbol_type);
 
     if (!add_int_enum(base_mod, "TheoryTermType", theory_term_members, &state->theory_term_type_enum, {})) {
         throw py::error_already_set();
@@ -2130,7 +2129,7 @@ auto py_base_new(PyObject *owner, PyObject *type, clingo_base_t const *base) -> 
     return obj;
 }
 
-auto py_base_type_ref() -> PyObject * {
+auto py_base_type() -> PyObject * {
     auto mod = steal(PyImport_ImportModule("clingo.base"));
     if (mod.get() == nullptr) {
         return nullptr;
@@ -2143,6 +2142,7 @@ auto py_base_type_ref() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.base.Base type not initialized");
         return nullptr;
     }
+    Py_INCREF(state->base_type);
     return state->base_type;
 }
 
@@ -2155,7 +2155,7 @@ auto py_base_get(PyObject *type, PyObject *obj) -> clingo_base_t const * {
 }
 
 auto convert(TypeHint<"clingo.base.Base"> base, MixedLitSpan const &lits, bool flip, bool disjunctive) -> LitVec {
-    auto *base_type = py_base_type_ref();
+    auto base_type = steal(py_base_type());
     if (base_type == nullptr) {
         throw py::error_already_set{};
     }

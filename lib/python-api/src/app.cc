@@ -838,7 +838,7 @@ PyModuleDef app_def = {
 
 } // namespace
 
-auto py_app_options_type_ref() -> PyObject * {
+auto py_app_options_type() -> PyObject * {
     auto mod = steal(PyImport_ImportModule("clingo.app"));
     if (mod.get() == nullptr) {
         return nullptr;
@@ -851,6 +851,7 @@ auto py_app_options_type_ref() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.app.AppOptions type not initialized");
         return nullptr;
     }
+    Py_INCREF(state->options_type);
     return state->options_type;
 }
 
