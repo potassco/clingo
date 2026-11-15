@@ -35,6 +35,7 @@ using PyBackendManagerObject = struct {
 
 struct BackendModuleState {
     PyObject *symbol_type{nullptr};
+    PyObject *base_type{nullptr};
     PyObject *observer_type{nullptr};
     PyObject *backend_type{nullptr};
     PyObject *backend_manager_type{nullptr};
@@ -254,11 +255,7 @@ auto py_observer_invoke_begin_step(ObserverData *data) -> bool {
 }
 
 auto py_observer_invoke_end_step(ObserverData *data, clingo_base_t const *base) -> bool {
-    auto *base_type = py_base_type_ref();
-    if (base_type == nullptr) {
-        return store_python_error("failed to resolve base type");
-    }
-    auto base_obj = steal(py_base_new(data->first, base_type, base));
+    auto base_obj = steal(py_base_new(data->first, data->second->base_type, base));
     if (base_obj.get() == nullptr) {
         return store_python_error("failed to create base object");
     }
@@ -1371,6 +1368,7 @@ auto backend_module_traverse(PyObject *module, visitproc visit, void *arg) -> in
         return 0;
     }
     Py_VISIT(state->symbol_type);
+    Py_VISIT(state->base_type);
     Py_VISIT(state->observer_type);
     Py_VISIT(state->backend_type);
     Py_VISIT(state->backend_manager_type);
@@ -1386,6 +1384,7 @@ auto backend_module_clear(PyObject *module) -> int {
         return 0;
     }
     Py_CLEAR(state->symbol_type);
+    Py_CLEAR(state->base_type);
     Py_CLEAR(state->observer_type);
     Py_CLEAR(state->backend_type);
     Py_CLEAR(state->backend_manager_type);
@@ -1428,7 +1427,7 @@ auto py_backend_manager_new(PyObject *type, clingo_control_t *ctl, PyObject *own
     return obj;
 }
 
-auto py_backend_manager_type_ref() -> PyObject * {
+auto py_backend_manager_type() -> PyObject * {
     auto mod = steal(PyImport_ImportModule("clingo.backend"));
     if (mod.get() == nullptr) {
         return nullptr;
@@ -1437,6 +1436,11 @@ auto py_backend_manager_type_ref() -> PyObject * {
     if (state == nullptr) {
         return nullptr;
     }
+    if (state->backend_manager_type == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "clingo.backend module is not initialized");
+        return nullptr;
+    }
+    Py_INCREF(state->backend_manager_type);
     return state->backend_manager_type;
 }
 
@@ -1464,11 +1468,15 @@ void register_backend(pybind11::module &m) {
         throw py::error_already_set();
     }
 
-    state->symbol_type = py_symbol_type_ref();
+    state->symbol_type = py_symbol_type();
     if (state->symbol_type == nullptr) {
         throw py::error_already_set();
     }
-    Py_INCREF(state->symbol_type);
+
+    state->base_type = py_base_type();
+    if (state->base_type == nullptr) {
+        throw py::error_already_set();
+    }
 
     if (!add_int_enum(backend_mod.get(), "HeuristicType", heuristic_type_members, &state->heuristic_type_enum, {}) ||
         !add_int_enum(backend_mod.get(), "ExternalType", external_type_members, &state->external_type_enum, {}) ||

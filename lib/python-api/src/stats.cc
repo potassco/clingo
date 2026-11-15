@@ -1548,7 +1548,7 @@ auto py_stats_new(PyObject *owner, PyObject *type, clingo_stats_t *stats, uint64
     return py_stats_alloc(owner, type, stats, key);
 }
 
-auto py_stats_type_ref() -> PyObject * {
+auto py_stats_type() -> PyObject * {
     auto mod = steal(PyImport_ImportModule("clingo.stats"));
     if (mod.get() == nullptr) {
         return nullptr;
@@ -1557,10 +1557,15 @@ auto py_stats_type_ref() -> PyObject * {
     if (state == nullptr) {
         return nullptr;
     }
+    if (state->stats_type == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "clingo.stats.Stats type not initialized");
+        return nullptr;
+    }
+    Py_INCREF(state->stats_type);
     return state->stats_type;
 }
 
-auto py_stats_view_type_ref() -> PyObject * {
+auto py_stats_view_type() -> PyObject * {
     auto mod = steal(PyImport_ImportModule("clingo.stats"));
     if (mod.get() == nullptr) {
         return nullptr;
@@ -1569,6 +1574,11 @@ auto py_stats_view_type_ref() -> PyObject * {
     if (state == nullptr) {
         return nullptr;
     }
+    if (state->stats_view_type == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "clingo.stats.StatsView type not initialized");
+        return nullptr;
+    }
+    Py_INCREF(state->stats_view_type);
     return state->stats_view_type;
 }
 

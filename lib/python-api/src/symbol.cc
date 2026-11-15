@@ -938,7 +938,7 @@ void register_symbol(pybind11::module &m) {
     }
 }
 
-auto py_symbol_type_ref() -> PyObject * {
+auto py_symbol_type() -> PyObject * {
     auto mod = steal(PyImport_ImportModule("clingo.symbol"));
     if (mod == nullptr) {
         return nullptr;
@@ -951,6 +951,7 @@ auto py_symbol_type_ref() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "failed to resolve symbol type");
         return nullptr;
     }
+    Py_INCREF(state->symbol_type);
     return state->symbol_type;
 }
 
@@ -997,7 +998,7 @@ namespace pybind11::detail {
 static auto get_symbol_type() -> PyObject * {
     // we use a static variable here for performance reasons
     // this means the python interpreter can be loaded only once
-    static auto *symbol_type = PyClingo::py_symbol_type_ref();
+    static auto *symbol_type = PyClingo::steal(PyClingo::py_symbol_type()).get();
     return symbol_type;
 }
 

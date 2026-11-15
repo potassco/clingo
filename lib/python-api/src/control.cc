@@ -201,7 +201,7 @@ auto Control::start_ground(std::optional<PartSpan> parts, py::handle ctx,
 auto Control::base() -> TypeHint<"clingo.base.Base"> {
     clingo_base_t const *base = nullptr;
     clingo_control_base(get(), &base);
-    auto *type = py_base_type_ref();
+    auto type = steal(py_base_type());
     if (type == nullptr) {
         throw py::error_already_set();
     }
@@ -216,15 +216,15 @@ void Control::observe(TypeHint<"clingo.backend.Observer"> &obs, bool preprocess)
 }
 
 auto Control::backend() -> TypeHint<"clingo.backend.BackendManager"> {
-    PyObject *type = py_backend_manager_type_ref();
+    auto type = steal(py_backend_manager_type());
     if (type == nullptr) {
         throw py::error_already_set();
     }
-    auto *res = py_backend_manager_new(type, get(), py::cast(this).ptr());
+    auto res = steal(py_backend_manager_new(type, get(), py::cast(this).ptr()));
     if (res == nullptr) {
         throw py::error_already_set();
     }
-    return py::reinterpret_steal<TypeHint<"clingo.backend.BackendManager">>(res);
+    return py::reinterpret_steal<TypeHint<"clingo.backend.BackendManager">>(res.release());
 }
 
 auto Control::config() -> TypeHint<"clingo.config.Config"> {
@@ -232,7 +232,7 @@ auto Control::config() -> TypeHint<"clingo.config.Config"> {
     handle_error(clingo_control_config(get(), &config));
     clingo_id_t key = 0;
     handle_error(clingo_config_root(config, &key));
-    auto *type = py_config_type_ref();
+    auto type = steal(py_config_type());
     if (type == nullptr) {
         throw py::error_already_set();
     }
@@ -248,16 +248,16 @@ auto Control::stats() -> StatsView {
     handle_error(clingo_control_stats(get(), &stats));
     uint64_t key = 0;
     handle_error(clingo_stats_root(stats, &key));
-    auto *type = py_stats_view_type_ref();
+    auto type = steal(py_stats_view_type());
     if (type == nullptr) {
         throw py::error_already_set();
     }
 
-    auto *res = py_stats_new(py::cast(this).ptr(), type, const_cast<clingo_stats_t *>(stats), key);
+    auto res = steal(py_stats_new(py::cast(this).ptr(), type, const_cast<clingo_stats_t *>(stats), key));
     if (res == nullptr) {
         throw py::error_already_set();
     }
-    return py::reinterpret_steal<StatsView>(res);
+    return py::reinterpret_steal<StatsView>(res.release());
 }
 
 auto Control::profile() -> py::list {
@@ -378,7 +378,7 @@ auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optio
                 uint64_t accu = 0;
                 handle_error(clingo_stats_map_add_subkey(stats, root, clingo_user_stats_accu.data, clingo_user_stats_accu.size,
                                                          clingo_stats_type_map, &accu));
-                auto *type = py_stats_type_ref();
+                auto type = steal(py_stats_type());
                 if (type == nullptr) {
                     throw py::error_already_set();
                 }
