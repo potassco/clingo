@@ -148,14 +148,12 @@ auto context_call(GroundModuleState *state, PyObject *ctx, char const *name, siz
     return symbol_callback(syms.data(), syms.size(), symbol_callback_data);
 }
 
-// Every function is reported as callable; lookup errors are raised when called.
 auto context_callable([[maybe_unused]] char const *name, [[maybe_unused]] size_t name_size,
                       [[maybe_unused]] size_t arguments_size, [[maybe_unused]] void *data, bool *result) -> bool {
     *result = true;
     return true;
 }
 
-// Event handler for blocking grounding; data points to BlockingData.
 struct BlockingData {
     GroundModuleState *state;
     PyObject *ctx;
