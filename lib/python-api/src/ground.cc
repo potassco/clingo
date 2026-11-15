@@ -25,10 +25,10 @@ struct GroundModuleState {
 
 using PyGroundHandleObject = struct {
     PyObject_HEAD clingo_ground_handle_t *hnd;
-    GroundModuleState *state; // valid as long as the handle type (and thus the module) is alive
-    PyObject *owner;          // e.g., the Control; keeps the solver alive
-    PyObject *ctx;            // grounding context; clingo calls into it from the grounding thread
-    PyObject *finish;         // finish callback
+    GroundModuleState *state;
+    PyObject *owner;
+    PyObject *ctx;
+    PyObject *finish;
 };
 
 constexpr auto ground_result_members = std::array<IntEnumMember, 3>{
@@ -61,11 +61,6 @@ auto py_handle_cast(PyObject *obj) -> PyGroundHandleObject * {
     return reinterpret_cast<PyGroundHandleObject *>(obj);
 }
 
-// Calls ctx.<name>(*arguments) and collects the resulting symbols.
-//
-// The result is either a single symbol or a sequence of symbols. The object
-// owning the symbols is stored in keep and has to outlive out. Must be called
-// with the GIL held.
 auto eval_context(GroundModuleState *state, PyObject *ctx, char const *name, size_t name_size,
                   clingo_symbol_t const *arguments, size_t arguments_size, PyGuard &keep,
                   PyBuffer<clingo_symbol_t> &out) -> bool {
