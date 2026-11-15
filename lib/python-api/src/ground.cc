@@ -460,11 +460,6 @@ auto py_ground_start(PyObject *type, clingo_control_t *ctl, PyObject *owner, cli
         return nullptr;
     }
 
-    auto mod = steal(PyImport_ImportModule("clingo.ground"));
-    if (mod.get() == nullptr) {
-        return nullptr;
-    }
-
     auto *state = get_state_from_type(type);
     if (state == nullptr) {
         return nullptr;
