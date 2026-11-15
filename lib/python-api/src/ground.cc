@@ -87,7 +87,9 @@ auto eval_context(GroundModuleState *state, PyObject *ctx, char const *name, siz
         if (sym == nullptr) {
             return false;
         }
-        PyTuple_SET_ITEM(args.get(), static_cast<Py_ssize_t>(i), sym);
+        if (PyTuple_SetItem(args.get(), static_cast<Py_ssize_t>(i), sym) < 0) {
+            return false;
+        }
     }
 
     auto res = steal(PyObject_CallObject(fun.get(), args.get()));
@@ -122,7 +124,11 @@ auto eval_context(GroundModuleState *state, PyObject *ctx, char const *name, siz
         return false;
     }
     for (Py_ssize_t i = 0; i < n; ++i) {
-        auto check = py_symbol_check(state->symbol_type, PyTuple_GET_ITEM(seq.get(), i), &out[static_cast<size_t>(i)]);
+        auto *item = PyTuple_GetItem(seq.get(), i);
+        if (item == nullptr) {
+            return false;
+        }
+        auto check = py_symbol_check(state->symbol_type, item, &out[static_cast<size_t>(i)]);
         if (check < 0) {
             return false;
         }
@@ -352,7 +358,7 @@ auto py_handle_spec = PyType_Spec{
 
 auto handle_new(GroundModuleState *state, PyObject *owner, PyObject *ctx, PyObject *finish) -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(state->handle_type);
-    auto *obj = to->tp_alloc(to, 0); // zero-initialized and GC-tracked
+    auto *obj = PyType_GenericAlloc(to, 0);
     if (obj == nullptr) {
         return nullptr;
     }
