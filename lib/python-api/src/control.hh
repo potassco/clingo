@@ -1,7 +1,6 @@
 #pragma once
 
 #include "base.hh"
-#include "ground.hh"
 #include "iterable.hh"
 #include "propagate.hh"
 #include "solve.hh"
@@ -14,6 +13,8 @@ namespace PyClingo {
 namespace AST {
 class Program;
 }
+
+using GroundFinishCallback = std::function<void(clingo_ground_result_e)>;
 
 using Part = clingo_part_t;
 using PartSpan = std::span<Part const>;
@@ -51,7 +52,8 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     void join(AST::Program &prg);
     void ground(std::optional<PartSpan> parts, py::handle ctx);
     auto start_ground(std::optional<PartSpan> parts, py::handle ctx,
-                      Annotation<std::optional<GroundFinishCallback>> on_finish) -> Annotation<GroundHandle>;
+                      TypeHint<"collections.abc.Callable[[clingo.ground.GroundResult], None] | None"> on_finish)
+        -> TypeHint<"clingo.ground.GroundHandle">;
     auto solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
                Annotation<std::optional<UnsatCallback>> on_unsat, Annotation<std::optional<StatsCallback>> on_stats,
                Annotation<std::optional<FinishCallback>> on_finish) -> SolveResult;

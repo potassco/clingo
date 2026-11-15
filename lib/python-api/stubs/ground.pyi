@@ -52,21 +52,29 @@ start_ground status: finished
 ```
 """
 
-from __future__ import annotations
-
-import enum
-import typing
+from enum import IntEnum
+from types import TracebackType
+from typing import Self
 
 __all__: list[str] = ["GroundHandle", "GroundResult"]
 
-class GroundResult(enum.IntEnum):
+class GroundResult(IntEnum):
     """
     Enumeration of ground result types.
     """
 
     Interrupted = 2
+    """
+    Indicates that the grounding was interrupted.
+    """
     Ok = 0
+    """
+    Indicates that the grounding finished successfully.
+    """
     Unsatisfiable = 1
+    """
+    Indicates that grounding finished and the program is unsatisfiable.
+    """
 
 class GroundHandle:
     """
@@ -84,16 +92,30 @@ class GroundHandle:
     See also: `clingo.control.Control.ground`
     """
 
-    def __enter__(self) -> GroundHandle:
+    def __enter__(self) -> Self:
         """
-        Start the search.
+        Return the handle.
+
+        Grounding has already been started when the handle is created.
+
+        Returns:
+            The handle itself.
         """
 
     def __exit__(
-        self, arg0: type | None, arg1: typing.Any | None, arg2: typing.Any | None
+        self,
+        type: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: TracebackType | None,
+        /,
     ) -> None:
         """
         Stop grounding and close the handle.
+
+        Args:
+            type: The exception type, if an exception occurred.
+            value: The exception instance, if an exception occurred.
+            traceback: The traceback object, if an exception occurred.
         """
 
     def cancel(self) -> None:
@@ -103,6 +125,11 @@ class GroundHandle:
         See also: `clingo.control.Control.interrupt`
         """
 
+    def close(self) -> None:
+        """
+        Stop grounding and close the handle.
+        """
+
     def get(self) -> GroundResult:
         """
         Get the ground result.
@@ -110,9 +137,12 @@ class GroundHandle:
         This is always the last function to be called on a handle to ensure that the
         search is properly terminated. It might be preceded by a call to cancel to stop
         the search.
+
+        Returns:
+            The ground result.
         """
 
-    def wait(self, timeout: typing.SupportsFloat | None = None) -> bool:
+    def wait(self, timeout: float | None = None) -> bool:
         """
         Wait for the ground call to finish or the next result with an optional timeout.
 
