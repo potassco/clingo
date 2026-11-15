@@ -89,7 +89,7 @@ class GroundHandle:
     Blocking functions in this object release the GIL. They are not thread-safe
     though.
 
-    See also: `clingo.control.Control.ground`
+    See also: `clingo.control.Control.ground`, `clingo.control.Control.start_ground`
     """
 
     def __enter__(self) -> Self:
