@@ -78,10 +78,7 @@ class GroundResult(IntEnum):
 
 class GroundHandle:
     """
-    An object to interact with a running search.
-
-    It can be used to control solving, like, retrieving models or cancelling a
-    search.
+    An object to interact with a running grounding.
 
     A GroundHandle is a context manager and must be used with Python's with
     statement.
@@ -120,7 +117,7 @@ class GroundHandle:
 
     def cancel(self) -> None:
         """
-        Cancel the running search.
+        Cancel the running grounding.
 
         See also: `clingo.control.Control.interrupt`
         """
@@ -134,9 +131,9 @@ class GroundHandle:
         """
         Get the ground result.
 
-        This is always the last function to be called on a handle to ensure that the
-        search is properly terminated. It might be preceded by a call to cancel to stop
-        the search.
+        This is always the last function to be called on a handle to ensure
+        that grounding is properly terminated. It might be preceded by a call
+        to cancel to stop grounding.
 
         Returns:
             The ground result.
@@ -144,16 +141,16 @@ class GroundHandle:
 
     def wait(self, timeout: float | None = None) -> bool:
         """
-        Wait for the ground call to finish or the next result with an optional timeout.
+        Wait for the ground call to finish or for the given timeout to expire.
 
-        If a timeout is provided, the function blocks for the given duration or until a
-        result is ready. A positive timeout blocks for that amount of time. A negative
-        timeout blocks until a result is available, and a zero timeout allows polling
-        for a result.
+        If a timeout is provided, the function blocks for the given duration or
+        until grounding is finished. A positive timeout blocks for that amount
+        of time. A negative timeout blocks until grounding is finished. And a
+        zero timeout allows polling for a result.
 
         Args:
             timeout: The maximum time to block in seconds.
 
         Returns:
-            Whether the ground call has finished or the next result is ready.
+            Whether the ground call has finished.
         """
