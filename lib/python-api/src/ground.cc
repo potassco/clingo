@@ -324,7 +324,7 @@ auto py_handle_methods = std::array{
         PyDoc_STR("Cancel the running search."),
     },
     PyMethodDef{"close", py_handle_close, METH_NOARGS, PyDoc_STR("Stop grounding and close the handle.")},
-    PyMethodDef{"__enter__", py_handle_enter, METH_NOARGS, PyDoc_STR("Start the search.")},
+    PyMethodDef{"__enter__", py_handle_enter, METH_NOARGS, PyDoc_STR("Return self.")},
     PyMethodDef{"__exit__", py_handle_exit, METH_VARARGS, PyDoc_STR("Stop grounding and close the handle.")},
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
