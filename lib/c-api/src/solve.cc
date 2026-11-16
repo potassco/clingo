@@ -86,7 +86,7 @@ extern "C" auto clingo_solve_handle_wait(clingo_solve_handle_t *handle, double t
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t const **model) -> bool {
+extern "C" auto clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model) -> bool {
     CLINGO_TRY {
         *model = c_cast(cpp_cast(handle)->model());
     }

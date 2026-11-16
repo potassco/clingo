@@ -388,7 +388,7 @@ class SolveHandle {
     //! search was not started in yield mode.
     //!
     //! @return the model or null
-    auto model() -> Model const * { return do_model(); }
+    auto model() -> Model * { return do_model(); }
     //! Get the last model after the search has finished.
     //!
     //! Returns null if the problem is unsatisfiable.
@@ -417,7 +417,7 @@ class SolveHandle {
     virtual auto do_get() -> SolveResult = 0;
     virtual void do_cancel() = 0;
     virtual void do_resume() = 0;
-    virtual auto do_model() -> Model const * = 0;
+    virtual auto do_model() -> Model * = 0;
     virtual auto do_last() -> Model const * = 0;
     virtual auto do_core() -> PrgLitSpan = 0;
     virtual auto do_wait(double timeout) -> bool = 0;

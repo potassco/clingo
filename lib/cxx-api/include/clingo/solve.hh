@@ -459,9 +459,9 @@ class SolveHandle {
     //! where the next model has not yet been found.
     //!
     //! @return the current model, if available
-    [[nodiscard]] auto model() -> std::optional<ConstModel> {
-        clingo_model_t const *mdl = Detail::call<clingo_solve_handle_model>(hnd_.get());
-        return mdl != nullptr ? std::make_optional<ConstModel>(mdl) : std::nullopt;
+    [[nodiscard]] auto model() -> std::optional<Model> {
+        clingo_model_t *mdl = Detail::call<clingo_solve_handle_model>(hnd_.get());
+        return mdl != nullptr ? std::make_optional<Model>(mdl) : std::nullopt;
     }
 
     //! Get the last model.

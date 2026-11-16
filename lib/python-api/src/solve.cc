@@ -983,7 +983,7 @@ auto py_handle_clear(PyObject *self) -> int {
 }
 
 // Fetches the current model (releasing the GIL); returns false on error.
-auto fetch_model(clingo_solve_handle_t *hnd, clingo_model_t const **mdl) -> bool {
+auto fetch_model(clingo_solve_handle_t *hnd, clingo_model_t **mdl) -> bool {
     if (!with_gil_released([&]() { return clingo_solve_handle_model(hnd, mdl); })) {
         py_handle_error();
         return false;
@@ -1035,7 +1035,7 @@ auto py_handle_model(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject
     if (state == nullptr) {
         return nullptr;
     }
-    clingo_model_t const *mdl = nullptr;
+    clingo_model_t *mdl = nullptr;
     if (!fetch_model(hnd, &mdl)) {
         return nullptr;
     }
@@ -1145,7 +1145,7 @@ auto py_handle_iternext(PyObject *self) -> PyObject * {
     if (!clingo_solve_handle_resume(hnd)) {
         return py_handle_error();
     }
-    clingo_model_t const *mdl = nullptr;
+    clingo_model_t *mdl = nullptr;
     if (!fetch_model(hnd, &mdl)) {
         return nullptr;
     }
