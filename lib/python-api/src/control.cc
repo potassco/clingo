@@ -3,6 +3,7 @@
 #include "backend.hh"
 #include "config.hh"
 #include "core.hh"
+#include "ground.hh"
 #include "iterator.hh"
 #include "stats.hh"
 #include "util.hh"
@@ -127,7 +128,6 @@ auto Control::call_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_
 }
 
 void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
-    auto release = py::gil_scoped_release{};
     if (!parts) {
         parts = this->parts();
     }
@@ -135,12 +135,18 @@ void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
         static constexpr auto part = clingo_part_t{"base", 4, nullptr, 0};
         parts.emplace(&part, 1);
     }
-    handle_error(
-        clingo_control_ground(get(), parts->data(), parts->size(), !ctx.is_none() ? &Control::ctx_ : nullptr, &ctx));
+    auto type = steal(py_ground_handle_type());
+    if (type == nullptr) {
+        throw py::error_already_set();
+    }
+    if (!py_ground(type, get(), parts->data(), parts->size(), ctx.ptr())) {
+        throw py::error_already_set();
+    }
 }
 
 auto Control::start_ground(std::optional<PartSpan> parts, py::handle ctx,
-                           Annotation<std::optional<GroundFinishCallback>> on_finish) -> Annotation<GroundHandle> {
+                           TypeHint<"collections.abc.Callable[[clingo.ground.GroundResult], None] | None"> on_finish)
+    -> TypeHint<"clingo.ground.GroundHandle"> {
     if (!parts) {
         parts = this->parts();
     }
@@ -148,54 +154,16 @@ auto Control::start_ground(std::optional<PartSpan> parts, py::handle ctx,
         static constexpr auto part = clingo_part_t{"base", 4, nullptr, 0};
         parts.emplace(&part, 1);
     }
-    auto res = py::cast(std::make_unique<GroundHandle>());
-    auto *hnd = res.cast<GroundHandle *>();
-    auto store = [&](auto &src, py::handle &dst) -> void {
-        if (!src.is_none()) {
-            // keep the callback alive
-            hnd->tie(src);
-            // store a reference to the callback
-            dst = src;
-        }
-    };
-    store(ctx, hnd->ctx_);
-    store(on_finish, hnd->finish_);
-    auto c_event_handler = clingo_ground_event_handler_t{
-        hnd->ctx_ ? +[](char const *name, size_t name_size, size_t arguments_size,  void *data, bool *result) -> bool {
-            CLINGO_TRY {
-                auto &ctx = static_cast<GroundHandle*>(data)->ctx_;
-                return callable_(name, name_size, arguments_size, &ctx, result);
-            }
-            CLINGO_CATCH;
-        }: nullptr,
-        hnd->ctx_ ? +[](clingo_lib_t *lib, clingo_location_t const *location, char const *name,
-                        size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
-                        void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
-            CLINGO_TRY {
-                auto &ctx = static_cast<GroundHandle *>(data)->ctx_;
-                return call_(lib, location, name, name_size, arguments, arguments_size, &ctx, symbol_callback, symbol_callback_data);
-            }
-            CLINGO_CATCH;
-        } : nullptr,
-        hnd->finish_ ? +[](clingo_ground_result_t result, void *data) -> void {
-            try {
-                auto guard = py::gil_scoped_acquire{};
-                auto *hnd = static_cast<GroundHandle *>(data);
-                assert(hnd != nullptr);
-                hnd->finish_(static_cast<clingo_ground_result_e>(result));
-            }
-            catch (std::exception &e) {
-                fprintf(stderr, "panic: %s\n", e.what());
-                std::terminate();
-            }
-        } : nullptr,
-        nullptr,
-    };
-    auto has_handler = hnd->ctx_ || hnd->finish_;
-    handle_error(clingo_control_start_ground(get(), parts->data(), parts->size(),
-                                             has_handler ? &c_event_handler : nullptr, has_handler ? hnd : nullptr,
-                                             &hnd->handle()));
-    return res;
+    auto type = steal(py_ground_handle_type());
+    if (type == nullptr) {
+        throw py::error_already_set();
+    }
+    auto owner = py::cast(this);
+    auto *res = py_ground_start(type, get(), owner.ptr(), parts->data(), parts->size(), ctx.ptr(), on_finish.ptr());
+    if (res == nullptr) {
+        throw py::error_already_set();
+    }
+    return py::reinterpret_steal<py::object>(res);
 }
 
 auto Control::base() -> TypeHint<"clingo.base.Base"> {

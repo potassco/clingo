@@ -69,7 +69,9 @@ auto symbol_args_list(PyObject *type, clingo_symbol_t sym) -> PyObject * {
         if (it == nullptr) {
             return nullptr;
         }
-        PyList_SET_ITEM(list, static_cast<Py_ssize_t>(i), it);
+        if (PyList_SetItem(list.get(), static_cast<Py_ssize_t>(i), it) < 0) {
+            return nullptr;
+        }
         ++i;
     }
     return list.release();
@@ -89,17 +91,16 @@ auto cast_symbol(PyObject *self) -> PySymbolObject * {
 }
 
 auto check_symbol(PyObject *obj, PyObject *symbol_type) -> PySymbolObject * {
-    if (!PyObject_TypeCheck(obj, reinterpret_cast<PyTypeObject *>(symbol_type))) {
+    if (!Py_IS_TYPE(obj, reinterpret_cast<PyTypeObject *>(symbol_type))) {
         return nullptr;
     }
     return cast_symbol(obj);
 }
 
 void py_symbol_dealloc(PyObject *self) {
-    auto *s = cast_symbol(self);
-    clingo_symbol_release(s->sym);
+    clingo_symbol_release(cast_symbol(self)->sym);
     auto *type = Py_TYPE(self);
-    type->tp_free(self);
+    PyObject_Free(self);
     Py_DECREF(type);
 }
 
@@ -575,12 +576,19 @@ struct SymbolSeq {
 };
 
 auto py_symbol_sequence(PyObject *obj, PyObject *symbol_type, SymbolSeq &out) -> bool {
-    auto seq = steal(PySequence_Fast(obj, "arguments must be a sequence of Symbol"));
-    if (seq == nullptr) {
+    auto seq = steal(PySequence_Tuple(obj));
+    if (seq.get() == nullptr) {
+        if (PyErr_ExceptionMatches(PyExc_TypeError) != 0) {
+            PyErr_Clear();
+            PyErr_SetString(PyExc_TypeError, "arguments must be a sequence of Symbol");
+        }
         return false;
     }
 
-    auto n = PySequence_Fast_GET_SIZE(seq);
+    auto n = PyTuple_Size(seq.get());
+    if (n < 0) {
+        return false;
+    }
     out.size = static_cast<size_t>(n);
 
     if (out.size > 0) {
@@ -591,9 +599,12 @@ auto py_symbol_sequence(PyObject *obj, PyObject *symbol_type, SymbolSeq &out) ->
         }
     }
 
-    auto **items = PySequence_Fast_ITEMS(seq.get());
     auto *it = out.data;
-    for (auto *item : std::span{items, out.size}) {
+    for (Py_ssize_t i = 0; i < n; ++i) {
+        auto *item = PyTuple_GetItem(seq.get(), i); // borrowed, tuple-owned
+        if (item == nullptr) {
+            return false;
+        }
         auto *s = check_symbol(item, symbol_type);
         if (s == nullptr) {
             PyErr_SetString(PyExc_TypeError, "arguments must contain only Symbol");

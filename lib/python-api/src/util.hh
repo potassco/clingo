@@ -542,15 +542,15 @@ auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **
 auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool;
 
 inline void free_object(PyObject *self) {
-    PyTypeObject *type = Py_TYPE(self);
+    auto *type = Py_TYPE(self);
 
     if (PyType_HasFeature(type, Py_TPFLAGS_HAVE_GC) != 0) {
         PyObject_GC_UnTrack(self);
     }
-    if (type->tp_clear != nullptr) {
-        type->tp_clear(self);
+    if (auto *clear = reinterpret_cast<inquiry>(PyType_GetSlot(type, Py_tp_clear)); clear != nullptr) {
+        clear(self);
     }
-    type->tp_free(self);
+    reinterpret_cast<freefunc>(PyType_GetSlot(type, Py_tp_free))(self);
     if (PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE) != 0) {
         Py_DECREF(type);
     }

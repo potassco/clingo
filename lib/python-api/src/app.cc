@@ -609,7 +609,6 @@ auto app_validate_options_cb(void *data) -> bool {
     return false;
 }
 
-// Check if the given method has been overridden in a subclass.
 auto has_override(PyObject *self, PyObject *base_type, char const *name) -> int {
     auto cur = steal(PyObject_GetAttrString(reinterpret_cast<PyObject *>(Py_TYPE(self)), name));
     if (cur.get() == nullptr) {
