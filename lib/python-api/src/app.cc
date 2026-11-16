@@ -17,6 +17,7 @@ namespace PyClingo {
 namespace {
 
 struct AppModuleState {
+    PyObject *model_type{nullptr};
     PyObject *flag_type{nullptr};
     PyObject *options_type{nullptr};
     PyObject *app_type{nullptr};
@@ -98,20 +99,6 @@ auto app_program_name(PyAppObject const *app) noexcept -> clingo_string_t {
 auto new_control(clingo_control_t *ctl) noexcept -> PyObject * {
     try {
         py::object obj = Control::cast(ctl, true);
-        return obj.release().ptr();
-    } catch (py::error_already_set &e) {
-        e.restore();
-    } catch (std::exception const &e) {
-        PyErr_SetString(PyExc_RuntimeError, e.what());
-    } catch (...) {
-        PyErr_SetString(PyExc_RuntimeError, "unknown error");
-    }
-    return nullptr;
-}
-
-auto new_model(clingo_model_t const *model) noexcept -> PyObject * {
-    try {
-        py::object obj = py::cast(Model{model});
         return obj.release().ptr();
     } catch (py::error_already_set &e) {
         e.restore();
@@ -559,15 +546,16 @@ auto app_print_model_cb(clingo_model_t const *model, clingo_default_model_printe
     // NOTE: Python seems to directly write large buffers
     fflush(stdout);
 
-    auto pymodel = steal(new_model(model));
+    auto *a = py_app_cast(app);
+    auto pymodel = steal(py_model_new(a->state->model_type, model, false));
     if (pymodel.get() == nullptr) {
         return store_python_error("creating model failed");
     }
 
-    auto *a = py_app_cast(app);
     a->printer = printer;
     a->printer_data = printer_data;
     auto ret = steal(PyObject_CallMethod(app, "print_model", "OO", pymodel.get(), a->printer_fn));
+    py_model_clear(pymodel.get());
     a->printer = nullptr;
     a->printer_data = nullptr;
     if (ret.get() == nullptr) {
@@ -784,6 +772,7 @@ auto app_module_traverse(PyObject *module, visitproc visit, void *arg) -> int {
     if (state == nullptr) {
         return 0;
     }
+    Py_VISIT(state->model_type);
     Py_VISIT(state->flag_type);
     Py_VISIT(state->options_type);
     Py_VISIT(state->app_type);
@@ -795,6 +784,7 @@ auto app_module_clear(PyObject *module) -> int {
     if (state == nullptr) {
         return 0;
     }
+    Py_CLEAR(state->model_type);
     Py_CLEAR(state->flag_type);
     Py_CLEAR(state->options_type);
     Py_CLEAR(state->app_type);
@@ -856,6 +846,11 @@ void register_app(pybind11::module &m) {
 
     auto *state = get_state(app_mod.get());
     if (state == nullptr) {
+        throw py::error_already_set();
+    }
+
+    state->model_type = py_model_type();
+    if (state->model_type == nullptr) {
         throw py::error_already_set();
     }
 

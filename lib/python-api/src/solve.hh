@@ -1,114 +1,54 @@
 #pragma once
 
-#include "base.hh"
-#include "stats.hh"
-#include "symbol.hh"
-
-#include "clingo/solve.h"
+#include <clingo/control.h>
+#include <clingo/solve.h>
 
 #include <pybind11/pybind11.h>
 
+#include <span>
+
 namespace PyClingo {
 
-class SolveResult {
-  public:
-    explicit SolveResult(clingo_solve_result_bitset_t res) : res_{res} {}
+//! Get the `clingo.solve.SolveHandle` type (new reference).
+auto py_solve_handle_type() -> PyObject *;
 
-    [[nodiscard]] auto satisfiable() const -> bool { return (res_ & clingo_solve_result_satisfiable) != 0; }
-    [[nodiscard]] auto unsatisfiable() const -> bool { return (res_ & clingo_solve_result_unsatisfiable) != 0; }
-    [[nodiscard]] auto unknown() const -> bool {
-        // NOLINTNEXTLINE
-        return (res_ & (clingo_solve_result_unsatisfiable | clingo_solve_result_satisfiable)) != 0;
-    }
-    [[nodiscard]] auto exhausted() const -> bool { return (res_ & clingo_solve_result_exhausted) != 0; }
-    [[nodiscard]] auto interrupted() const -> bool { return (res_ & clingo_solve_result_interrupted) != 0; }
-    [[nodiscard]] auto str() const -> char const * {
-        if (satisfiable()) {
-            return "SAT";
-        }
-        if (unsatisfiable()) {
-            return "UNSAT";
-        }
-        return "UNKNOWN";
-    }
+//! Get the `clingo.solve.Model` type (new reference).
+auto py_model_type() -> PyObject *;
 
-  private:
-    clingo_solve_result_bitset_t res_;
-};
+//! Create a `clingo.solve.Model` of the given type viewing the given model.
+//!
+//! The model is only valid as long as clingo keeps it alive (e.g., during a
+//! model callback). Returns a new reference or nullptr with a Python error set.
+auto py_model_new(PyObject *type, clingo_model_t const *model, bool is_mutable) -> PyObject *;
 
-class SolveControl {
-  public:
-    explicit SolveControl(clingo_solve_control_t *ctl) : ctl_{ctl} {}
+//! Get the clingo model wrapped by a `clingo.solve.Model` object.
+//!
+//! Returns nullptr with a Python error set if the object is not a model of the
+//! given type or if the model has been cleared.
+auto py_model_get(PyObject *type, PyObject *obj, bool mut) -> clingo_model_t *;
 
-    auto base() -> TypeHint<"clingo.base.Base">;
-    auto add_clause(MixedLitSpan const &lits);
-    auto add_nogood(MixedLitSpan const &lits);
+//! Detach a `clingo.solve.Model` object from its clingo model.
+//!
+//! Further access from Python raises a RuntimeError. The object must be a
+//! model created by `py_model_new`.
+void py_model_clear(PyObject *obj);
 
-  private:
-    clingo_solve_control_t *ctl_;
-};
+//! Start a solve call and return a new `clingo.solve.SolveHandle`.
+//!
+//! The type must be the one returned by `py_solve_handle_type`. The callbacks
+//! can be nullptr or Py_None. The handle takes new references to the owner and
+//! the callbacks. Returns nullptr with a Python error set on failure.
+auto py_solve_start(PyObject *type, clingo_control_t *ctl, PyObject *owner,
+                    std::span<clingo_literal_t const> assumptions, PyObject *on_model, PyObject *on_unsat,
+                    PyObject *on_stats, PyObject *on_finish, bool yield, bool async) -> PyObject *;
 
-class Model {
-  public:
-    explicit Model(clingo_model_t const *mdl) : mdl_{mdl} {}
-
-    auto symbols(bool shown, bool atoms, bool terms, bool theory) -> Sequence<Symbol>;
-    auto contains(Symbol atom) -> bool;
-    auto control() -> SolveControl;
-    auto type() -> clingo_model_type_e;
-    auto number() -> uint64_t;
-    auto is_true(clingo_literal_t lit) -> bool;
-    auto is_consequence(clingo_literal_t lit) -> std::optional<bool>;
-    auto cost() -> std::span<int64_t const>;
-    auto priorities() -> std::span<clingo_weight_t const>;
-    auto optimality_proven() -> bool;
-    auto thread_id() -> clingo_id_t;
-    auto extend(std::span<Symbol const> symbols);
-    auto str() -> std::string;
-    auto c_ptr() -> clingo_model_t const * { return mdl_; }
-
-  private:
-    clingo_model_t const *mdl_;
-};
-
-using StatsCallback = std::function<void(Stats, Stats)>;
-using ModelCallback = std::function<std::optional<bool>(Model &)>;
-using UnsatCallback = std::function<void(std::span<int64_t>)>;
-using FinishCallback = std::function<void(SolveResult)>;
-
-class SolveHandle : public reference_keeper<SolveHandle> {
-  public:
-    SolveHandle(py::handle owner) : owner_{owner} {}
-    SolveHandle(SolveHandle const &other) = delete;
-    SolveHandle(SolveHandle &&other) noexcept = delete;
-    auto operator=(SolveHandle const &other) -> SolveHandle & = delete;
-    auto operator=(SolveHandle &&other) noexcept -> SolveHandle & = delete;
-    // NOLINTNEXTLINE
-    ~SolveHandle() noexcept(false) { close(); }
-
-    auto get() -> SolveResult;
-    void cancel();
-    void resume();
-    auto model() -> std::optional<Model>;
-    auto last() -> std::optional<Model>;
-    auto core() -> std::span<clingo_literal_t const>;
-    auto wait(std::optional<double> timeout) -> bool;
-    auto next() -> Model;
-    void close();
-    auto owner() -> py::handle { return owner_; }
-
-    auto handle() -> clingo_solve_handle_t *& { return hnd_; }
-
-  private:
-    friend class Control;
-
-    clingo_solve_handle_t *hnd_ = nullptr;
-    py::handle owner_;
-    py::handle mdl_;
-    py::handle unsat_;
-    py::handle stats_;
-    py::handle finish_;
-};
+//! Solve to completion and return a new `clingo.solve.SolveResult`.
+//!
+//! Equivalent to `with start_solve(...) as hnd: return hnd.get()`. The type
+//! must be the one returned by `py_solve_handle_type`. Returns nullptr with a
+//! Python error set on failure.
+auto py_solve(PyObject *type, clingo_control_t *ctl, PyObject *owner, std::span<clingo_literal_t const> assumptions,
+              PyObject *on_model, PyObject *on_unsat, PyObject *on_stats, PyObject *on_finish) -> PyObject *;
 
 void register_solve(pybind11::module &m);
 

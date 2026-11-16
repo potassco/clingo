@@ -3,7 +3,7 @@
 #include "base.hh"
 #include "iterable.hh"
 #include "propagate.hh"
-#include "solve.hh"
+#include "stats.hh"
 #include "symbol.hh"
 
 #include <clingo/control.h>
@@ -54,9 +54,14 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     auto start_ground(std::optional<PartSpan> parts, py::handle ctx,
                       TypeHint<"collections.abc.Callable[[clingo.ground.GroundResult], None] | None"> on_finish)
         -> TypeHint<"clingo.ground.GroundHandle">;
-    auto solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
-               Annotation<std::optional<UnsatCallback>> on_unsat, Annotation<std::optional<StatsCallback>> on_stats,
-               Annotation<std::optional<FinishCallback>> on_finish) -> SolveResult;
+    using ModelCallback = TypeHint<"collections.abc.Callable[[clingo.solve.Model], bool | None] | None">;
+    using UnsatCallback = TypeHint<"collections.abc.Callable[[typing.Sequence[int]], None] | None">;
+    using StatsCallback = TypeHint<"collections.abc.Callable[[clingo.stats.Stats, clingo.stats.Stats], None] | None">;
+    using FinishCallback = TypeHint<"collections.abc.Callable[[clingo.solve.SolveResult], None] | None">;
+    using SolveResult = TypeHint<"clingo.solve.SolveResult">;
+    using SolveHandle = TypeHint<"clingo.solve.SolveHandle">;
+    auto solve(MixedLitSpan const &assumptions, ModelCallback on_model, UnsatCallback on_unsat, StatsCallback on_stats,
+               FinishCallback on_finish) -> SolveResult;
     auto start_solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
                      Annotation<std::optional<UnsatCallback>> on_unsat,
                      Annotation<std::optional<StatsCallback>> on_stats,
