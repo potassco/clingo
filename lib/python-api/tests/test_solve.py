@@ -198,7 +198,7 @@ class TestSolve:
             assert mdl.is_consequence(lit(n2)) is True
             assert mdl.is_consequence(lit("d")) is None
             try:
-                mdl = next(it)
+                next(it)
             except StopIteration:
                 pass
             assert hnd.get().satisfiable

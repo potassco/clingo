@@ -37,6 +37,8 @@ using PyTheoryAssignmentIterObject = struct {
 
 struct TheoryModuleState {
     PyObject *symbol_type{nullptr};
+    PyObject *stats_type{nullptr};
+    PyObject *model_type{nullptr};
     PyObject *app_options_type{nullptr};
     PyObject *theory_type{nullptr};
     PyObject *assignment_type{nullptr};
@@ -157,11 +159,11 @@ auto py_symbol_value_pair(TheoryModuleState *state, clingo_symbol_t symbol, clin
         return nullptr;
     }
     auto val_obj = steal(py_value_to_object(state, value));
-    if (val_obj == nullptr) {
+    if (val_obj.get() == nullptr) {
         return nullptr;
     }
     auto ret = steal(PyTuple_New(2));
-    if (ret == nullptr) {
+    if (ret.get() == nullptr) {
         return nullptr;
     }
     PyTuple_SET_ITEM(ret.get(), 0, sym_obj.release());
@@ -716,14 +718,18 @@ auto py_theory_on_model(PyObject *self, PyObject *arg) -> PyObject * {
     if (o == nullptr) {
         return nullptr;
     }
-    auto *model = py_cast<Model>(arg);
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    auto const *model = py_model_get(state->model_type, arg, true);
     if (model == nullptr) {
         return nullptr;
     }
     if (o->theory.on_model == nullptr) {
         Py_RETURN_NONE;
     }
-    if (!o->theory.on_model(o->theory.self, const_cast<clingo_model_t *>(model->c_ptr()))) {
+    if (!o->theory.on_model(o->theory.self, const_cast<clingo_model_t *>(model))) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
@@ -741,13 +747,13 @@ auto py_theory_on_stats(PyObject *self, PyObject *args) -> PyObject * {
     }
     (void)accu;
 
-    auto type = steal(py_stats_type());
-    if (type == nullptr) {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
         return nullptr;
     }
 
     clingo_stats_t *stats = nullptr;
-    if (!py_stats_get(type, step, &stats, nullptr)) {
+    if (!py_stats_get(state->stats_type, step, &stats, nullptr)) {
         return nullptr;
     }
 
@@ -982,6 +988,8 @@ auto theory_module_traverse(PyObject *module, visitproc visit, void *arg) -> int
         return 0;
     }
     Py_VISIT(state->symbol_type);
+    Py_VISIT(state->stats_type);
+    Py_VISIT(state->model_type);
     Py_VISIT(state->app_options_type);
     Py_VISIT(state->theory_type);
     Py_VISIT(state->assignment_type);
@@ -995,6 +1003,8 @@ auto theory_module_clear(PyObject *module) -> int {
         return 0;
     }
     Py_CLEAR(state->symbol_type);
+    Py_CLEAR(state->stats_type);
+    Py_CLEAR(state->model_type);
     Py_CLEAR(state->app_options_type);
     Py_CLEAR(state->theory_type);
     Py_CLEAR(state->assignment_type);
@@ -1033,6 +1043,16 @@ void register_theory(pybind11::module &m) {
 
     state->symbol_type = py_symbol_type();
     if (state->symbol_type == nullptr) {
+        throw py::error_already_set();
+    }
+
+    state->stats_type = py_stats_type();
+    if (state->stats_type == nullptr) {
+        throw py::error_already_set();
+    }
+
+    state->model_type = py_model_type();
+    if (state->model_type == nullptr) {
         throw py::error_already_set();
     }
 

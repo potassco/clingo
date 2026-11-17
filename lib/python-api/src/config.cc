@@ -177,11 +177,11 @@ auto py_config_str(PyObject *self) -> PyObject * {
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
     }
-    if (!clingo_config_to_string(o->config, o->key, bld)) {
+    if (!clingo_config_to_string(o->config, o->key, bld.get())) {
         return py_handle_error();
     }
     clingo_string_t out;
-    if (!clingo_string_builder_string(bld, &out)) {
+    if (!clingo_string_builder_string(bld.get(), &out)) {
         return py_handle_error();
     }
     return PyUnicode_FromStringAndSize(out.data, static_cast<Py_ssize_t>(out.size));
@@ -282,7 +282,7 @@ auto py_config_getattr(PyObject *self, PyObject *name) -> PyObject * {
     auto *cfg = py_config_cast(self);
     auto *type = reinterpret_cast<PyObject *>(Py_TYPE(self));
     auto attr = steal(PyObject_GenericGetAttr(self, name));
-    if (attr != nullptr) {
+    if (attr.get() != nullptr) {
         return attr.release();
     }
     if (PyErr_ExceptionMatches(PyExc_AttributeError) == 0) {

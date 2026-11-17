@@ -137,7 +137,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_wait(clingo_solve_handle_t *h
 //! @param[in] handle the target
 //! @param[out] model the model (it is NULL if there are no more models)
 //! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t const **model);
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model);
 //! When a problem is unsatisfiable, get a subset of the assumptions that made the problem unsatisfiable.
 //!
 //! If the program is not unsatisfiable, an empty core is returned.

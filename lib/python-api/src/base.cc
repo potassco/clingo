@@ -247,7 +247,7 @@ auto py_atom_base_iter_new(PyAtomBaseObject *owner, IterType kind) -> PyObject *
     }
 
     auto obj = steal(t->tp_alloc(t, 0));
-    if (obj == nullptr) {
+    if (obj.get() == nullptr) {
         return nullptr;
     }
     auto *it = reinterpret_cast<PyAtomBaseIter *>(obj.get());
@@ -985,11 +985,11 @@ auto py_theory_term_str(PyObject *self) -> PyObject * {
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
     }
-    if (!clingo_theory_base_term_to_string(t->owner->base, t->index, bld)) {
+    if (!clingo_theory_base_term_to_string(t->owner->base, t->index, bld.get())) {
         return py_handle_error();
     }
     clingo_string_t str;
-    if (!clingo_string_builder_string(bld, &str)) {
+    if (!clingo_string_builder_string(bld.get(), &str)) {
         return py_handle_error();
     }
     return PyUnicode_FromStringAndSize(str.data, static_cast<Py_ssize_t>(str.size));
@@ -1140,11 +1140,11 @@ auto py_theory_element_str(PyObject *self) -> PyObject * {
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
     }
-    if (!clingo_theory_base_element_to_string(t->owner->base, t->index, bld)) {
+    if (!clingo_theory_base_element_to_string(t->owner->base, t->index, bld.get())) {
         return py_handle_error();
     }
     clingo_string_t str;
-    if (!clingo_string_builder_string(bld, &str)) {
+    if (!clingo_string_builder_string(bld.get(), &str)) {
         return py_handle_error();
     }
     return PyUnicode_FromStringAndSize(str.data, static_cast<Py_ssize_t>(str.size));
@@ -1301,11 +1301,11 @@ auto py_theory_atom_str(PyObject *self) -> PyObject * {
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
     }
-    if (!clingo_theory_base_atom_to_string(t->owner->base, t->index, bld)) {
+    if (!clingo_theory_base_atom_to_string(t->owner->base, t->index, bld.get())) {
         return py_handle_error();
     }
     clingo_string_t str;
-    if (!clingo_string_builder_string(bld, &str)) {
+    if (!clingo_string_builder_string(bld.get(), &str)) {
         return py_handle_error();
     }
     return PyUnicode_FromStringAndSize(str.data, static_cast<Py_ssize_t>(str.size));
@@ -2096,7 +2096,7 @@ void register_base(py::module &m) {
         throw py::error_already_set();
     }
 
-    if (!add_int_enum(base_mod, "TheoryTermType", theory_term_members, &state->theory_term_type_enum, {})) {
+    if (!add_int_enum(base_mod.get(), "TheoryTermType", theory_term_members, &state->theory_term_type_enum, {})) {
         throw py::error_already_set();
     }
 
@@ -2156,10 +2156,10 @@ auto py_base_get(PyObject *type, PyObject *obj) -> clingo_base_t const * {
 
 auto convert(TypeHint<"clingo.base.Base"> base, MixedLitSpan const &lits, bool flip, bool disjunctive) -> LitVec {
     auto base_type = steal(py_base_type());
-    if (base_type == nullptr) {
+    if (base_type.get() == nullptr) {
         throw py::error_already_set{};
     }
-    clingo_base_t const *c_base = py_base_get(base_type, base.ptr());
+    clingo_base_t const *c_base = py_base_get(base_type.get(), base.ptr());
     if (c_base == nullptr) {
         throw py::error_already_set{};
     }
@@ -2218,6 +2218,141 @@ auto convert(TypeHint<"clingo.base.Base"> base, MixedLitSpan const &lits, bool f
             x);
     }
     return res;
+}
+
+auto convert(PyObject *base_type, PyObject *base, PyObject *lits, bool flip, bool disjunctive,
+             PyBuffer<clingo_literal_t> &out) -> bool {
+    clingo_base_t const *c_base = py_base_get(base_type, base);
+    if (c_base == nullptr) {
+        return false;
+    }
+
+    auto *state = get_state_from_self(base);
+    if (state == nullptr) {
+        return false;
+    }
+
+    auto n = PyObject_Length(lits);
+    if (n < 0) {
+        return false;
+    }
+    if (!out.alloc(std::max<size_t>(static_cast<size_t>(n), 2))) {
+        return false;
+    }
+
+    auto *it = out.data();
+    for (Py_ssize_t i = 0; i < n; ++i) {
+        auto item = steal(PySequence_GetItem(lits, i));
+        if (item.get() == nullptr) {
+            return false;
+        }
+
+        if (PyLong_Check(item.get())) {
+            clingo_literal_t lit = 0;
+            if (!parse_num(item.get(), &lit, "parsing literal failed")) {
+                return false;
+            }
+            if (lit == 0) {
+                PyErr_SetString(PyExc_ValueError, "literal must be non-zero");
+                return false;
+            }
+            if (lit == std::numeric_limits<clingo_literal_t>::min()) {
+                PyErr_SetString(PyExc_OverflowError, "literal is too small");
+                return false;
+            }
+            *it++ = flip ? -lit : lit;
+            continue;
+        }
+
+        auto tup = steal(PySequence_Tuple(item.get()));
+        if (tup.get() == nullptr) {
+            return false;
+        }
+        auto tn = PyTuple_Size(tup.get());
+        if (tn < 0) {
+            return false;
+        }
+        if (tn != 2) {
+            PyErr_SetString(PyExc_TypeError, "tuple must have length 2");
+            return false;
+        }
+        auto *pysym = PyTuple_GetItem(tup.get(), 0);
+        if (pysym == nullptr) {
+            return false;
+        }
+        auto *pysign = PyTuple_GetItem(tup.get(), 1);
+        if (pysign == nullptr) {
+            return false;
+        }
+
+        // second tuple element: literal polarity
+        int positive = PyObject_IsTrue(pysign);
+        if (positive < 0) {
+            return false;
+        }
+
+        clingo_symbol_t sym = 0;
+        if (py_symbol_check(state->symbol_type, pysym, &sym) < 0) {
+            return false;
+        }
+
+        if (clingo_symbol_type(sym) != clingo_symbol_type_function) {
+            PyErr_SetString(PyExc_TypeError, "symbol must be a function symbol");
+            return false;
+        }
+
+        clingo_string_t name;
+        clingo_symbol_t const *args = nullptr;
+        size_t arity = 0;
+        bool sym_pos = false; // the symbol's own sign (classical negation)
+        if (!clingo_symbol_name(sym, &name) || !clingo_symbol_arguments(sym, &args, &arity) ||
+            !clingo_symbol_is_positive(sym, &sym_pos)) {
+            py_handle_error();
+            return false;
+        }
+
+        bool pos = (positive != 0) != flip; // literal polarity
+
+        auto csig = clingo_signature_t{name.data, name.size, arity, sym_pos};
+
+        clingo_atom_base_t const *dom = nullptr;
+        bool found = false;
+        if (!clingo_base_atoms_find(c_base, &csig, &dom, &found)) {
+            py_handle_error();
+            return false;
+        }
+
+        if (found && dom != nullptr) {
+            size_t index = 0;
+            if (!clingo_atom_base_find(dom, sym, &index)) {
+                py_handle_error();
+                return false;
+            }
+
+            size_t size = 0;
+            if (!clingo_atom_base_size(dom, &size)) {
+                py_handle_error();
+                return false;
+            }
+
+            if (index < size) {
+                clingo_literal_t lit = 0;
+                if (!clingo_atom_base_literal(dom, index, &lit)) {
+                    py_handle_error();
+                    return false;
+                }
+                *it++ = pos ? lit : -lit;
+                continue;
+            }
+        }
+
+        if (pos != disjunctive) {
+            out.data()[0] = 1;
+            out.data()[1] = -1;
+            return out.resize(2);
+        }
+    }
+    return out.resize(static_cast<size_t>(it - out.data()));
 }
 
 } // namespace PyClingo

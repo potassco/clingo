@@ -462,8 +462,6 @@ template <class T, auto Destroy> class Guard {
 
     ~Guard() noexcept { destroy_(); }
 
-    // NOLINTNEXTLINE
-    constexpr operator T &() noexcept { return value_; }
     [[nodiscard]] constexpr auto get() noexcept -> T & { return value_; }
 
     auto release() noexcept -> T {
@@ -645,7 +643,30 @@ template <class T> struct PyBuffer {
         return true;
     }
 
-    auto data() -> T * { return ptr_; }
+    auto resize(size_t n) -> bool {
+        if (n == n_) {
+            return true;
+        }
+        T *new_ptr = nullptr;
+        if (n > 0) {
+            new_ptr = static_cast<T *>(PyMem_Realloc(ptr_, n * sizeof(T)));
+            if (new_ptr == nullptr) {
+                PyErr_NoMemory();
+                return false;
+            }
+        } else {
+            PyMem_Free(ptr_);
+        }
+        ptr_ = new_ptr;
+        n_ = n;
+        return true;
+    }
+
+    [[nodiscard]]
+
+    auto data() -> T * {
+        return ptr_;
+    }
     [[nodiscard]] auto data() const -> T const * { return ptr_; }
     [[nodiscard]] auto size() const -> size_t { return n_; }
 

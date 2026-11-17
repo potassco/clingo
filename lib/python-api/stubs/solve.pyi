@@ -80,14 +80,13 @@ This example shows how to solve both iteratively and asynchronously:
     SAT
 """
 
-from __future__ import annotations
+from collections.abc import Iterator, Sequence
+from enum import IntEnum
+from types import TracebackType
+from typing import Self
 
-import collections.abc
-import enum
-import typing
-
-import clingo.base
-import clingo.symbol
+from clingo.base import Base
+from clingo.symbol import Symbol
 
 __all__: list[str] = [
     "Model",
@@ -97,7 +96,7 @@ __all__: list[str] = [
     "SolveResult",
 ]
 
-class ModelType(enum.IntEnum):
+class ModelType(IntEnum):
     """
     Enumeration of model types.
     """
@@ -111,9 +110,7 @@ class SolveControl:
     A control object to add clauses while solving.
     """
 
-    def add_clause(
-        self, clause: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
-    ) -> None:
+    def add_clause(self, clause: Sequence[tuple[Symbol, bool] | int]) -> None:
         """
         Add a clause that applies to the current solving step during the search.
 
@@ -121,9 +118,7 @@ class SolveControl:
           clause: The literals of the clause.
         """
 
-    def add_nogood(
-        self, nogood: typing.Sequence[tuple[clingo.symbol.Symbol, bool] | int]
-    ) -> None:
+    def add_nogood(self, nogood: Sequence[tuple[Symbol, bool] | int]) -> None:
         """
         Add a nogood that applies to the current solving step during the search.
 
@@ -132,7 +127,7 @@ class SolveControl:
         """
 
     @property
-    def base(self) -> clingo.base.Base:
+    def base(self) -> Base:
         """
         Get the atom/term bases of the program.
         """
@@ -140,14 +135,12 @@ class SolveControl:
 class Model:
     """
     A view on the solver's current solution.
+
+    Converting a model to a string yields its shown symbols separated by
+    commas.
     """
 
-    def __str__(self) -> str:
-        """
-        Get a string representation of the model.
-        """
-
-    def contains(self, atom: clingo.symbol.Symbol) -> bool:
+    def contains(self, atom: Symbol) -> bool:
         """
         Check if the model contains the given atom.
 
@@ -157,7 +150,7 @@ class Model:
             Whether the atom is contained.
         """
 
-    def extend(self, symbols: typing.Sequence[clingo.symbol.Symbol]) -> None:
+    def extend(self, symbols: Sequence[Symbol]) -> None:
         """
         Extend a model with the given symbols.
 
@@ -206,7 +199,7 @@ class Model:
         atoms: bool = False,
         terms: bool = False,
         theory: bool = False,
-    ) -> typing.Sequence[clingo.symbol.Symbol]:
+    ) -> Sequence[Symbol]:
         """
         Get the symbols in the model.
 
@@ -227,7 +220,7 @@ class Model:
         """
 
     @property
-    def cost(self) -> typing.Sequence[int]:
+    def cost(self) -> Sequence[int]:
         """
         Return a sequence of integer cost values of the model.
         """
@@ -245,7 +238,7 @@ class Model:
         """
 
     @property
-    def priorities(self) -> typing.Sequence[int]:
+    def priorities(self) -> Sequence[int]:
         """
         Get the associated priorities of the cost values.
         """
@@ -265,12 +258,9 @@ class Model:
 class SolveResult:
     """
     A solve result captures information about a solve call.
-    """
 
-    def __str__(self) -> str:
-        """
-        Get a string representation of the solve result.
-        """
+    Converting a result to a string yields `SAT`, `UNSAT`, or `UNKNOWN`.
+    """
 
     @property
     def exhausted(self) -> bool:
@@ -293,7 +283,7 @@ class SolveResult:
     @property
     def unknown(self) -> bool:
         """
-        Whether the satisfiablity could be determined.
+        Whether it is unknown if there is a model.
         """
 
     @property
@@ -315,24 +305,45 @@ class SolveHandle:
     Blocking functions in this object release the GIL. They are not thread-safe
     though.
 
-    See also: `clingo.control.Control.solve`
+    See also: `clingo.control.Control.solve`, `clingo.control.Control.start_solve`
     """
 
-    def __enter__(self) -> SolveHandle:
+    def __enter__(self) -> Self:
         """
-        Start the search.
+        Returns self.
+
+        The search has already been started when the handle is created.
+
+        Returns:
+            Returns the handle itself.
         """
 
     def __exit__(
-        self, arg0: type | None, arg1: typing.Any | None, arg2: typing.Any | None
+        self,
+        type: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: TracebackType | None,
+        /,
     ) -> None:
         """
         Stop the search closing the handle.
+
+        Args:
+            type: The exception type, if an exception occurred.
+            value: The exception instance, if an exception occurred.
+            traceback: The traceback object, if an exception occurred.
         """
 
-    def __iter__(self) -> collections.abc.Iterator[Model]:
+    def __iter__(self) -> Iterator[Model]:
         """
         Get an iterator over the models.
+        """
+
+    def close(self) -> None:
+        """
+        Stop the search closing the handle.
+
+        See also: `clingo.solve.SolveHandle.__exit__`
         """
 
     def cancel(self) -> None:
@@ -342,7 +353,7 @@ class SolveHandle:
         See also: `clingo.control.Control.interrupt`
         """
 
-    def core(self) -> typing.Sequence[int]:
+    def core(self) -> Sequence[int]:
         """
         Get the subset of assumptions that made the problem unsatisfiable.
         """
@@ -377,7 +388,7 @@ class SolveHandle:
         in the background.
         """
 
-    def wait(self, timeout: typing.SupportsFloat | None = None) -> bool:
+    def wait(self, timeout: float | None = None) -> bool:
         """
         Wait for the solve call to finish or the next result with an optional timeout.
 

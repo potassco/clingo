@@ -5,35 +5,35 @@ namespace PyClingo {
 auto add_int_enum(PyObject *module, char const *enum_name, std::span<IntEnumMember const> members, PyObject **store,
                   std::span<PyObject *> cache) -> bool {
     auto enum_mod = Guard<PyObject *, Py_DECREF>(PyImport_ImportModule("enum"));
-    if (enum_mod == nullptr) {
+    if (enum_mod.get() == nullptr) {
         return false;
     }
 
     auto int_enum = Guard<PyObject *, Py_DECREF>(PyObject_GetAttrString(enum_mod.get(), "IntEnum"));
-    if (int_enum == nullptr) {
+    if (int_enum.get() == nullptr) {
         return false;
     }
 
     auto name = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString(enum_name));
-    if (name == nullptr) {
+    if (name.get() == nullptr) {
         return false;
     }
 
     auto members_dict = Guard<PyObject *, Py_DECREF>(PyDict_New());
-    if (members_dict == nullptr) {
+    if (members_dict.get() == nullptr) {
         return false;
     }
 
     for (auto const &[member_name, member_value] : members) {
         auto value = Guard<PyObject *, Py_DECREF>(PyLong_FromLong(member_value));
-        if (value == nullptr || PyDict_SetItemString(members_dict.get(), member_name, value.get()) < 0) {
+        if (value.get() == nullptr || PyDict_SetItemString(members_dict.get(), member_name, value.get()) < 0) {
             return false;
         }
     }
 
     auto enum_obj = Guard<PyObject *, Py_DECREF>(
         PyObject_CallFunctionObjArgs(int_enum.get(), name.get(), members_dict.get(), nullptr));
-    if (enum_obj == nullptr) {
+    if (enum_obj.get() == nullptr) {
         return false;
     }
 
@@ -43,7 +43,7 @@ auto add_int_enum(PyObject *module, char const *enum_name, std::span<IntEnumMemb
     }
 
     auto mod = Guard<PyObject *, Py_DECREF>(PyUnicode_FromString(module_name));
-    if (mod == nullptr || PyObject_SetAttrString(enum_obj.get(), "__module__", mod.get()) < 0) {
+    if (mod.get() == nullptr || PyObject_SetAttrString(enum_obj.get(), "__module__", mod.get()) < 0) {
         return false;
     }
 
@@ -56,7 +56,7 @@ auto add_int_enum(PyObject *module, char const *enum_name, std::span<IntEnumMemb
             }
 
             auto member = Guard<PyObject *, Py_DECREF>(PyObject_CallFunction(enum_obj.get(), "i", member_value));
-            if (member == nullptr) {
+            if (member.get() == nullptr) {
                 return false;
             }
             auto idx = static_cast<size_t>(member_value);
@@ -65,7 +65,7 @@ auto add_int_enum(PyObject *module, char const *enum_name, std::span<IntEnumMemb
         }
     }
 
-    if (PyModule_AddObjectRef(module, enum_name, enum_obj) < 0) {
+    if (PyModule_AddObjectRef(module, enum_name, enum_obj.get()) < 0) {
         return false;
     }
 
@@ -100,10 +100,10 @@ auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool
     }
     n = n + 1;
 
-    auto submodule = Guard<PyObject *, Py_DECREF>(PyModule_Create(def));
+    auto submodule = steal(PyModule_Create(def));
     auto *modules = PyImport_GetModuleDict();
-    if (modules == nullptr || PyModule_AddObjectRef(module, n, submodule) < 0 ||
-        PyDict_SetItemString(modules, def->m_name, submodule) < 0) {
+    if (modules == nullptr || PyModule_AddObjectRef(module, n, submodule.get()) < 0 ||
+        PyDict_SetItemString(modules, def->m_name, submodule.get()) < 0) {
         return false;
     }
     *store = submodule.release();

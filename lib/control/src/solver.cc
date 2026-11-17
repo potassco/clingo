@@ -676,7 +676,7 @@ class SolveHandleFixed : public SolveHandle {
     auto do_get() -> SolveResult override { return SolveResult::empty; }
     void do_cancel() override {}
     void do_resume() override {}
-    auto do_model() -> Model const * override { return nullptr; }
+    auto do_model() -> Model * override { return nullptr; }
     auto do_last() -> Model const * override { return nullptr; }
     auto do_core() -> PrgLitSpan override { return {}; }
     auto do_wait([[maybe_unused]] double timeout) -> bool override { return true; }
@@ -735,7 +735,7 @@ class SolveHandleImpl : public SolveHandle {
         auto guard = unlock_guard{eh_.get_lock()};
         hnd_.resume();
     }
-    auto do_model() -> Model const * override {
+    auto do_model() -> Model * override {
         auto guard = unlock_guard{eh_.get_lock()};
         return eh_.model().set_model(hnd_.model(), false) ? &eh_.model() : nullptr;
     }

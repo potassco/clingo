@@ -5,6 +5,7 @@
 #include "core.hh"
 #include "ground.hh"
 #include "iterator.hh"
+#include "solve.hh"
 #include "stats.hh"
 #include "util.hh"
 
@@ -97,36 +98,6 @@ void Control::parse_files(std::span<std::string const> files) {
     handle_error(clingo_control_parse_files(get(), cfiles.data(), cfiles.size()));
 }
 
-auto Control::call_([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *location,
-                    char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
-                    void *data, clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool {
-    auto &handle = *static_cast<py::handle *>(data);
-    CLINGO_TRY {
-        auto syms = [&] {
-            auto acquire = py::gil_scoped_acquire{};
-            py::list args;
-            for (auto sym : std::span{arguments, arguments_size}) {
-                args.append(Symbol{sym, true});
-            }
-            return handle.attr(std::string{name, name_size}.c_str())(*args).cast<std::variant<SymbolVec, Symbol>>();
-        }();
-        return std::visit(
-            [&]<class T>(T const &res) {
-                if constexpr (std::is_same_v<T, Symbol>) {
-                    // NOLINTNEXTLINE
-                    auto const *c_syms = reinterpret_cast<clingo_symbol_t const *>(&res);
-                    return symbol_callback(c_syms, 1, symbol_callback_data);
-                } else {
-                    // NOLINTNEXTLINE
-                    auto const *c_syms = reinterpret_cast<clingo_symbol_t const *>(res.data());
-                    return symbol_callback(c_syms, res.size(), symbol_callback_data);
-                }
-            },
-            syms);
-    }
-    CLINGO_CATCH;
-}
-
 void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
     if (!parts) {
         parts = this->parts();
@@ -136,10 +107,10 @@ void Control::ground(std::optional<PartSpan> parts, py::handle ctx) {
         parts.emplace(&part, 1);
     }
     auto type = steal(py_ground_handle_type());
-    if (type == nullptr) {
+    if (type.get() == nullptr) {
         throw py::error_already_set();
     }
-    if (!py_ground(type, get(), parts->data(), parts->size(), ctx.ptr())) {
+    if (!py_ground(type.get(), get(), parts->data(), parts->size(), ctx.ptr())) {
         throw py::error_already_set();
     }
 }
@@ -155,11 +126,12 @@ auto Control::start_ground(std::optional<PartSpan> parts, py::handle ctx,
         parts.emplace(&part, 1);
     }
     auto type = steal(py_ground_handle_type());
-    if (type == nullptr) {
+    if (type.get() == nullptr) {
         throw py::error_already_set();
     }
     auto owner = py::cast(this);
-    auto *res = py_ground_start(type, get(), owner.ptr(), parts->data(), parts->size(), ctx.ptr(), on_finish.ptr());
+    auto *res =
+        py_ground_start(type.get(), get(), owner.ptr(), parts->data(), parts->size(), ctx.ptr(), on_finish.ptr());
     if (res == nullptr) {
         throw py::error_already_set();
     }
@@ -168,12 +140,18 @@ auto Control::start_ground(std::optional<PartSpan> parts, py::handle ctx,
 
 auto Control::base() -> TypeHint<"clingo.base.Base"> {
     clingo_base_t const *base = nullptr;
-    clingo_control_base(get(), &base);
+    if (!clingo_control_base(get(), &base)) {
+        raise_error();
+    }
     auto type = steal(py_base_type());
-    if (type == nullptr) {
+    if (type.get() == nullptr) {
         throw py::error_already_set();
     }
-    return py::reinterpret_steal<TypeHint<"clingo.base.Base">>(py_base_new(py::cast(this).ptr(), type, base));
+    auto pybase = steal(py_base_new(py::cast(this).ptr(), type.get(), base));
+    if (pybase.get() == nullptr) {
+        throw py::error_already_set();
+    }
+    return py::reinterpret_steal<TypeHint<"clingo.base.Base">>(pybase.release());
 }
 
 void Control::observe(TypeHint<"clingo.backend.Observer"> &obs, bool preprocess) {
@@ -185,11 +163,11 @@ void Control::observe(TypeHint<"clingo.backend.Observer"> &obs, bool preprocess)
 
 auto Control::backend() -> TypeHint<"clingo.backend.BackendManager"> {
     auto type = steal(py_backend_manager_type());
-    if (type == nullptr) {
+    if (type.get() == nullptr) {
         throw py::error_already_set();
     }
-    auto res = steal(py_backend_manager_new(type, get(), py::cast(this).ptr()));
-    if (res == nullptr) {
+    auto res = steal(py_backend_manager_new(type.get(), get(), py::cast(this).ptr()));
+    if (res.get() == nullptr) {
         throw py::error_already_set();
     }
     return py::reinterpret_steal<TypeHint<"clingo.backend.BackendManager">>(res.release());
@@ -201,10 +179,10 @@ auto Control::config() -> TypeHint<"clingo.config.Config"> {
     clingo_id_t key = 0;
     handle_error(clingo_config_root(config, &key));
     auto type = steal(py_config_type());
-    if (type == nullptr) {
+    if (type.get() == nullptr) {
         throw py::error_already_set();
     }
-    auto cfg = steal(py_config_new(py::cast(this).ptr(), keeper_ref(), type, config, key));
+    auto cfg = steal(py_config_new(py::cast(this).ptr(), keeper_ref(), type.get(), config, key));
     if (cfg.get() == nullptr) {
         throw py::error_already_set();
     }
@@ -217,12 +195,12 @@ auto Control::stats() -> StatsView {
     uint64_t key = 0;
     handle_error(clingo_stats_root(stats, &key));
     auto type = steal(py_stats_view_type());
-    if (type == nullptr) {
+    if (type.get() == nullptr) {
         throw py::error_already_set();
     }
 
-    auto res = steal(py_stats_new(py::cast(this).ptr(), type, const_cast<clingo_stats_t *>(stats), key));
-    if (res == nullptr) {
+    auto res = steal(py_stats_new(py::cast(this).ptr(), type.get(), const_cast<clingo_stats_t *>(stats), key));
+    if (res.get() == nullptr) {
         throw py::error_already_set();
     }
     return py::reinterpret_steal<StatsView>(res.release());
@@ -274,116 +252,38 @@ auto Control::profile() -> py::list {
     return std::move(data.res);
 }
 
-auto Control::solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
-                    Annotation<std::optional<UnsatCallback>> on_unsat,
-                    Annotation<std::optional<StatsCallback>> on_stats,
-                    Annotation<std::optional<FinishCallback>> on_finish) -> SolveResult {
-    return start_solve(assumptions, std::move(on_model), std::move(on_unsat), std::move(on_stats), std::move(on_finish),
-                       false, false)
-        .cast<SolveHandle *>()
-        ->get();
+auto Control::solve(MixedLitSpan const &assumptions, ModelCallback on_model, UnsatCallback on_unsat,
+                    StatsCallback on_stats, FinishCallback on_finish) -> SolveResult {
+    auto type = steal(py_solve_handle_type());
+    if (type.get() == nullptr) {
+        throw py::error_already_set();
+    }
+    auto ass = convert(base(), assumptions, false, false);
+    auto owner = py::cast(this);
+    auto *res = py_solve(type.get(), get(), owner.ptr(), std::span<clingo_literal_t const>{ass.data(), ass.size()},
+                         on_model.ptr(), on_unsat.ptr(), on_stats.ptr(), on_finish.ptr());
+    if (res == nullptr) {
+        throw py::error_already_set();
+    }
+    return py::reinterpret_steal<TypeHint<"clingo.solve.SolveResult">>(res);
 }
 
-auto Control::start_solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
-                          Annotation<std::optional<UnsatCallback>> on_unsat,
-                          Annotation<std::optional<StatsCallback>> on_stats,
-                          Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
+auto Control::start_solve(MixedLitSpan const &assumptions, ModelCallback on_model, UnsatCallback on_unsat,
+                          StatsCallback on_stats, FinishCallback on_finish, bool yield, bool async)
     -> Annotation<SolveHandle> {
-    // TODO: This is just to get the nested ownership right for now. When refactoring this module, the solve handle
-    // should track ownership of the it's parent properly.
-    auto res = py::cast(std::make_unique<SolveHandle>(py::cast(this)));
-    auto *hnd = res.cast<SolveHandle *>();
-    auto store = [&]<class T>(Annotation<std::optional<T>> &src, py::handle &dst) -> void {
-        if (!src.is_none()) {
-            // keep the callback alive
-            hnd->tie(src);
-            // store a reference to the callback
-            dst = src;
-        }
-    };
-    store(on_model, hnd->mdl_);
-    store(on_unsat, hnd->unsat_);
-    store(on_stats, hnd->stats_);
-    store(on_finish, hnd->finish_);
-    auto mode = clingo_solve_mode_bitset_t{0};
-    if (yield) {
-        mode |= clingo_solve_mode_yield;
+    auto type = steal(py_solve_handle_type());
+    if (type.get() == nullptr) {
+        throw py::error_already_set();
     }
-    if (async) {
-        mode |= clingo_solve_mode_async;
-    }
-    auto c_event_handler = clingo_solve_event_handler_t{
-        hnd->mdl_ ? +[](clingo_model_t *model, void *data, bool *goon) {
-            CLINGO_TRY {
-                auto guard = py::gil_scoped_acquire{};
-                auto *hnd = static_cast<SolveHandle *>(data);
-                auto mdl = Model{model};
-                auto res = (*hnd->mdl_)(mdl).cast<std::optional<bool>>();
-                *goon = !res || *res;
-            }
-            CLINGO_CATCH;
-        } : nullptr,
-        hnd->unsat_ ? +[](int64_t const *values, size_t size, void *data) -> bool {
-            CLINGO_TRY {
-                auto guard = py::gil_scoped_acquire{};
-                auto *hnd = static_cast<SolveHandle *>(data);
-                assert(hnd != nullptr);
-                hnd->unsat_(std::span{values, size});
-            }
-            CLINGO_CATCH;
-
-        } : nullptr,
-        hnd->stats_ ? +[](clingo_stats_t *stats, void *data) -> bool {
-            CLINGO_TRY {
-                auto guard = py::gil_scoped_acquire{};
-                auto *hnd = static_cast<SolveHandle *>(data);
-                hnd->keeper_ref();
-                uint64_t root = 0;
-                handle_error(clingo_stats_root(stats, &root));
-                uint64_t step = 0;
-                handle_error(clingo_stats_map_add_subkey(stats, root, clingo_user_stats_step.data, clingo_user_stats_step.size,
-                                                         clingo_stats_type_map, &step));
-                uint64_t accu = 0;
-                handle_error(clingo_stats_map_add_subkey(stats, root, clingo_user_stats_accu.data, clingo_user_stats_accu.size,
-                                                         clingo_stats_type_map, &accu));
-                auto type = steal(py_stats_type());
-                if (type == nullptr) {
-                    throw py::error_already_set();
-                }
-                auto step_stats = py::reinterpret_steal<StatsView>(py_stats_new(hnd->owner().ptr(), type, stats, step));
-                if (step_stats.ptr() == nullptr) {
-                    throw py::error_already_set();
-                }
-                auto accu_stats = py::reinterpret_steal<StatsView>(py_stats_new(hnd->owner().ptr(), type, stats, accu));
-                if (accu_stats.ptr() == nullptr) {
-                    throw py::error_already_set();
-                }
-                (*hnd->stats_)(step_stats, accu_stats);
-            }
-            CLINGO_CATCH;
-        } : nullptr,
-        hnd->finish_ ? +[](clingo_solve_result_bitset_t result, void *data) -> void {
-            try {
-                auto guard = py::gil_scoped_acquire{};
-                auto *hnd = static_cast<SolveHandle *>(data);
-                assert(hnd != nullptr);
-                hnd->finish_(static_cast<SolveResult>(result));
-            }
-            catch (std::exception &e) {
-                fprintf(stderr, "panic: %s\n", e.what());
-                std::terminate();
-            }
-        } : nullptr,
-        nullptr,
-    };
     auto ass = convert(base(), assumptions, false, false);
-    {
-        auto guard = py::gil_scoped_release{};
-        auto has_handler = hnd->mdl_ || hnd->unsat_ || hnd->stats_ || hnd->finish_;
-        handle_error(clingo_control_solve(get(), mode, ass.data(), ass.size(), has_handler ? &c_event_handler : nullptr,
-                                          hnd, &hnd->handle()));
+    auto owner = py::cast(this);
+    auto *res =
+        py_solve_start(type.get(), get(), owner.ptr(), std::span<clingo_literal_t const>{ass.data(), ass.size()},
+                       on_model.ptr(), on_unsat.ptr(), on_stats.ptr(), on_finish.ptr(), yield, async);
+    if (res == nullptr) {
+        throw py::error_already_set();
     }
-    return res;
+    return py::reinterpret_steal<TypeHint<"clingo.solve.SolveHandle">>(res);
 }
 
 void Control::main() {

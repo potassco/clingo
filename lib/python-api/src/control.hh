@@ -3,7 +3,7 @@
 #include "base.hh"
 #include "iterable.hh"
 #include "propagate.hh"
-#include "solve.hh"
+#include "stats.hh"
 #include "symbol.hh"
 
 #include <clingo/control.h>
@@ -54,13 +54,16 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     auto start_ground(std::optional<PartSpan> parts, py::handle ctx,
                       TypeHint<"collections.abc.Callable[[clingo.ground.GroundResult], None] | None"> on_finish)
         -> TypeHint<"clingo.ground.GroundHandle">;
-    auto solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
-               Annotation<std::optional<UnsatCallback>> on_unsat, Annotation<std::optional<StatsCallback>> on_stats,
-               Annotation<std::optional<FinishCallback>> on_finish) -> SolveResult;
-    auto start_solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
-                     Annotation<std::optional<UnsatCallback>> on_unsat,
-                     Annotation<std::optional<StatsCallback>> on_stats,
-                     Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
+    using ModelCallback = TypeHint<"collections.abc.Callable[[clingo.solve.Model], bool | None] | None">;
+    using UnsatCallback = TypeHint<"collections.abc.Callable[[typing.Sequence[int]], None] | None">;
+    using StatsCallback = TypeHint<"collections.abc.Callable[[clingo.stats.Stats, clingo.stats.Stats], None] | None">;
+    using FinishCallback = TypeHint<"collections.abc.Callable[[clingo.solve.SolveResult], None] | None">;
+    using SolveResult = TypeHint<"clingo.solve.SolveResult">;
+    using SolveHandle = TypeHint<"clingo.solve.SolveHandle">;
+    auto solve(MixedLitSpan const &assumptions, ModelCallback on_model, UnsatCallback on_unsat, StatsCallback on_stats,
+               FinishCallback on_finish) -> SolveResult;
+    auto start_solve(MixedLitSpan const &assumptions, ModelCallback on_model, UnsatCallback on_unsat,
+                     StatsCallback on_stats, FinishCallback on_finish, bool yield, bool async)
         -> Annotation<SolveHandle>;
     auto base() -> TypeHint<"clingo.base.Base">;
     void observe(TypeHint<"clingo.backend.Observer"> &obs, bool preprocess);
@@ -102,12 +105,6 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
         }
         CLINGO_CATCH;
     }
-    static auto call_(clingo_lib_t *lib, clingo_location_t const *location, char const *name, size_t name_size,
-                      clingo_symbol_t const *arguments, size_t arguments_size, void *data,
-                      clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool;
-
-    constexpr static clingo_ground_event_handler_t ctx_ =
-        clingo_ground_event_handler_t{&callable_, &call_, nullptr, nullptr};
 };
 
 void register_control(pybind11::module &m);

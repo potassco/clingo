@@ -131,9 +131,9 @@ information.
     PyClingo::register_base(m);
     PyClingo::register_backend(m);
     PyClingo::register_ground(m);
+    PyClingo::register_stats(m);
     PyClingo::register_solve(m);
     PyClingo::register_config(m);
-    PyClingo::register_stats(m);
     PyClingo::register_propagate(m);
     PyClingo::register_control(m);
     PyClingo::register_script(m);
