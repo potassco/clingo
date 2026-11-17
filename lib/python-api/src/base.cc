@@ -247,7 +247,7 @@ auto py_atom_base_iter_new(PyAtomBaseObject *owner, IterType kind) -> PyObject *
     }
 
     auto obj = steal(t->tp_alloc(t, 0));
-    if (obj == nullptr) {
+    if (obj.get() == nullptr) {
         return nullptr;
     }
     auto *it = reinterpret_cast<PyAtomBaseIter *>(obj.get());
@@ -985,11 +985,11 @@ auto py_theory_term_str(PyObject *self) -> PyObject * {
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
     }
-    if (!clingo_theory_base_term_to_string(t->owner->base, t->index, bld)) {
+    if (!clingo_theory_base_term_to_string(t->owner->base, t->index, bld.get())) {
         return py_handle_error();
     }
     clingo_string_t str;
-    if (!clingo_string_builder_string(bld, &str)) {
+    if (!clingo_string_builder_string(bld.get(), &str)) {
         return py_handle_error();
     }
     return PyUnicode_FromStringAndSize(str.data, static_cast<Py_ssize_t>(str.size));
@@ -1140,11 +1140,11 @@ auto py_theory_element_str(PyObject *self) -> PyObject * {
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
     }
-    if (!clingo_theory_base_element_to_string(t->owner->base, t->index, bld)) {
+    if (!clingo_theory_base_element_to_string(t->owner->base, t->index, bld.get())) {
         return py_handle_error();
     }
     clingo_string_t str;
-    if (!clingo_string_builder_string(bld, &str)) {
+    if (!clingo_string_builder_string(bld.get(), &str)) {
         return py_handle_error();
     }
     return PyUnicode_FromStringAndSize(str.data, static_cast<Py_ssize_t>(str.size));
@@ -1301,11 +1301,11 @@ auto py_theory_atom_str(PyObject *self) -> PyObject * {
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
     }
-    if (!clingo_theory_base_atom_to_string(t->owner->base, t->index, bld)) {
+    if (!clingo_theory_base_atom_to_string(t->owner->base, t->index, bld.get())) {
         return py_handle_error();
     }
     clingo_string_t str;
-    if (!clingo_string_builder_string(bld, &str)) {
+    if (!clingo_string_builder_string(bld.get(), &str)) {
         return py_handle_error();
     }
     return PyUnicode_FromStringAndSize(str.data, static_cast<Py_ssize_t>(str.size));
@@ -2096,7 +2096,7 @@ void register_base(py::module &m) {
         throw py::error_already_set();
     }
 
-    if (!add_int_enum(base_mod, "TheoryTermType", theory_term_members, &state->theory_term_type_enum, {})) {
+    if (!add_int_enum(base_mod.get(), "TheoryTermType", theory_term_members, &state->theory_term_type_enum, {})) {
         throw py::error_already_set();
     }
 
@@ -2156,10 +2156,10 @@ auto py_base_get(PyObject *type, PyObject *obj) -> clingo_base_t const * {
 
 auto convert(TypeHint<"clingo.base.Base"> base, MixedLitSpan const &lits, bool flip, bool disjunctive) -> LitVec {
     auto base_type = steal(py_base_type());
-    if (base_type == nullptr) {
+    if (base_type.get() == nullptr) {
         throw py::error_already_set{};
     }
-    clingo_base_t const *c_base = py_base_get(base_type, base.ptr());
+    clingo_base_t const *c_base = py_base_get(base_type.get(), base.ptr());
     if (c_base == nullptr) {
         throw py::error_already_set{};
     }
@@ -2243,13 +2243,13 @@ auto convert(PyObject *base_type, PyObject *base, PyObject *lits, bool flip, boo
     auto *it = out.data();
     for (Py_ssize_t i = 0; i < n; ++i) {
         auto item = steal(PySequence_GetItem(lits, i));
-        if (item == nullptr) {
+        if (item.get() == nullptr) {
             return false;
         }
 
-        if (PyLong_Check(item)) {
+        if (PyLong_Check(item.get())) {
             clingo_literal_t lit = 0;
-            if (!parse_num(item, &lit, "parsing literal failed")) {
+            if (!parse_num(item.get(), &lit, "parsing literal failed")) {
                 return false;
             }
             if (lit == 0) {
@@ -2264,7 +2264,7 @@ auto convert(PyObject *base_type, PyObject *base, PyObject *lits, bool flip, boo
             continue;
         }
 
-        auto tup = steal(PySequence_Tuple(item));
+        auto tup = steal(PySequence_Tuple(item.get()));
         if (tup.get() == nullptr) {
             return false;
         }

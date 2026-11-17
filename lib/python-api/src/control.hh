@@ -62,10 +62,8 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     using SolveHandle = TypeHint<"clingo.solve.SolveHandle">;
     auto solve(MixedLitSpan const &assumptions, ModelCallback on_model, UnsatCallback on_unsat, StatsCallback on_stats,
                FinishCallback on_finish) -> SolveResult;
-    auto start_solve(MixedLitSpan const &assumptions, Annotation<std::optional<ModelCallback>> on_model,
-                     Annotation<std::optional<UnsatCallback>> on_unsat,
-                     Annotation<std::optional<StatsCallback>> on_stats,
-                     Annotation<std::optional<FinishCallback>> on_finish, bool yield, bool async)
+    auto start_solve(MixedLitSpan const &assumptions, ModelCallback on_model, UnsatCallback on_unsat,
+                     StatsCallback on_stats, FinishCallback on_finish, bool yield, bool async)
         -> Annotation<SolveHandle>;
     auto base() -> TypeHint<"clingo.base.Base">;
     void observe(TypeHint<"clingo.backend.Observer"> &obs, bool preprocess);
@@ -107,12 +105,6 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
         }
         CLINGO_CATCH;
     }
-    static auto call_(clingo_lib_t *lib, clingo_location_t const *location, char const *name, size_t name_size,
-                      clingo_symbol_t const *arguments, size_t arguments_size, void *data,
-                      clingo_symbol_callback_t symbol_callback, void *symbol_callback_data) -> bool;
-
-    constexpr static clingo_ground_event_handler_t ctx_ =
-        clingo_ground_event_handler_t{&callable_, &call_, nullptr, nullptr};
 };
 
 void register_control(pybind11::module &m);

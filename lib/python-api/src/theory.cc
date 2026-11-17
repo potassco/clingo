@@ -159,11 +159,11 @@ auto py_symbol_value_pair(TheoryModuleState *state, clingo_symbol_t symbol, clin
         return nullptr;
     }
     auto val_obj = steal(py_value_to_object(state, value));
-    if (val_obj == nullptr) {
+    if (val_obj.get() == nullptr) {
         return nullptr;
     }
     auto ret = steal(PyTuple_New(2));
-    if (ret == nullptr) {
+    if (ret.get() == nullptr) {
         return nullptr;
     }
     PyTuple_SET_ITEM(ret.get(), 0, sym_obj.release());

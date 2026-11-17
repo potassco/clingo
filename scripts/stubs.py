@@ -292,6 +292,7 @@ class Rewriter:
                         "theory.pyi",
                         "app.pyi",
                         "ground.pyi",
+                        "solve.pyi",
                     ):
                         with (
                             open(gen_path, "r", encoding="utf8") as hnd,

@@ -254,6 +254,7 @@ auto model_get(PyObject *self, bool mut) -> clingo_model_t * {
     auto *mdl = m->mdl;
     if (mdl == nullptr) {
         PyErr_SetString(PyExc_RuntimeError, "model is no longer valid");
+        return nullptr;
     }
     if (mut && !m->is_mutable) {
         PyErr_SetString(PyExc_RuntimeError, "model is not mutable");
@@ -308,8 +309,11 @@ auto symbols_cb(clingo_symbol_t const *symbols, size_t size, void *data) -> bool
     auto *d = static_cast<SymbolsData *>(data);
     for (size_t i = 0; i < size; ++i) {
         auto sym = steal(py_symbol_new(d->symbol_type, symbols[i], true));
-        if (sym.get() == nullptr || PyList_Append(d->list, sym.get()) < 0) {
+        if (sym.get() == nullptr) {
             return store_python_error("creating symbol failed");
+        }
+        if (PyList_Append(d->list, sym.get()) < 0) {
+            return store_python_error("appending symbol to list failed");
         }
     }
     return true;
@@ -434,7 +438,10 @@ auto parse_symbols(SolveModuleState *state, PyObject *obj, PyGuard &keep, PyBuff
         return false;
     }
     auto n = PyTuple_Size(keep.get());
-    if (n < 0 || !out.alloc(static_cast<size_t>(n))) {
+    if (n < 0) {
+        return false;
+    }
+    if (!out.alloc(static_cast<size_t>(n))) {
         return false;
     }
     for (Py_ssize_t i = 0; i < n; ++i) {
@@ -496,8 +503,11 @@ auto str_cb(clingo_symbol_t const *symbols, size_t size, void *data) -> bool {
             return false;
         }
         auto py_str = steal(PyUnicode_FromStringAndSize(str.data, static_cast<Py_ssize_t>(str.size)));
-        if (py_str.get() == nullptr || PyList_Append(d->list, py_str.get()) < 0) {
+        if (py_str.get() == nullptr) {
             return store_python_error("creating string failed");
+        }
+        if (PyList_Append(d->list, py_str.get()) < 0) {
+            return store_python_error("appending string to list failed");
         }
     }
     return true;
@@ -524,7 +534,7 @@ auto py_model_str(PyObject *self) -> PyObject * {
 }
 
 auto py_model_control(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
-    auto const *mdl = model_get(self, true);
+    auto *mdl = model_get(self, true);
     if (mdl == nullptr) {
         return nullptr;
     }
@@ -534,9 +544,8 @@ auto py_model_control(PyObject *self, [[maybe_unused]] void *closure) -> PyObjec
         if (state == nullptr) {
             return nullptr;
         }
-        auto *mdl_mut = const_cast<clingo_model_t *>(mdl); // NOLINT
         clingo_solve_control_t *ctl = nullptr;
-        if (!clingo_model_control(mdl_mut, &ctl)) {
+        if (!clingo_model_control(mdl, &ctl)) {
             return py_handle_error();
         }
         auto *obj = alloc_object<PyControlObject>(state->control_type);
@@ -549,6 +558,7 @@ auto py_model_control(PyObject *self, [[maybe_unused]] void *closure) -> PyObjec
     Py_INCREF(m->control);
     return m->control;
 }
+
 auto py_get_model_type(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
     auto const *mdl = model_get(self, false);
     if (mdl == nullptr) {
@@ -757,12 +767,15 @@ auto control_add(PyObject *self, PyObject *lits, bool negate) -> PyObject * {
         return nullptr;
     }
     auto base = steal(py_control_base(self, nullptr));
+    if (base.get() == nullptr) {
+        return nullptr;
+    }
     auto *state = state_of(self);
-    if (base.get() == nullptr || state == nullptr) {
+    if (state == nullptr) {
         return nullptr;
     }
     PyBuffer<clingo_literal_t> buf;
-    if (!convert(state->base_type, base, lits, negate, true, buf)) {
+    if (!convert(state->base_type, base.get(), lits, negate, true, buf)) {
         return nullptr;
     }
     if (!clingo_solve_control_add_clause(ctl, buf.data(), buf.size())) {
@@ -771,6 +784,7 @@ auto control_add(PyObject *self, PyObject *lits, bool negate) -> PyObject * {
     }
     Py_RETURN_NONE;
 }
+
 auto py_control_add_clause(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
     static constexpr auto kwlist = std::array<char const *, 2>{"clause", nullptr};
     PyObject *lits = nullptr;
@@ -871,6 +885,9 @@ auto on_stats_cb(clingo_stats_t *stats, void *data) -> bool {
     auto gil = GILGuard{};
     auto *h = handle_cast(static_cast<PyObject *>(data));
     auto *state = state_of(static_cast<PyObject *>(data));
+    if (state == nullptr) {
+        return store_python_error("solve module state is unavailable");
+    }
     uint64_t root = 0;
     if (!clingo_stats_root(stats, &root)) {
         return false;
@@ -905,13 +922,18 @@ void on_finish_cb(clingo_solve_result_bitset_t result, void *data) {
     auto *self = static_cast<PyObject *>(data);
     auto *h = handle_cast(self);
     auto *state = state_of(self);
-    auto res = steal(state != nullptr ? result_new(state, result) : nullptr);
-    auto ret = steal(res.get() != nullptr ? PyObject_CallFunctionObjArgs(h->on_finish, res.get(), nullptr) : nullptr);
-    if (ret.get() == nullptr) {
-        PyErr_Print();
-        fprintf(stderr, "panic: solve finish callback failed\n");
-        std::abort();
+    if (state != nullptr) {
+        auto res = steal(result_new(state, result));
+        if (res.get() != nullptr) {
+            auto ret = steal(PyObject_CallFunctionObjArgs(h->on_finish, res.get(), nullptr));
+            if (ret.get() != nullptr) {
+                return;
+            }
+        }
     }
+    PyErr_Print();
+    fprintf(stderr, "panic: solve finish callback failed\n");
+    std::abort();
 }
 
 // SolveHandle: object
@@ -982,7 +1004,6 @@ auto py_handle_clear(PyObject *self) -> int {
     return 0;
 }
 
-// Fetches the current model (releasing the GIL); returns false on error.
 auto fetch_model(clingo_solve_handle_t *hnd, clingo_model_t **mdl) -> bool {
     if (!with_gil_released([&]() { return clingo_solve_handle_model(hnd, mdl); })) {
         py_handle_error();
@@ -993,7 +1014,10 @@ auto fetch_model(clingo_solve_handle_t *hnd, clingo_model_t **mdl) -> bool {
 
 auto py_handle_get(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
     auto *hnd = ensure_handle_open(self);
-    auto *state = hnd != nullptr ? state_of(self) : nullptr;
+    if (hnd == nullptr) {
+        return nullptr;
+    }
+    auto *state = state_of(self);
     if (state == nullptr) {
         return nullptr;
     }
@@ -1031,7 +1055,10 @@ auto py_handle_resume(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObjec
 
 auto py_handle_model(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
     auto *hnd = ensure_handle_open(self);
-    auto *state = hnd != nullptr ? state_of(self) : nullptr;
+    if (hnd == nullptr) {
+        return nullptr;
+    }
+    auto *state = state_of(self);
     if (state == nullptr) {
         return nullptr;
     }
@@ -1049,10 +1076,14 @@ auto py_handle_model(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject
 
 auto py_handle_last(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
     auto *hnd = ensure_handle_open(self);
-    auto *state = hnd != nullptr ? state_of(self) : nullptr;
+    if (hnd == nullptr) {
+        return nullptr;
+    }
+    auto *state = state_of(self);
     if (state == nullptr) {
         return nullptr;
     }
+    model_clear(handle_cast(self)->cur_model);
     clingo_model_t const *mdl = nullptr;
     if (!clingo_solve_handle_last(hnd, &mdl)) {
         return py_handle_error();
@@ -1137,7 +1168,10 @@ auto py_handle_iter(PyObject *self) -> PyObject * {
 
 auto py_handle_iternext(PyObject *self) -> PyObject * {
     auto *hnd = ensure_handle_open(self);
-    auto *state = hnd != nullptr ? state_of(self) : nullptr;
+    if (hnd == nullptr) {
+        return nullptr;
+    }
+    auto *state = state_of(self);
     if (state == nullptr) {
         return nullptr;
     }

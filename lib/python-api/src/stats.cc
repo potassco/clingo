@@ -241,7 +241,7 @@ auto stats_prepare_value(clingo_stats_t *stats, uint64_t key, bool has_old, PyOb
         resolved = borrow(value);
     }
 
-    if (stats_detect_type(resolved, type) < 0) {
+    if (stats_detect_type(resolved.get(), type) < 0) {
         return -1;
     }
 
@@ -284,7 +284,7 @@ auto stats_update(clingo_stats_t *stats, uint64_t key, PyObject *value, bool ini
                 src = borrow(value);
             }
 
-            auto x = PyFloat_AsDouble(src);
+            auto x = PyFloat_AsDouble(src.get());
             if (PyErr_Occurred() != nullptr) {
                 return -1;
             }
@@ -673,11 +673,11 @@ auto py_stats_str(PyObject *self) -> PyObject * {
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
     }
-    if (!clingo_stats_to_string(o->stats, o->key, bld)) {
+    if (!clingo_stats_to_string(o->stats, o->key, bld.get())) {
         return py_handle_error();
     }
     clingo_string_t s;
-    if (!clingo_string_builder_string(bld, &s)) {
+    if (!clingo_string_builder_string(bld.get(), &s)) {
         return py_handle_error();
     }
     return PyUnicode_FromStringAndSize(s.data, static_cast<Py_ssize_t>(s.size));
@@ -1527,7 +1527,8 @@ void register_stats(pybind11::module &m) {
         throw py::error_already_set();
     }
 
-    if (!add_int_enum(stats_mod, "StatsType", stats_type_members, &state->stats_type_enum, state->stats_type_vals)) {
+    if (!add_int_enum(stats_mod.get(), "StatsType", stats_type_members, &state->stats_type_enum,
+                      state->stats_type_vals)) {
         throw py::error_already_set();
     }
 

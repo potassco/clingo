@@ -462,8 +462,6 @@ template <class T, auto Destroy> class Guard {
 
     ~Guard() noexcept { destroy_(); }
 
-    // NOLINTNEXTLINE
-    constexpr operator T &() noexcept { return value_; }
     [[nodiscard]] constexpr auto get() noexcept -> T & { return value_; }
 
     auto release() noexcept -> T {

@@ -135,6 +135,9 @@ class SolveControl:
 class Model:
     """
     A view on the solver's current solution.
+
+    Converting a model to a string yields its shown symbols separated by
+    commas.
     """
 
     def contains(self, atom: Symbol) -> bool:
@@ -255,6 +258,8 @@ class Model:
 class SolveResult:
     """
     A solve result captures information about a solve call.
+
+    Converting a result to a string yields `SAT`, `UNSAT`, or `UNKNOWN`.
     """
 
     @property
@@ -332,6 +337,13 @@ class SolveHandle:
     def __iter__(self) -> Iterator[Model]:
         """
         Get an iterator over the models.
+        """
+
+    def close(self) -> None:
+        """
+        Stop the search closing the handle.
+
+        See also: `clingo.solve.SolveHandle.__exit__`
         """
 
     def cancel(self) -> None:
