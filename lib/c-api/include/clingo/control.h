@@ -102,6 +102,28 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_acquire(clingo_control_t *control)
 //! @param[in] control the target
 CLINGO_VISIBILITY_DEFAULT void clingo_control_release(clingo_control_t *control);
 
+//! Callback to finalize user data when a control object is destroyed.
+typedef void (*clingo_control_finalizer_t)(void *data);
+
+//! Add a function to be called when the given control object is destroyed.
+//!
+//! Finalizers are called in reverse order of registration after all objects
+//! registered with the control object (e.g., propagators) have been released
+//! and before the library associated with the control object is released.
+//! Language bindings can use this to tie the lifetime of objects to the
+//! lifetime of the control object.
+//!
+//! The function must not be called concurrently with other functions
+//! modifying the control object.
+//!
+//! @param[in] control the target
+//! @param[in] finalizer the function to call
+//! @param[in] data the user data passed to the finalizer
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_add_finalizer(clingo_control_t *control,
+                                                            clingo_control_finalizer_t finalizer, void *data);
+
 //! Get the configured mode.
 //!
 //! @param[in] control the target

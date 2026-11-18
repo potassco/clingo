@@ -102,6 +102,17 @@ extern "C" void clingo_control_release(clingo_control_t *control) {
     }
 }
 
+extern "C" auto clingo_control_add_finalizer(clingo_control_t *control, clingo_control_finalizer_t finalizer,
+                                             void *data) -> bool {
+    CLINGO_TRY {
+        if (control == nullptr || finalizer == nullptr) {
+            return fail_arguments();
+        }
+        control->finalizers.emplace_back(finalizer, data);
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mode) -> bool {
     CLINGO_TRY {
         *mode = static_cast<clingo_mode_t>(control->slv->get_mode());

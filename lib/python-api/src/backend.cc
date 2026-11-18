@@ -255,7 +255,7 @@ auto py_observer_invoke_begin_step(ObserverData *data) -> bool {
 }
 
 auto py_observer_invoke_end_step(ObserverData *data, clingo_base_t const *base) -> bool {
-    auto base_obj = steal(py_base_new(data->first, data->second->base_type, base));
+    auto base_obj = steal(py_base_new(data->first, nullptr, data->second->base_type, base));
     if (base_obj.get() == nullptr) {
         return store_python_error("failed to create base object");
     }
@@ -1450,7 +1450,7 @@ auto py_observe(PyObject *module, clingo_control_t *ctl, PyObject *observer, boo
         return false;
     }
     auto ctx = std::pair{observer, state};
-    if (!with_gil_released([&]() { return clingo_control_observe(ctl, observer_trampoline(), &ctx, preprocess); })) {
+    if (!with_gil_released([&] { return clingo_control_observe(ctl, observer_trampoline(), &ctx, preprocess); })) {
         py_handle_error();
         return false;
     }

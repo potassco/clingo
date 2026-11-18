@@ -131,6 +131,7 @@ class SequenceGetter(Protocol):
     """
     Getter for sequence configuration entries.
     """
+
     def __call__(self, index: int | None = None, /) -> str | None:
         """
         Get the value at the given index.
@@ -143,6 +144,7 @@ class SequenceSetter(Protocol):
     """
     Setter for sequence configuration entries.
     """
+
     def __call__(self, value: str, index: int | None = None, /) -> None:
         """
         Set the value at the given index.

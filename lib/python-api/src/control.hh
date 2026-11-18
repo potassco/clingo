@@ -2,7 +2,6 @@
 
 #include "base.hh"
 #include "iterable.hh"
-#include "propagate.hh"
 #include "stats.hh"
 #include "symbol.hh"
 
@@ -38,11 +37,30 @@ class ConstMap {
 class Control;
 using PyControl = Annotation<Control>;
 
-class Control : public registered_handle<Control, clingo_control_t>, public reference_keeper<Control> {
+//! A control object.
+//!
+//! There are two kinds of control objects:
+//!
+//! - Owned control objects are created from Python. They own their clingo
+//!   control object.
+//! - Non-owned control objects are created for clingo control objects passed
+//!   to callbacks (see py_control_new()). They neither acquire nor release
+//!   their clingo control object.
+//!
+//! In both cases, objects registered with the control object (e.g.,
+//! propagators) are kept alive by the Python object, which also keeps the
+//! library alive. The reference to the library and the registered objects are
+//! visible to the garbage collector.
+class Control : public managed_handle<Control, clingo_control_t>, public reference_keeper<Control> {
   public:
+    static constexpr char const *invalid_message = "control is no longer valid";
+
     using HintConstMap = TypeHint<"typing.Mapping[str, clingo.symbol.Symbol]">;
 
     Control(Library &lib, std::span<std::string const> args);
+
+    //! Create a non-owned control object.
+    static auto borrow(py::object lib, clingo_control_t *ctl) -> py::object;
 
     auto mode() -> clingo_mode_e;
     void parse_files(std::span<std::string const> files);
@@ -79,9 +97,8 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     void interrupt();
     void discard(bool minimize, bool project);
 
-    void register_propagator(Annotation<Propagator> const &propagator);
+    void register_propagator(TypeHint<"clingo.propagate.Propagator"> propagator);
 
-    static auto cast(clingo_control_t *ctl, bool convert = false) -> PyControl;
     //! This function acquires the control and user data.
     //!
     //! If no user data exists yet, it creates a default one.
@@ -95,9 +112,12 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
     //! Get the underlying C pointer.
     auto c_ptr() -> clingo_control_t * { return get(); }
 
+    //! Detach the control object from its clingo control object.
+    void invalidate() noexcept { reset(); }
+
   private:
-    using Parent = registered_handle<Control, clingo_control_t>;
-    explicit Control(clingo_control_t *ctl) : Parent{ctl} {}
+    using Parent = managed_handle<Control, clingo_control_t>;
+    Control(py::object lib, clingo_control_t *ctl, Parent::borrow_t tag);
     static auto callable_([[maybe_unused]] char const *name, [[maybe_unused]] size_t name_size,
                           [[maybe_unused]] size_t arguments_size, [[maybe_unused]] void *data, bool *result) -> bool {
         CLINGO_TRY {
@@ -106,6 +126,27 @@ class Control : public registered_handle<Control, clingo_control_t>, public refe
         CLINGO_CATCH;
     }
 };
+
+//! Get the `clingo.control.Control` type (new reference).
+auto py_control_type() -> PyObject *;
+
+//! Create a `clingo.control.Control` object for a control object passed to a callback.
+//!
+//! The object does not own the clingo control object. It keeps the given
+//! library object alive. Once the callback returns, py_control_detach() must
+//! be called. Returns a new reference or nullptr with a Python error set.
+auto py_control_new(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject *;
+
+//! Detach a control object created with py_control_new() after its callback returned.
+//!
+//! The function steals the reference to the object. If objects have been
+//! registered with the control object, the reference is passed to the clingo
+//! control object, which releases it when it is destroyed. Otherwise, the
+//! object is invalidated and the reference is released.
+//!
+//! Returns false with a Python error set on failure. In this case, the
+//! reference is leaked to keep registered objects alive.
+auto py_control_detach(PyObject *obj) -> bool;
 
 void register_control(pybind11::module &m);
 

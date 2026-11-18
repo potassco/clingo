@@ -17,6 +17,8 @@ namespace PyClingo {
 namespace {
 
 struct AppModuleState {
+    PyObject *lib_type{nullptr};
+    PyObject *control_type{nullptr};
     PyObject *model_type{nullptr};
     PyObject *flag_type{nullptr};
     PyObject *options_type{nullptr};
@@ -34,6 +36,7 @@ using PyOptionsObject = struct {
 
 using PyAppObject = struct {
     PyObject_HEAD PyObject *program_name;
+    PyObject *library;
     PyObject *version;
     PyObject *commit_hash;
     PyObject *keep;
@@ -93,21 +96,6 @@ auto app_program_name(PyAppObject const *app) noexcept -> clingo_string_t {
         return app_str(app->program_name);
     }
     return clingo_string_t{CLINGO_EXECUTABLE, std::strlen(CLINGO_EXECUTABLE)};
-}
-
-// NOTE: these two are the only places creating pybind11 wrapped objects.
-auto new_control(clingo_control_t *ctl) noexcept -> PyObject * {
-    try {
-        py::object obj = Control::cast(ctl, true);
-        return obj.release().ptr();
-    } catch (py::error_already_set &e) {
-        e.restore();
-    } catch (std::exception const &e) {
-        PyErr_SetString(PyExc_RuntimeError, e.what());
-    } catch (...) {
-        PyErr_SetString(PyExc_RuntimeError, "unknown error");
-    }
-    return nullptr;
 }
 
 void report_value_error() noexcept {
@@ -426,6 +414,7 @@ auto py_app_init(PyObject *self, PyObject *args, PyObject *kwargs) -> int {
 auto py_app_traverse(PyObject *self, visitproc visit, void *arg) -> int {
     auto *a = py_app_cast(self);
     Py_VISIT(Py_TYPE(self));
+    Py_VISIT(a->library);
     Py_VISIT(a->program_name);
     Py_VISIT(a->version);
     Py_VISIT(a->commit_hash);
@@ -436,6 +425,7 @@ auto py_app_traverse(PyObject *self, visitproc visit, void *arg) -> int {
 
 auto py_app_clear(PyObject *self) -> int {
     auto *a = py_app_cast(self);
+    Py_CLEAR(a->library);
     Py_CLEAR(a->program_name);
     Py_CLEAR(a->version);
     Py_CLEAR(a->commit_hash);
@@ -502,10 +492,7 @@ void app_get_commit_hash_cb(void *data, clingo_string_t *res) {
 
 auto app_main_cb(clingo_control_t *ctl, clingo_string_t const *files, size_t size, void *data) -> bool {
     auto *app = static_cast<PyObject *>(data);
-    auto pyctl = steal(new_control(ctl));
-    if (pyctl.get() == nullptr) {
-        return store_python_error("creating control failed");
-    }
+    auto *state = py_app_cast(app)->state;
     auto pyfiles = steal(PyList_New(static_cast<Py_ssize_t>(size)));
     if (pyfiles.get() == nullptr) {
         return store_python_error("creating file list failed");
@@ -520,11 +507,20 @@ auto app_main_cb(clingo_control_t *ctl, clingo_string_t const *files, size_t siz
             return store_python_error("creating file list failed");
         }
     }
-    auto ret = steal(PyObject_CallMethod(app, "main", "OO", pyctl.get(), pyfiles.get()));
-    if (ret.get() == nullptr) {
-        return store_python_error("main failed");
+    auto *pyctl = py_control_new(state->control_type, py_app_cast(app)->library, ctl);
+    if (pyctl == nullptr) {
+        return store_python_error("creating control failed");
     }
-    return true;
+    auto ret = steal(PyObject_CallMethod(app, "main", "OO", pyctl, pyfiles.get()));
+    auto ok = ret.get() != nullptr || store_python_error("main failed");
+    // NOTE: the control is only valid during the callback unless objects are registered with it
+    if (!py_control_detach(pyctl)) {
+        if (ok) {
+            return store_python_error("detaching control failed");
+        }
+        PyErr_Clear();
+    }
+    return ok;
 }
 
 auto py_printer_call(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
@@ -612,7 +608,13 @@ auto has_override(PyObject *self, PyObject *base_type, char const *name) -> int 
 auto py_printer_def =
     PyMethodDef{"default_printer", py_printer_call, METH_NOARGS, PyDoc_STR("Print the model in the default format.")};
 
-auto app_prepare(PyObject *self, AppModuleState *state, clingo_application_t *out) -> bool {
+auto app_prepare(PyObject *self, AppModuleState *state, PyObject *lib, clingo_application_t *out) -> bool {
+    auto *app = py_app_cast(self);
+    // NOTE: an app is connected to exactly one library and can only be run once
+    if (app->library != nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "an app can only be run once");
+        return false;
+    }
     auto has_main = has_override(self, state->app_type, "main");
     auto has_print_model = has_override(self, state->app_type, "print_model");
     auto has_register_options = has_override(self, state->app_type, "register_options");
@@ -620,7 +622,8 @@ auto app_prepare(PyObject *self, AppModuleState *state, clingo_application_t *ou
     if (has_main < 0 || has_print_model < 0 || has_register_options < 0 || has_validate_options < 0) {
         return false;
     }
-    auto *app = py_app_cast(self);
+    app->library = lib;
+    Py_INCREF(lib);
     if (has_print_model != 0 && app->printer_fn == nullptr) {
         app->printer_fn = PyCFunction_New(&py_printer_def, self);
         if (app->printer_fn == nullptr) {
@@ -659,7 +662,7 @@ auto py_app_spec = PyType_Spec{
 // module functions
 
 auto run_main(AppModuleState *state, PyObject *lib_obj, PyObject *args_obj, PyObject *app_obj) -> PyObject * {
-    auto *lib = py_cast<Library>(lib_obj);
+    auto *lib = py_library_get(state->lib_type, lib_obj);
     if (lib == nullptr) {
         return nullptr;
     }
@@ -680,13 +683,13 @@ auto run_main(AppModuleState *state, PyObject *lib_obj, PyObject *args_obj, PyOb
     }
 
     auto capp = clingo_application_t{};
-    if (app != nullptr && !app_prepare(app, state, &capp)) {
+    if (app != nullptr && !app_prepare(app, state, lib_obj, &capp)) {
         return nullptr;
     }
 
     int code = 0;
-    auto ok = clingo_main(*lib, cargs.data(), cargs.size(), app != nullptr ? &capp : nullptr, static_cast<void *>(app),
-                          &code);
+    auto ok =
+        clingo_main(lib, cargs.data(), cargs.size(), app != nullptr ? &capp : nullptr, static_cast<void *>(app), &code);
     // NOTE: Clasp's main is noexcept, it will report whether an exception was
     // caught via the exit code. Whenever an exception is rethrown from within
     // the internal C++ API, the clingo error will be cleared and *only* be
@@ -772,6 +775,8 @@ auto app_module_traverse(PyObject *module, visitproc visit, void *arg) -> int {
     if (state == nullptr) {
         return 0;
     }
+    Py_VISIT(state->lib_type);
+    Py_VISIT(state->control_type);
     Py_VISIT(state->model_type);
     Py_VISIT(state->flag_type);
     Py_VISIT(state->options_type);
@@ -784,6 +789,8 @@ auto app_module_clear(PyObject *module) -> int {
     if (state == nullptr) {
         return 0;
     }
+    Py_CLEAR(state->lib_type);
+    Py_CLEAR(state->control_type);
     Py_CLEAR(state->model_type);
     Py_CLEAR(state->flag_type);
     Py_CLEAR(state->options_type);
@@ -848,7 +855,14 @@ void register_app(pybind11::module &m) {
     if (state == nullptr) {
         throw py::error_already_set();
     }
-
+    state->lib_type = py_library_type();
+    if (state->lib_type == nullptr) {
+        throw py::error_already_set();
+    }
+    state->control_type = py_control_type();
+    if (state->control_type == nullptr) {
+        throw py::error_already_set();
+    }
     state->model_type = py_model_type();
     if (state->model_type == nullptr) {
         throw py::error_already_set();

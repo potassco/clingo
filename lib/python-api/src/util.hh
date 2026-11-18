@@ -11,6 +11,7 @@
 #include <concepts>
 #include <limits>
 #include <ranges>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -95,80 +96,94 @@ template <class T> struct value_handle {
     pointer ptr_ = nullptr;
 };
 
-template <class T, class P> class registered_handle {
-  private:
+//! A handle to a reference counted C object.
+//!
+//! The handle either owns a reference to the object or borrows it. A borrowed
+//! handle neither acquires nor releases the object. Accessing the object via
+//! get() throws once the handle has been reset (e.g., invalidated).
+//!
+//! The pointer is stored as `void *` so that views can observe its address via
+//! ptr_ref() to check whether the object is still valid.
+template <class T, class P> class managed_handle {
+  public:
     friend T;
 
-    registered_handle() = default;
+    //! Tag to construct a handle that does not own the pointer.
+    struct borrow_t {};
 
-    registered_handle(registered_handle const &other) = delete; // NOLINT
+    managed_handle() = default;
 
-    auto operator=(registered_handle const &other) -> registered_handle & = delete; // NOLINT
+    managed_handle(managed_handle const &other) = delete; // NOLINT
 
-    registered_handle(registered_handle &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {
-        auto it = registry.find(ptr_);
-        assert(it != registry.end());
-        it->second = static_cast<T *>(this);
-    }
+    auto operator=(managed_handle const &other) -> managed_handle & = delete; // NOLINT
 
-    auto operator=(registered_handle &&other) noexcept -> registered_handle & {
+    managed_handle(managed_handle &&other) noexcept
+        : ptr_{std::exchange(other.ptr_, nullptr)}, owns_{std::exchange(other.owns_, true)} {}
+
+    auto operator=(managed_handle &&other) noexcept -> managed_handle & {
         if (this != &other) {
-            assert(ptr_ == nullptr || ptr_ != other.ptr_);
-            registry.erase(ptr_);
-            T::release(ptr_);
+            release_();
             ptr_ = std::exchange(other.ptr_, nullptr);
-            if (ptr_ != nullptr) {
-                auto it = registry.find(get());
-                it->second = static_cast<T *>(this);
-            }
+            owns_ = std::exchange(other.owns_, true);
         }
         return *this;
     }
-    ~registered_handle() noexcept {
-        registry.erase(ptr_);
-        T::release(ptr_);
-    }
-    explicit registered_handle(P *ptr, bool inc = true) : ptr_{ptr} {
-        T::acquire(ptr_, inc);
-        if (ptr_ != nullptr) {
-            registry.emplace(ptr_, static_cast<T *>(this));
-        }
-    }
+    ~managed_handle() noexcept { release_(); }
+    explicit managed_handle(P *ptr, bool inc = true) : ptr_{ptr} { T::acquire(ptr, inc); }
+    //! Construct a handle that neither acquires nor releases the pointer.
+    managed_handle(P *ptr, borrow_t /*tag*/) : ptr_{ptr}, owns_{false} {}
 
-    [[nodiscard]] auto get() const noexcept -> P * { return ptr_; }
+    //! Get the pointer and throw if the handle is no longer valid.
+    [[nodiscard]] auto get() const -> P * {
+        if (ptr_ == nullptr) {
+            throw std::runtime_error{T::invalid_message};
+        }
+        return get_unchecked();
+    }
+    //! Get the pointer or nullptr if the handle is no longer valid.
+    [[nodiscard]] auto get_unchecked() const noexcept -> P * { return static_cast<P *>(ptr_); }
+    //! Get the address of the held pointer, which is null once the handle is no longer valid.
+    [[nodiscard]] auto ptr_ref() const noexcept -> void *const * { return &ptr_; }
+    //! Check whether the handle owns the pointer.
+    [[nodiscard]] auto owns() const noexcept -> bool { return owns_; }
+
     void reset(std::nullptr_t = nullptr) noexcept {
-        registry.erase(ptr_);
-        T::release(ptr_);
+        release_();
         ptr_ = nullptr;
+        owns_ = true;
     }
     void reset(P *ptr, bool inc = true) {
-        registry.erase(ptr_);
-        T::release(ptr_);
+        release_();
         ptr_ = ptr;
-        T::acquire(ptr_, inc);
-        if (ptr_ != nullptr) {
-            registry.emplace(ptr_, static_cast<T *>(this));
+        owns_ = true;
+        T::acquire(ptr, inc);
+    }
+
+  private:
+    void release_() noexcept {
+        if (owns_) {
+            T::release(get_unchecked());
         }
     }
 
-    static auto from_registry(P *ptr) -> T * {
-        if (auto it = registry.find(ptr); it != registry.end()) {
-            return it->second;
-        }
-        return nullptr;
-    }
-
-    static std::unordered_map<P *, T *> registry;
-    P *ptr_ = nullptr;
+    void *ptr_ = nullptr;
+    bool owns_ = true;
 };
-
-template <class T, class P> std::unordered_map<P *, T *> registered_handle<T, P>::registry;
 
 template <class T> class reference_keeper {
   public:
     void tie(py::handle obj) { list_.append(obj); }
 
     auto keeper_ref() -> PyObject * { return list_.ptr(); }
+
+    //! The number of objects kept alive via tie().
+    [[nodiscard]] auto kept() const -> size_t { return list_.ptr() != nullptr ? py::len(list_) : 0; }
+
+    //! Keep a single owner alive (in addition to the tied objects).
+    void keep_owner(py::object obj) { owner_ = std::move(obj); }
+
+    //! Get the owner set with keep_owner() (borrowed, might be nullptr).
+    [[nodiscard]] auto owner_ref() const -> PyObject * { return owner_.ptr(); }
 
     static void setup(PyHeapTypeObject *heap_type) {
         auto *type = &heap_type->ht_type;
@@ -177,6 +192,7 @@ template <class T> class reference_keeper {
             auto *self = py::cast<T *>(py::handle(self_base));
             if (constructed_.contains(self)) {
                 Py_VISIT(self->list_.ptr());
+                Py_VISIT(self->owner_.ptr());
             }
             return 0;
         };
@@ -184,6 +200,7 @@ template <class T> class reference_keeper {
             auto *self = py::cast<T *>(py::handle(self_base));
             if (constructed_.contains(self)) {
                 Py_CLEAR(self->list_.ptr());
+                Py_CLEAR(self->owner_.ptr());
             }
             return 0;
         };
@@ -206,6 +223,7 @@ template <class T> class reference_keeper {
     reference_keeper() { constructed_.emplace(static_cast<T *>(this)); }
 
     py::list list_;
+    py::object owner_;
 };
 
 template <class T> inline std::unordered_set<T *> reference_keeper<T>::constructed_ = {};
@@ -594,11 +612,21 @@ template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *wha
     return true;
 }
 
+//! Cast a Python object to a pybind11 wrapped C++ object.
+//!
+//! For managed handles, this also checks that the handle is still valid.
 template <class T> auto py_cast(PyObject *obj) -> T * {
     try {
         auto res = py::handle{obj}.cast<T *>();
         if (res == nullptr) {
             PyErr_SetString(PyExc_TypeError, "object is not of the expected type");
+            return nullptr;
+        }
+        if constexpr (requires { res->get_unchecked(); }) {
+            if (res->get_unchecked() == nullptr) {
+                PyErr_SetString(PyExc_RuntimeError, T::invalid_message);
+                return nullptr;
+            }
         }
         return res;
     } catch (py::error_already_set &e) {

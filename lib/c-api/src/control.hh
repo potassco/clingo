@@ -8,6 +8,9 @@
 
 #include <clingo/control.h>
 
+#include <utility>
+#include <vector>
+
 struct clingo_control {
     //! Construct a control object that is bound later.
     //!
@@ -32,11 +35,19 @@ struct clingo_control {
     auto operator=(clingo_control const &other) -> clingo_control & = delete;
     auto operator=(clingo_control &&other) noexcept -> clingo_control & = delete;
     //! Destroy the held clasp and clingo objects if the control is owning.
+    //!
+    //! Finalizers are called after the held objects have been destroyed and
+    //! before the library is released.
     ~clingo_control() {
         if (own) {
             delete slv;
             delete clasp;
             delete cfg;
+        }
+        while (!finalizers.empty()) {
+            auto [finalizer, data] = finalizers.back();
+            finalizers.pop_back();
+            finalizer(data);
         }
         clingo_lib_release(lib);
     }
@@ -56,6 +67,7 @@ struct clingo_control {
     CppClingo::Control::Solver *slv = nullptr;
     Clasp::ClaspConfig *cfg = nullptr;
     Clasp::ClaspFacade *clasp = nullptr;
+    std::vector<std::pair<clingo_control_finalizer_t, void *>> finalizers;
     std::atomic<size_t> ref_count = 1;
     bool own = false;
 };

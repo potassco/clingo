@@ -5,6 +5,7 @@
 #include "core.hh"
 #include "ground.hh"
 #include "iterator.hh"
+#include "propagate.hh"
 #include "solve.hh"
 #include "stats.hh"
 #include "util.hh"
@@ -49,10 +50,19 @@ auto ConstMap::size() const -> size_t {
 }
 
 Control::Control(Library &lib, std::span<std::string const> args) {
+    keep_owner(py::cast(lib, py::return_value_policy::reference));
     auto cargs = transform(args, [](auto const &str) { return clingo_string_t{str.data(), str.size()}; });
     clingo_control_t *ctl = nullptr;
     handle_error(clingo_control_new(lib, cargs.data(), cargs.size(), &ctl));
     reset(ctl, false);
+}
+
+Control::Control(py::object lib, clingo_control_t *ctl, Parent::borrow_t tag) : Parent{ctl, tag} {
+    keep_owner(std::move(lib));
+}
+
+auto Control::borrow(py::object lib, clingo_control_t *ctl) -> py::object {
+    return py::cast(std::unique_ptr<Control>(new Control{std::move(lib), ctl, Parent::borrow_t{}}));
 }
 
 auto Control::mode() -> clingo_mode_e {
@@ -147,7 +157,7 @@ auto Control::base() -> TypeHint<"clingo.base.Base"> {
     if (type.get() == nullptr) {
         throw py::error_already_set();
     }
-    auto pybase = steal(py_base_new(py::cast(this).ptr(), type.get(), base));
+    auto pybase = steal(py_base_new(py::cast(this).ptr(), ptr_ref(), type.get(), base));
     if (pybase.get() == nullptr) {
         throw py::error_already_set();
     }
@@ -182,7 +192,7 @@ auto Control::config() -> TypeHint<"clingo.config.Config"> {
     if (type.get() == nullptr) {
         throw py::error_already_set();
     }
-    auto cfg = steal(py_config_new(py::cast(this).ptr(), keeper_ref(), type.get(), config, key));
+    auto cfg = steal(py_config_new(py::cast(this).ptr(), ptr_ref(), keeper_ref(), type.get(), config, key));
     if (cfg.get() == nullptr) {
         throw py::error_already_set();
     }
@@ -199,7 +209,8 @@ auto Control::stats() -> StatsView {
         throw py::error_already_set();
     }
 
-    auto res = steal(py_stats_new(py::cast(this).ptr(), type.get(), const_cast<clingo_stats_t *>(stats), key));
+    auto res =
+        steal(py_stats_new(py::cast(this).ptr(), ptr_ref(), type.get(), const_cast<clingo_stats_t *>(stats), key));
     if (res.get() == nullptr) {
         throw py::error_already_set();
     }
@@ -337,10 +348,14 @@ void Control::set_parts(std::optional<PartSpan> parts) {
     }
 }
 
-void Control::register_propagator(Annotation<Propagator> const &propagator) {
-    auto &prop = propagator.cast<Propagator &>();
-    tie(propagator);
-    PyClingo::register_propagator(get(), prop);
+void Control::register_propagator(TypeHint<"clingo.propagate.Propagator"> propagator) {
+    auto type = steal(py_propagator_type());
+    if (type.get() == nullptr) {
+        throw py::error_already_set();
+    }
+    if (!py_register_propagator(type.get(), get(), keeper_ref(), owner_ref(), propagator.ptr())) {
+        throw py::error_already_set();
+    }
 }
 
 void Control::release(clingo_control_t *ctl) noexcept {
@@ -354,17 +369,6 @@ void Control::acquire(clingo_control_t *ctl, bool inc) {
     if (ctl != nullptr && inc) {
         clingo_control_acquire(ctl);
     }
-}
-
-auto Control::cast(clingo_control_t *ctl, bool convert) -> PyControl {
-    auto *ptr = from_registry(ctl);
-    if (ptr != nullptr) {
-        return py::cast(ptr);
-    }
-    if (convert) {
-        return py::cast(std::unique_ptr<Control>(new Control{ctl}));
-    }
-    throw py::cast_error("invalid Control cast");
 }
 
 void register_control(pybind11::module &m) {
@@ -629,6 +633,80 @@ The result is directly convertible to JSON using Python's `json` module.
         .def_property_readonly("const_map", &Control::const_map,
                                R"(Get the map of constants defined by `#const` directives.)")
         .def_property("parts", &Control::parts, &Control::set_parts, R"(Get/set the program parts to ground.)");
+}
+
+auto py_control_type() -> PyObject * {
+    try {
+        return py::type::of<Control>().release().ptr();
+    } catch (py::error_already_set &e) {
+        e.restore();
+    } catch (std::exception const &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    }
+    return nullptr;
+}
+
+namespace {
+
+void control_finalizer(void *data) {
+    // NOTE: objects cannot be released anymore once the interpreter is gone
+    if (Py_IsInitialized() == 0) {
+        return;
+    }
+    auto gil = GILGuard{};
+    auto *obj = static_cast<PyObject *>(data);
+    try {
+        py::cast<Control &>(py::handle{obj}).invalidate();
+    } catch (py::error_already_set &e) {
+        e.discard_as_unraisable("control finalizer");
+    } catch (std::exception const &) {
+        // NOTE: only objects created with py_control_new are passed here
+        assert(false);
+    }
+    Py_DECREF(obj);
+}
+
+} // namespace
+
+auto py_control_new(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject * {
+    try {
+        auto obj = Control::borrow(py::reinterpret_borrow<py::object>(library), ctl);
+        if (PyObject_TypeCheck(obj.ptr(), reinterpret_cast<PyTypeObject *>(type)) == 0) {
+            PyErr_SetString(PyExc_TypeError, "type is not clingo.control.Control");
+            return nullptr;
+        }
+        return obj.release().ptr();
+    } catch (py::error_already_set &e) {
+        e.restore();
+    } catch (std::exception const &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    }
+    return nullptr;
+}
+
+auto py_control_detach(PyObject *obj) -> bool {
+    auto ref = steal(obj);
+    try {
+        auto &ctl = py::cast<Control &>(py::handle{obj});
+        auto *c_ctl = ctl.get_unchecked();
+        if (ctl.kept() == 0 || c_ctl == nullptr) {
+            ctl.invalidate();
+            return true;
+        }
+        // NOTE: registered objects must live as long as the clingo control object
+        if (!clingo_control_add_finalizer(c_ctl, control_finalizer, obj)) {
+            std::ignore = ref.release();
+            py_handle_error();
+            return false;
+        }
+        std::ignore = ref.release();
+        return true;
+    } catch (py::error_already_set &e) {
+        e.restore();
+    } catch (std::exception const &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    }
+    return false;
 }
 
 } // namespace PyClingo
