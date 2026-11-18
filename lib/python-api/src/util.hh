@@ -615,7 +615,7 @@ template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *wha
 //! Cast a Python object to a pybind11 wrapped C++ object.
 //!
 //! For managed handles, this also checks that the handle is still valid.
-template <class T> auto py_cast(PyObject *obj) -> T * {
+template <class T> auto py_cast(PyObject *obj) noexcept -> T * {
     try {
         auto res = py::handle{obj}.cast<T *>();
         if (res == nullptr) {
@@ -630,7 +630,11 @@ template <class T> auto py_cast(PyObject *obj) -> T * {
         }
         return res;
     } catch (py::error_already_set &e) {
-        e.restore();
+        try {
+            e.restore();
+        } catch (...) {
+            PyErr_SetString(PyExc_RuntimeError, "error restoring Python exception");
+        }
         return nullptr;
     } catch (py::cast_error &) {
         PyErr_SetString(PyExc_TypeError, "object is not of the expected type");

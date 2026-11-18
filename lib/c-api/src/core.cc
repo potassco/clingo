@@ -129,6 +129,35 @@ extern "C" auto clingo_lib_get_owner(clingo_lib_t const *lib, void const *tag) -
     return lib->owners.get(tag);
 }
 
+extern "C" auto clingo_lib_add_finalizer(clingo_lib_t *lib, clingo_finalizer_t finalizer, void *data) -> bool {
+    CLINGO_TRY {
+        if (lib == nullptr || finalizer == nullptr) {
+            return fail_arguments();
+        }
+        lib->finalizers.emplace_back(finalizer, data);
+    }
+    CLINGO_CATCH;
+}
+
+namespace {
+
+//! Release the parts of a library that might hold references from language bindings.
+//!
+//! The finalizers run first so that they can still use the logger and the
+//! scripts (e.g., an embedded interpreter). Releasing the logger and the
+//! scripts might release symbols, which requires the symbol store to be alive.
+void release_resources(clingo_lib_t *lib) {
+    while (!lib->finalizers.empty()) {
+        auto [finalizer, data] = lib->finalizers.back();
+        lib->finalizers.pop_back();
+        finalizer(data);
+    }
+    lib->log = CppClingo::Logger{};
+    lib->scripts = CppClingo::Control::Scripts{};
+}
+
+} // namespace
+
 extern "C" void clingo_lib_acquire(clingo_lib_t *lib) {
     if (lib != nullptr) {
         ++lib->ref_count;
@@ -140,6 +169,8 @@ extern "C" void clingo_lib_release(clingo_lib_t *lib) {
         return;
     }
     if (lib->fast_release) {
+        // NOTE: the store is destroyed before the scripts otherwise
+        release_resources(lib);
         // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
         delete lib;
         return;
@@ -166,10 +197,9 @@ extern "C" void clingo_lib_release(clingo_lib_t *lib) {
         }
     };
 
-    // reset logger and scripts in case they are holding symbols
-    // the store might be kept alive if it is still holding symbols
-    lib->log = CppClingo::Logger{};
-    lib->scripts = CppClingo::Control::Scripts{};
+    // run finalizers and reset logger and scripts in case they are holding
+    // symbols; the store might be kept alive if it is still holding symbols
+    release_resources(lib);
     collect_or_keep(lib);
 
     while (pending != nullptr) {

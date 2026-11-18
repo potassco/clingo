@@ -263,6 +263,26 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_lib_set_owner(clingo_lib_t *lib, void cons
 //! @return the owner or NULL if there is none
 CLINGO_VISIBILITY_DEFAULT void *clingo_lib_get_owner(clingo_lib_t const *lib, void const *tag);
 
+//! Callback to finalize user data when an object is destroyed.
+typedef void (*clingo_finalizer_t)(void *data);
+
+//! Add a function to be called when the given library is released.
+//!
+//! Finalizers are called in reverse order of registration once the reference
+//! count of the library drops to zero, before its logger and scripts are
+//! released. Language bindings can use this to tie the lifetime of objects to
+//! the lifetime of the library.
+//!
+//! The function must not be called concurrently with other functions
+//! modifying the library.
+//!
+//! @param[in] lib the target library
+//! @param[in] finalizer the function to call
+//! @param[in] data the user data passed to the finalizer
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_lib_add_finalizer(clingo_lib_t *lib, clingo_finalizer_t finalizer, void *data);
+
 //! Report a message via the library’s logger.
 //!
 //! @param[in] lib the library

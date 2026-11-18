@@ -508,13 +508,13 @@ auto app_main_cb(clingo_control_t *ctl, clingo_string_t const *files, size_t siz
         }
     }
 
-    auto *pyctl = py_control_begin(state->control_type, py_app_cast(app)->library, ctl, ControlRef::Claim);
+    auto *pyctl = py_control_begin(state->control_type, py_app_cast(app)->library, ctl, ControlRef::claim);
     if (pyctl == nullptr) {
         return store_python_error("creating control failed");
     }
     auto ret = steal(PyObject_CallMethod(app, "main", "OO", pyctl, pyfiles.get()));
     auto ok = ret.get() != nullptr || store_python_error("main failed");
-    py_control_end(pyctl, ControlRef::Claim);
+    py_control_end(pyctl, ControlRef::claim);
     return ok;
 }
 

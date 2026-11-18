@@ -26,16 +26,17 @@ namespace {
 //
 // Scripts registered from Python (`register`, `enable_python`) are
 // represented by a `_ScriptHandle` whose address is passed to clingo. The
-// library object keeps the handle alive via its keeper list and the handle
-// holds a strong reference back to the library. The cycle is visible to the
-// garbage collector. Because the library releases the clingo library only in
-// tp_dealloc (and not in tp_clear), all objects referenced by the script
-// (e.g., symbols) are released before the clingo library is destroyed.
+// library object keeps the handle alive via its keeper list. Because the
+// library releases the clingo library only in tp_dealloc (and not in
+// tp_clear), all objects referenced by the script (e.g., symbols) are
+// released before the clingo library is destroyed.
 //
 // The main script registered from C (`register_python`) is owned by the
-// clingo library and freed via the script's free callback. In this case there
-// is no Python library object, so a non-owning library wrapper is created
-// lazily and invalidated when the script is freed.
+// clingo library and freed via the script's free callback.
+//
+// Handles do not store their library. Callbacks receive the clingo library
+// and get the library object via py_library_attach(), which returns the
+// registered owner or attaches a non-owning library object to it.
 
 struct ScriptModuleState {
     PyObject *lib_type{nullptr};
@@ -62,8 +63,6 @@ struct PyScriptHandleObject {
     PyObject_HEAD
         //! The custom script or nullptr for the main python script.
         PyObject *script;
-    //! The library the script is registered with.
-    PyObject *library;
     //! The global scope of the main python script.
     PyObject *scope;
     //! Cached name of a custom script.
@@ -74,9 +73,7 @@ struct PyScriptHandleObject {
 
 //! The main python script registered from C.
 struct ExternalScript {
-    //! The library the script is registered with.
-    clingo_lib_t *lib{nullptr};
-    //! The handle with a borrowed library wrapper (created lazily).
+    //! The handle of the main python script (created lazily).
     PyObject *handle{nullptr};
     //! The main thread state if the interpreter was initialized by the script.
     PyThreadState *thread{nullptr};
@@ -166,7 +163,7 @@ auto return_symbols(ScriptModuleState *state, PyObject *res, clingo_symbol_callb
 
 // _ScriptHandle
 
-auto handle_new(ScriptModuleState *state, PyObject *script, PyObject *library, PyObject *scope) -> PyObject * {
+auto handle_new(ScriptModuleState *state, PyObject *script, PyObject *scope) -> PyObject * {
     auto *obj = PyType_GenericAlloc(reinterpret_cast<PyTypeObject *>(state->handle_type), 0);
     if (obj == nullptr) {
         return nullptr;
@@ -174,8 +171,6 @@ auto handle_new(ScriptModuleState *state, PyObject *script, PyObject *library, P
     auto *h = handle_cast(obj);
     Py_XINCREF(script);
     h->script = script;
-    Py_XINCREF(library);
-    h->library = library;
     Py_XINCREF(scope);
     h->scope = scope;
     return obj;
@@ -185,7 +180,6 @@ auto py_handle_traverse(PyObject *self, visitproc visit, void *arg) -> int {
     auto *h = handle_cast(self);
     Py_VISIT(Py_TYPE(self));
     Py_VISIT(h->script);
-    Py_VISIT(h->library);
     Py_VISIT(h->scope);
     Py_VISIT(h->name);
     Py_VISIT(h->version);
@@ -195,7 +189,6 @@ auto py_handle_traverse(PyObject *self, visitproc visit, void *arg) -> int {
 auto py_handle_clear(PyObject *self) -> int {
     auto *h = handle_cast(self);
     Py_CLEAR(h->script);
-    Py_CLEAR(h->library);
     Py_CLEAR(h->scope);
     Py_CLEAR(h->name);
     Py_CLEAR(h->version);
@@ -220,7 +213,7 @@ auto py_handle_spec = PyType_Spec{
 
 //! Check that the handle is still connected (Python error set otherwise).
 auto handle_check(PyScriptHandleObject *h, bool main) -> bool {
-    if (h->library == nullptr || (main ? h->scope == nullptr : h->script == nullptr)) {
+    if (main ? h->scope == nullptr : h->script == nullptr) {
         PyErr_SetString(PyExc_RuntimeError, "script has been released");
         return false;
     }
@@ -276,7 +269,7 @@ auto main_callable(PyObject *self, char const *name, size_t size, bool *result) 
     return true;
 }
 
-auto main_call(PyObject *self, char const *name, size_t name_size, clingo_symbol_t const *arguments,
+auto main_call(PyObject *self, clingo_lib_t *lib, char const *name, size_t name_size, clingo_symbol_t const *arguments,
                size_t arguments_size, clingo_symbol_callback_t cb, void *cb_data) -> bool {
     auto *h = handle_cast(self);
     auto *state = state_of(self);
@@ -294,8 +287,9 @@ auto main_call(PyObject *self, char const *name, size_t name_size, clingo_symbol
     if (args.get() == nullptr) {
         return store_python_error("calling python function failed");
     }
-    Py_INCREF(h->library);
-    if (PyTuple_SetItem(args.get(), 0, h->library) < 0) {
+    // NOTE: steals the reference to the library
+    auto *library = py_library_attach(state->lib_type, lib);
+    if (library == nullptr || PyTuple_SetItem(args.get(), 0, library) < 0) {
         return store_python_error("calling python function failed");
     }
     for (size_t i = 0; i < arguments_size; ++i) {
@@ -311,7 +305,7 @@ auto main_call(PyObject *self, char const *name, size_t name_size, clingo_symbol
     return return_symbols(state, res.get(), cb, cb_data);
 }
 
-auto main_main(PyObject *self, clingo_control_t *control) -> bool {
+auto main_main(PyObject *self, clingo_lib_t *lib, clingo_control_t *control) -> bool {
     auto *h = handle_cast(self);
     if (!handle_check(h, true)) {
         return store_python_error("running main failed");
@@ -327,13 +321,17 @@ auto main_main(PyObject *self, clingo_control_t *control) -> bool {
     if (state == nullptr) {
         return store_python_error("running main failed");
     }
-    auto *ctl = py_control_begin(state->control_type, h->library, control, ControlRef::Share);
+    auto library = steal(py_library_attach(state->lib_type, lib));
+    if (library.get() == nullptr) {
+        return store_python_error("creating library failed");
+    }
+    auto *ctl = py_control_begin(state->control_type, library.get(), control, ControlRef::share);
     if (ctl == nullptr) {
         return store_python_error("creating control failed");
     }
-    auto res = steal(PyObject_CallFunctionObjArgs(fun.get(), h->library, ctl, nullptr));
+    auto res = steal(PyObject_CallFunctionObjArgs(fun.get(), library.get(), ctl, nullptr));
     auto ok = res.get() != nullptr || store_python_error("running main failed");
-    py_control_end(ctl, ControlRef::Share);
+    py_control_end(ctl, ControlRef::share);
     return ok;
 }
 
@@ -353,11 +351,11 @@ auto main_execute_cb(char const *code, size_t size, void *data) -> bool {
     return main_execute(static_cast<PyObject *>(data), code, size);
 }
 
-auto main_call_cb([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
-                  size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
-                  clingo_symbol_callback_t cb, void *cb_data, void *data) -> bool {
+auto main_call_cb(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name, size_t name_size,
+                  clingo_symbol_t const *arguments, size_t arguments_size, clingo_symbol_callback_t cb, void *cb_data,
+                  void *data) -> bool {
     auto gil = GILGuard{};
-    return main_call(static_cast<PyObject *>(data), name, name_size, arguments, arguments_size, cb, cb_data);
+    return main_call(static_cast<PyObject *>(data), lib, name, name_size, arguments, arguments_size, cb, cb_data);
 }
 
 auto main_callable_cb(char const *name, size_t size, [[maybe_unused]] size_t arguments, bool *result, void *data)
@@ -367,9 +365,9 @@ auto main_callable_cb(char const *name, size_t size, [[maybe_unused]] size_t arg
     return main_callable(static_cast<PyObject *>(data), name, size, result);
 }
 
-auto main_main_cb([[maybe_unused]] clingo_lib_t *lib, clingo_control_t *control, void *data) -> bool {
+auto main_main_cb(clingo_lib_t *lib, clingo_control_t *control, void *data) -> bool {
     auto gil = GILGuard{};
-    return main_main(static_cast<PyObject *>(data), control);
+    return main_main(static_cast<PyObject *>(data), lib, control);
 }
 
 constexpr auto main_script = clingo_script_t{
@@ -383,7 +381,7 @@ auto external_init(ExternalScript *ext) -> bool {
     if (Py_IsInitialized() == 0) {
 #ifdef CLINGO_PYTHON_EMBED
         // NOTE: the interpreter is finalized when the script is freed, which
-        // happens when the (main) library is destroyed
+        // happens when the (main) library is released
         Py_InitializeEx(0);
         ext->thread = PyEval_SaveThread();
 #else
@@ -410,13 +408,8 @@ auto external_init(ExternalScript *ext) -> bool {
     if (main == nullptr) {
         return store_python_error("initializing python failed");
     }
-    auto library = steal(py_library_borrow(state->lib_type, ext->lib));
-    if (library.get() == nullptr) {
-        return store_python_error("creating library failed");
-    }
-    ext->handle = handle_new(state, nullptr, library.get(), PyModule_GetDict(main));
+    ext->handle = handle_new(state, nullptr, PyModule_GetDict(main));
     if (ext->handle == nullptr) {
-        py_library_invalidate(library.get());
         return store_python_error("initializing python failed");
     }
     return true;
@@ -435,15 +428,15 @@ auto external_execute_cb(char const *code, size_t size, void *data) -> bool {
     return main_execute(ext->handle, code, size);
 }
 
-auto external_call_cb([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc,
-                      char const *name, size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
+auto external_call_cb(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
+                      size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
                       clingo_symbol_callback_t cb, void *cb_data, void *data) -> bool {
     auto *ext = external_cast(data);
     if (ext->handle == nullptr) {
         return set_clingo_error("no python code has been executed");
     }
     auto gil = GILGuard{};
-    return main_call(ext->handle, name, name_size, arguments, arguments_size, cb, cb_data);
+    return main_call(ext->handle, lib, name, name_size, arguments, arguments_size, cb, cb_data);
 }
 
 auto external_callable_cb(char const *name, size_t size, [[maybe_unused]] size_t arguments, bool *result, void *data)
@@ -457,13 +450,13 @@ auto external_callable_cb(char const *name, size_t size, [[maybe_unused]] size_t
     return main_callable(ext->handle, name, size, result);
 }
 
-auto external_main_cb([[maybe_unused]] clingo_lib_t *lib, clingo_control_t *control, void *data) -> bool {
+auto external_main_cb(clingo_lib_t *lib, clingo_control_t *control, void *data) -> bool {
     auto *ext = external_cast(data);
     if (ext->handle == nullptr) {
         return true;
     }
     auto gil = GILGuard{};
-    return main_main(ext->handle, control);
+    return main_main(ext->handle, lib, control);
 }
 
 void external_free(void *data) {
@@ -475,11 +468,9 @@ void external_free(void *data) {
         PyEval_RestoreThread(ext->thread);
     }
     {
+        // NOTE: an attached library object has already been invalidated by
+        // the library's finalizer
         auto gil = GILGuard{};
-        // NOTE: the library wrapper might have escaped into Python code
-        if (auto *library = handle_cast(ext->handle)->library; library != nullptr) {
-            py_library_invalidate(library);
-        }
         Py_CLEAR(ext->handle);
     }
     if (ext->thread != nullptr) {
@@ -521,7 +512,7 @@ auto custom_execute_cb(char const *code, size_t size, void *data) -> bool {
     return true;
 }
 
-auto custom_call_cb([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
+auto custom_call_cb(clingo_lib_t *lib, [[maybe_unused]] clingo_location_t const *loc, char const *name,
                     size_t name_size, clingo_symbol_t const *arguments, size_t arguments_size,
                     clingo_symbol_callback_t cb, void *cb_data, void *data) -> bool {
     auto gil = GILGuard{};
@@ -538,8 +529,12 @@ auto custom_call_cb([[maybe_unused]] clingo_lib_t *lib, [[maybe_unused]] clingo_
     if (args.get() == nullptr) {
         return store_python_error("script call failed");
     }
-    auto res =
-        steal(PyObject_CallMethodObjArgs(h->script, state->str_call, h->library, py_name.get(), args.get(), nullptr));
+    auto library = steal(py_library_attach(state->lib_type, lib));
+    if (library.get() == nullptr) {
+        return store_python_error("script call failed");
+    }
+    auto res = steal(
+        PyObject_CallMethodObjArgs(h->script, state->str_call, library.get(), py_name.get(), args.get(), nullptr));
     if (res.get() == nullptr) {
         return store_python_error("script call failed");
     }
@@ -570,20 +565,24 @@ auto custom_callable_cb(char const *name, size_t size, size_t arguments, bool *r
     return true;
 }
 
-auto custom_main_cb([[maybe_unused]] clingo_lib_t *lib, clingo_control_t *control, void *data) -> bool {
+auto custom_main_cb(clingo_lib_t *lib, clingo_control_t *control, void *data) -> bool {
     auto gil = GILGuard{};
     ScriptModuleState *state = nullptr;
     auto *h = custom_get(static_cast<PyObject *>(data), &state);
     if (h == nullptr) {
         return store_python_error("script main failed");
     }
-    auto *ctl = py_control_begin(state->control_type, h->library, control, ControlRef::Share);
+    auto library = steal(py_library_attach(state->lib_type, lib));
+    if (library.get() == nullptr) {
+        return store_python_error("creating library failed");
+    }
+    auto *ctl = py_control_begin(state->control_type, library.get(), control, ControlRef::share);
     if (ctl == nullptr) {
         return store_python_error("creating control failed");
     }
-    auto res = steal(PyObject_CallMethodObjArgs(h->script, state->str_main, h->library, ctl, nullptr));
+    auto res = steal(PyObject_CallMethodObjArgs(h->script, state->str_main, library.get(), ctl, nullptr));
     auto ok = res.get() != nullptr || store_python_error("script main failed");
-    py_control_end(ctl, ControlRef::Share);
+    py_control_end(ctl, ControlRef::share);
     return ok;
 }
 
@@ -749,7 +748,7 @@ auto py_register(PyObject *module, PyObject *args, PyObject *kwargs) -> PyObject
         PyErr_SetString(PyExc_TypeError, "script must be an instance of clingo.script.Script");
         return nullptr;
     }
-    auto handle = steal(handle_new(state, script, lib, nullptr));
+    auto handle = steal(handle_new(state, script, nullptr));
     if (handle.get() == nullptr) {
         return nullptr;
     }
@@ -770,7 +769,7 @@ auto py_enable_python(PyObject *module, PyObject *args, PyObject *kwargs) -> PyO
     if (main == nullptr) {
         return nullptr;
     }
-    auto handle = steal(handle_new(state, nullptr, lib, PyModule_GetDict(main)));
+    auto handle = steal(handle_new(state, nullptr, PyModule_GetDict(main)));
     if (handle.get() == nullptr) {
         return nullptr;
     }
@@ -854,7 +853,6 @@ auto register_python(clingo_lib_t *lib) -> bool {
     if (ext == nullptr) {
         return set_clingo_error("out of memory");
     }
-    ext->lib = lib;
     return clingo_script_register(lib, &external_script, static_cast<void *>(ext.release()));
 }
 

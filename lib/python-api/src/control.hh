@@ -37,19 +37,22 @@ class ConstMap {
 class Control;
 using PyControl = Annotation<Control>;
 
-enum class ControlRef : uint8_t { Share, Claim };
+//! How a clingo control object is passed to a callback (see py_control_begin()).
+enum class ControlRef : uint8_t { share, claim };
 
 //! A control object.
 //!
+//! Each clingo control object is represented by at most one control object,
+//! which is registered as its owner so that callbacks receive the same object.
 //! There are two kinds of control objects:
 //!
-//! - Owned control objects are created from Python or opened for a callback
-//!   (see py_control_open()). They own their clingo control object and are
-//!   registered as its owner so that callbacks receive the same object.
-//! - Non-owned control objects are created for clingo control objects passed
-//!   to callbacks that are not owned by a Python object (see
-//!   py_control_new()). They neither acquire nor release their clingo control
-//!   object.
+//! - Owned control objects are created from Python or claimed for a callback
+//!   (see py_control_begin()). They own their clingo control object.
+//! - Non-owned control objects are created for clingo control objects that are
+//!   shared with a callback but not represented by a Python object yet (see
+//!   py_control_begin()). They neither acquire nor release their clingo
+//!   control object. Instead, the clingo control object holds a reference to
+//!   them, which is released by a finalizer when it is destroyed.
 //!
 //! In both cases, objects registered with the control object (e.g.,
 //! propagators) are kept alive by the Python object, which also keeps the
@@ -66,14 +69,14 @@ class Control : public managed_handle<Control, clingo_control_t>, public referen
     Control(Control &&other) noexcept = delete;
     auto operator=(Control const &other) -> Control & = delete;
     auto operator=(Control &&other) noexcept -> Control & = delete;
-    //! Unregister an owned control object from its clingo control object.
+    //! Unregister the control object from its clingo control object.
     ~Control();
 
     //! Create a non-owned control object.
     static auto borrow(py::object lib, clingo_control_t *ctl) -> py::object;
     //! Create an owned control object for an existing clingo control object.
     static auto acquire(py::object lib, clingo_control_t *ctl) -> py::object;
-    //! Get the owned control object registered with the given clingo control object (nullptr if there is none).
+    //! Get the control object registered with the given clingo control object (nullptr if there is none).
     static auto owner(clingo_control_t *ctl) -> Control *;
 
     auto mode() -> clingo_mode_e;
@@ -131,10 +134,8 @@ class Control : public managed_handle<Control, clingo_control_t>, public referen
 
     //! Set up garbage collection support.
     //!
-    //! In addition to the objects kept alive by the control object, an owning
-    //! control object that holds the only reference to its clingo control
-    //! object reports the non-owned control objects kept alive by finalizers.
-    //! When cleared, the clingo control object is released first.
+    //! When cleared, an owning control object releases its clingo control
+    //! object first.
     static void setup(PyHeapTypeObject *heap_type);
 
   private:
@@ -142,14 +143,11 @@ class Control : public managed_handle<Control, clingo_control_t>, public referen
     Control(py::object lib, clingo_control_t *ctl, Parent::borrow_t tag);
     Control(py::object lib, clingo_control_t *ctl);
 
-    //! Register an owned control object with its clingo control object.
+    //! Register the control object with its clingo control object.
     void register_();
-    //! Remove the registration of an owned control object.
+    //! Remove the registration of the control object.
     void unregister_() noexcept;
 
-    friend auto py_control_begin(PyObject *type, PyObject *library, clingo_control_t *ctl, ControlRef ref)
-        -> PyObject *;
-    friend void py_control_end(PyObject *obj, ControlRef ref);
     static auto callable_([[maybe_unused]] char const *name, [[maybe_unused]] size_t name_size,
                           [[maybe_unused]] size_t arguments_size, [[maybe_unused]] void *data, bool *result) -> bool {
         CLINGO_TRY {
@@ -159,7 +157,6 @@ class Control : public managed_handle<Control, clingo_control_t>, public referen
     }
 };
 
-//! Get the `clingo.control.Control` type (new reference).
 auto py_control_type() -> PyObject *;
 
 //! Begin using a `clingo_control_t` object from Python.
@@ -167,24 +164,22 @@ auto py_control_type() -> PyObject *;
 //! Returns a new reference to a `clingo.control.Control` object that must be
 //! passed to `py_control_end` with the same reference type.
 //!
-//! If the reference type is claim, the control must not have a Python owner.
-//! The returned object owns the control until the matching end call, which
-//! invalidates it.
+//! If the reference type is claim, the control must not have a Python owner;
+//! otherwise, an error is raised. The returned object owns the control until
+//! the matching end call, which invalidates it.
 //!
 //! If the reference type is share and the control already has a Python owner,
-//! that owner is returned and stays valid after the end call. Otherwise, a
-//! non-owning object is returned. If it keeps Python objects at the end call,
-//! it stays valid until the `clingo_control_t` object is destroyed; otherwise
-//! the end call invalidates it.
+//! that owner is returned. Otherwise, a non-owning object is returned and
+//! registered as the control's owner. The `clingo_control_t` object keeps it
+//! alive and invalidates it when it is destroyed.
 auto py_control_begin(PyObject *type, PyObject *library, clingo_control_t *ctl, ControlRef ref_type) -> PyObject *;
 
 //! End using a `clingo_control_t` object from Python.
 //!
-//! Steals the reference to the object returned by `py_control_begin`. Returns
-//! false and sets a Python error on failure.
+//! Steals the reference to the object returned by `py_control_begin`.
 //!
 //! See `py_control_begin` for the reference type semantics.
-void py_control_end(PyObject *obj, ControlRef ref_type);
+void py_control_end(PyObject *obj, ControlRef ref_type) noexcept;
 
 void register_control(pybind11::module &m);
 

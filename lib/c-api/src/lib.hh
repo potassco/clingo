@@ -7,6 +7,7 @@
 #include <clingo/core/logger.hh>
 #include <clingo/core/symbol.hh>
 
+#include <algorithm>
 #include <stdexcept> // IWYU pragma: keep
 #include <utility>
 #include <vector>
@@ -51,6 +52,7 @@ struct clingo_lib {
     CppClingo::Logger log;
     CppClingo::Control::Scripts scripts;
     CppClingo::CAPI::Owners owners;
+    std::vector<std::pair<clingo_finalizer_t, void *>> finalizers;
     std::unique_ptr<CppClingo::SymbolStore> store;
     void *data;
     clingo_lib_t *next_ = nullptr;

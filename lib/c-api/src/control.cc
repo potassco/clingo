@@ -113,24 +113,6 @@ extern "C" auto clingo_control_add_finalizer(clingo_control_t *control, clingo_f
     CLINGO_CATCH;
 }
 
-extern "C" void clingo_control_remove_finalizer(clingo_control_t *control, clingo_finalizer_t finalizer, void *data) {
-    for (auto it = control->finalizers.rbegin(); it != control->finalizers.rend(); ++it) {
-        if (it->first == finalizer && it->second == data) {
-            control->finalizers.erase(std::prev(it.base()));
-            return;
-        }
-    }
-}
-
-extern "C" auto clingo_control_visit_finalizers(clingo_control_t const *control, clingo_finalizer_visitor_t visit,
-                                                void *data) -> bool {
-    return std::ranges::all_of(control->finalizers, [&](auto const &fd) { return visit(fd.first, fd.second, data); });
-}
-
-extern "C" auto clingo_control_ref_count(clingo_control_t const *control) -> size_t {
-    return control->ref_count.load();
-}
-
 extern "C" auto clingo_control_set_owner(clingo_control_t *control, void const *tag, void *owner) -> bool {
     CLINGO_TRY {
         control->owners.set(tag, owner);

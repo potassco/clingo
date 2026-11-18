@@ -102,18 +102,6 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_acquire(clingo_control_t *control)
 //! @param[in] control the target
 CLINGO_VISIBILITY_DEFAULT void clingo_control_release(clingo_control_t *control);
 
-//! Get the reference count of the given control object.
-//!
-//! Language bindings can use this to check how many references to the given
-//! control object are held.
-//!
-//! @param[in] control the target
-//! @return the reference count
-CLINGO_VISIBILITY_DEFAULT size_t clingo_control_ref_count(clingo_control_t const *control);
-
-//! Callback to finalize user data when an object is destroyed.
-typedef void (*clingo_finalizer_t)(void *data);
-
 //! Add a function to be called when the given control object is destroyed.
 //!
 //! Finalizers are called in reverse order of registration after all objects
@@ -129,33 +117,6 @@ typedef void (*clingo_finalizer_t)(void *data);
 //! - ::clingo_result_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_add_finalizer(clingo_control_t *control, clingo_finalizer_t finalizer,
                                                             void *data);
-
-//! Remove a previously added finalizer from the given control object.
-//!
-//! @param[in] control the target
-//! @param[in] finalizer the function to call
-//! @param[in] data the user data passed to the finalizer
-CLINGO_VISIBILITY_DEFAULT void clingo_control_remove_finalizer(clingo_control_t *control, clingo_finalizer_t finalizer,
-                                                               void *data);
-
-//! Callback to visit the finalizers of a control object.
-//!
-//! @param[in] finalizer the finalizer function
-//! @param[in] finalizer_data the user data passed to the finalizer
-//! @param[in] data the user data passed to clingo_control_visit_finalizers()
-//! @return true to continue visiting and false to stop
-typedef bool (*clingo_finalizer_visitor_t)(clingo_finalizer_t finalizer, void *finalizer_data, void *data);
-
-//! Visit the finalizers added to the given control object.
-//!
-//! Language bindings can use this to inspect the objects kept alive by a
-//! control object, e.g., to implement cycle detection in garbage collectors.
-//!
-//! @param[in] control the target
-//! @param[in] visit the visitor
-//! @param[in] data the user data passed to the visitor
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_visit_finalizers(clingo_control_t const *control,
-                                                               clingo_finalizer_visitor_t visit, void *data);
 
 //! Set or remove the owner of a control object registered under the given tag.
 //!

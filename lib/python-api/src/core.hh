@@ -99,12 +99,12 @@ class Library : public managed_handle<Library, clingo_lib_t>, public reference_k
     Library(Library &&other) noexcept = delete;
     auto operator=(Library const &other) -> Library & = delete;
     auto operator=(Library &&other) noexcept -> Library & = delete;
-    //! Unregister an owning wrapper from its library.
+    //! Unregister the wrapper from its library.
     ~Library();
 
-    //! Create a wrapper that neither acquires nor releases the library.
+    //! Create a registered wrapper that neither acquires nor releases the library.
     static auto borrow(clingo_lib_t *lib) -> py::object;
-    //! Get the owning wrapper registered with the given library (nullptr if there is none).
+    //! Get the wrapper registered with the given library (nullptr if there is none).
     static auto owner(clingo_lib_t *lib) -> Library *;
     //! Detach the wrapper from its library.
     void invalidate() noexcept;
@@ -113,7 +113,9 @@ class Library : public managed_handle<Library, clingo_lib_t>, public reference_k
     using Parent = managed_handle<Library, clingo_lib_t>;
     Library(clingo_lib_t *lib, Parent::borrow_t tag);
 
-    //! Remove the registration of an owning wrapper from its library.
+    //! Register the wrapper with its library.
+    void register_();
+    //! Remove the registration of the wrapper from its library.
     void unregister_() noexcept;
 
     static clingo_logger_t c_logger;
@@ -199,23 +201,16 @@ auto py_library_type() -> PyObject *;
 //! has been invalidated.
 auto py_library_get(PyObject *type, PyObject *obj) -> clingo_lib_t *;
 
-//! Create a `clingo.core.Library` object not owning the given library.
+//! Get the `clingo.core.Library` object for a `clingo_lib_t` object.
 //!
-//! The object must be invalidated with `py_library_invalidate` before the
-//! clingo library is destroyed. Returns a new reference or nullptr with a
-//! Python error set.
-auto py_library_borrow(PyObject *type, clingo_lib_t *lib) -> PyObject *;
-
-//! Get the `clingo.core.Library` object owning the given library.
+//! Each clingo library is represented by at most one library object, which is
+//! registered as its owner. If there is one, it is returned. Otherwise, Python
+//! attaches itself to the library: a non-owning library object is created and
+//! registered. The clingo library keeps it alive and invalidates it when it is
+//! released.
 //!
-//! Returns a new reference or nullptr without an error set if the library is
-//! not owned by a `clingo.core.Library` object.
-auto py_library_owner(PyObject *type, clingo_lib_t *lib) -> PyObject *;
-
-//! Detach a `clingo.core.Library` object from its clingo library.
-//!
-//! Further use from Python raises an error.
-void py_library_invalidate(PyObject *obj);
+//! Returns a new reference or nullptr with a Python error set.
+auto py_library_attach(PyObject *type, clingo_lib_t *lib) -> PyObject *;
 
 //! Keep the given object alive as long as the library object.
 //!
