@@ -118,6 +118,17 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t leve
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_lib_set_owner(clingo_lib_t *lib, void const *tag, void *owner) -> bool {
+    CLINGO_TRY {
+        lib->owners.set(tag, owner);
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_lib_get_owner(clingo_lib_t const *lib, void const *tag) -> void * {
+    return lib->owners.get(tag);
+}
+
 extern "C" void clingo_lib_acquire(clingo_lib_t *lib) {
     if (lib != nullptr) {
         ++lib->ref_count;

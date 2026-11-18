@@ -154,6 +154,30 @@ CLINGO_VISIBILITY_DEFAULT int clingo_control_visit_finalizers(clingo_control_t c
 //! @return the reference count
 CLINGO_VISIBILITY_DEFAULT size_t clingo_control_ref_count(clingo_control_t const *control);
 
+//! Set or remove the owner of a control object registered under the given tag.
+//!
+//! Language bindings can use this to map control objects back to the objects
+//! wrapping them. The owner is a borrowed pointer, which must be removed
+//! (by passing NULL) before it becomes invalid. Each binding should use its
+//! own tag, e.g., the address of a static variable.
+//!
+//! The function must not be called concurrently with other functions
+//! modifying the control object.
+//!
+//! @param[in] control the target
+//! @param[in] tag the tag identifying the binding
+//! @param[in] owner the owner or NULL to remove it
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_owner(clingo_control_t *control, void const *tag, void *owner);
+
+//! Get the owner of a control object registered under the given tag.
+//!
+//! @param[in] control the target
+//! @param[in] tag the tag identifying the binding
+//! @return the owner or NULL if there is none
+CLINGO_VISIBILITY_DEFAULT void *clingo_control_get_owner(clingo_control_t const *control, void const *tag);
+
 //! Get the configured mode.
 //!
 //! @param[in] control the target

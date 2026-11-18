@@ -239,6 +239,30 @@ CLINGO_VISIBILITY_DEFAULT void clingo_lib_acquire(clingo_lib_t *lib);
 //! @param[in] lib the target
 CLINGO_VISIBILITY_DEFAULT void clingo_lib_release(clingo_lib_t *lib);
 
+//! Set or remove the owner of a library registered under the given tag.
+//!
+//! Language bindings can use this to map libraries back to the objects
+//! wrapping them. The owner is a borrowed pointer, which must be removed
+//! (by passing NULL) before it becomes invalid. Each binding should use its
+//! own tag, e.g., the address of a static variable.
+//!
+//! The function must not be called concurrently with other functions
+//! modifying the library.
+//!
+//! @param[in] lib the target library
+//! @param[in] tag the tag identifying the binding
+//! @param[in] owner the owner or NULL to remove it
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_lib_set_owner(clingo_lib_t *lib, void const *tag, void *owner);
+
+//! Get the owner of a library registered under the given tag.
+//!
+//! @param[in] lib the target library
+//! @param[in] tag the tag identifying the binding
+//! @return the owner or NULL if there is none
+CLINGO_VISIBILITY_DEFAULT void *clingo_lib_get_owner(clingo_lib_t const *lib, void const *tag);
+
 //! Report a message via the library’s logger.
 //!
 //! @param[in] lib the library

@@ -8,12 +8,55 @@
 #include <clingo/core/symbol.hh>
 
 #include <stdexcept> // IWYU pragma: keep
+#include <utility>
+#include <vector>
+
+namespace CppClingo::CAPI {
+
+//! Borrowed pointers to objects of language bindings identified by tags.
+//!
+//! Language bindings can use this to map C objects back to their wrappers.
+class Owners {
+  public:
+    //! Set (owner != nullptr) or remove (owner == nullptr) the owner with the given tag.
+    void set(void const *tag, void *owner) {
+        for (auto it = owners_.begin(); it != owners_.end(); ++it) {
+            if (it->first == tag) {
+                if (owner != nullptr) {
+                    it->second = owner;
+                } else {
+                    owners_.erase(it);
+                }
+                return;
+            }
+        }
+        if (owner != nullptr) {
+            owners_.emplace_back(tag, owner);
+        }
+    }
+
+    //! Get the owner with the given tag or nullptr.
+    [[nodiscard]] auto get(void const *tag) const -> void * {
+        for (auto const &[key, owner] : owners_) {
+            if (key == tag) {
+                return owner;
+            }
+        }
+        return nullptr;
+    }
+
+  private:
+    std::vector<std::pair<void const *, void *>> owners_;
+};
+
+} // namespace CppClingo::CAPI
 
 struct clingo_lib {
     clingo_lib(CppClingo::Logger log, std::unique_ptr<CppClingo::SymbolStore> store, void *data, bool fast_release)
         : log{std::move(log)}, store{std::move(store)}, data{data}, fast_release{fast_release} {}
     CppClingo::Logger log;
     CppClingo::Control::Scripts scripts;
+    CppClingo::CAPI::Owners owners;
     std::unique_ptr<CppClingo::SymbolStore> store;
     void *data;
     clingo_lib_t *next_ = nullptr;

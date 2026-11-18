@@ -95,14 +95,26 @@ class Library : public managed_handle<Library, clingo_lib_t>, public reference_k
     static void acquire(clingo_lib_t *lib, bool inc = true);
     static void release(clingo_lib_t *lib) noexcept;
 
+    Library(Library const &other) = delete;
+    Library(Library &&other) noexcept = delete;
+    auto operator=(Library const &other) -> Library & = delete;
+    auto operator=(Library &&other) noexcept -> Library & = delete;
+    //! Unregister an owning wrapper from its library.
+    ~Library();
+
     //! Create a wrapper that neither acquires nor releases the library.
     static auto borrow(clingo_lib_t *lib) -> py::object;
+    //! Get the owning wrapper registered with the given library (nullptr if there is none).
+    static auto owner(clingo_lib_t *lib) -> Library *;
     //! Detach the wrapper from its library.
     void invalidate() noexcept;
 
   private:
     using Parent = managed_handle<Library, clingo_lib_t>;
     Library(clingo_lib_t *lib, Parent::borrow_t tag);
+
+    //! Remove the registration of an owning wrapper from its library.
+    void unregister_() noexcept;
 
     static clingo_logger_t c_logger;
 };
@@ -193,6 +205,12 @@ auto py_library_get(PyObject *type, PyObject *obj) -> clingo_lib_t *;
 //! clingo library is destroyed. Returns a new reference or nullptr with a
 //! Python error set.
 auto py_library_borrow(PyObject *type, clingo_lib_t *lib) -> PyObject *;
+
+//! Get the `clingo.core.Library` object owning the given library.
+//!
+//! Returns a new reference or nullptr without an error set if the library is
+//! not owned by a `clingo.core.Library` object.
+auto py_library_owner(PyObject *type, clingo_lib_t *lib) -> PyObject *;
 
 //! Detach a `clingo.core.Library` object from its clingo library.
 //!

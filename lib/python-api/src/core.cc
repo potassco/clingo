@@ -270,6 +270,30 @@ auto string_builder() -> clingo_string_builder_t * {
     return builder.get();
 }
 
+namespace {
+
+//! The tag under which owning wrappers are registered with their libraries.
+//!
+//! NOTE: should be moved into the module state once the module is ported.
+char const library_owner_tag = 0;
+
+} // namespace
+
+Library::~Library() {
+    unregister_();
+}
+
+void Library::unregister_() noexcept {
+    if (auto *lib = get_unchecked(); lib != nullptr && owns()) {
+        // NOTE: removing an owner does not allocate and cannot fail
+        std::ignore = clingo_lib_set_owner(lib, &library_owner_tag, nullptr);
+    }
+}
+
+auto Library::owner(clingo_lib_t *lib) -> Library * {
+    return static_cast<Library *>(clingo_lib_get_owner(lib, &library_owner_tag));
+}
+
 Library::Library(clingo_lib_t *lib, Parent::borrow_t tag) : Parent{lib, tag} {
 }
 
@@ -278,6 +302,7 @@ auto Library::borrow(clingo_lib_t *lib) -> py::object {
 }
 
 void Library::invalidate() noexcept {
+    unregister_();
     reset();
 }
 
@@ -298,6 +323,7 @@ Library::Library(bool shared, bool slotted, bool fast_release, clingo_log_level_
     clingo_lib_t *lib = nullptr;
     handle_error(clingo_lib_new(flags, level, ptr != nullptr ? &c_logger : nullptr, ptr, default_message_limit, &lib));
     reset(lib, false);
+    handle_error(clingo_lib_set_owner(lib, &library_owner_tag, this));
     tie(cb);
 }
 
@@ -330,6 +356,7 @@ void Library::acquire(clingo_lib_t *lib, bool inc) {
 }
 
 void Library::close() noexcept {
+    unregister_();
     reset();
 }
 
@@ -387,6 +414,26 @@ auto py_library_get(PyObject *type, PyObject *obj) -> clingo_lib_t * {
 auto py_library_borrow(PyObject *type, clingo_lib_t *lib) -> PyObject * {
     try {
         auto obj = Library::borrow(lib);
+        if (PyObject_TypeCheck(obj.ptr(), reinterpret_cast<PyTypeObject *>(type)) == 0) {
+            PyErr_SetString(PyExc_TypeError, "type is not clingo.core.Library");
+            return nullptr;
+        }
+        return obj.release().ptr();
+    } catch (py::error_already_set &e) {
+        e.restore();
+    } catch (std::exception const &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    }
+    return nullptr;
+}
+
+auto py_library_owner(PyObject *type, clingo_lib_t *lib) -> PyObject * {
+    auto *owner = Library::owner(lib);
+    if (owner == nullptr) {
+        return nullptr;
+    }
+    try {
+        auto obj = py::cast(owner, py::return_value_policy::reference);
         if (PyObject_TypeCheck(obj.ptr(), reinterpret_cast<PyTypeObject *>(type)) == 0) {
             PyErr_SetString(PyExc_TypeError, "type is not clingo.core.Library");
             return nullptr;

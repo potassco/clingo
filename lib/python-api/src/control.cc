@@ -55,10 +55,29 @@ Control::Control(Library &lib, std::span<std::string const> args) {
     clingo_control_t *ctl = nullptr;
     handle_error(clingo_control_new(lib, cargs.data(), cargs.size(), &ctl));
     reset(ctl, false);
+    register_();
 }
 
 Control::Control(py::object lib, clingo_control_t *ctl, Parent::borrow_t tag) : Parent{ctl, tag} {
     keep_owner(std::move(lib));
+}
+
+Control::Control(py::object lib, clingo_control_t *ctl) : Parent{ctl} {
+    keep_owner(std::move(lib));
+    register_();
+}
+
+Control::~Control() {
+    unregister_();
+}
+
+auto Control::acquire(py::object lib, clingo_control_t *ctl) -> py::object {
+    return py::cast(std::unique_ptr<Control>(new Control{std::move(lib), ctl}));
+}
+
+void Control::invalidate() noexcept {
+    unregister_();
+    reset();
 }
 
 auto Control::borrow(py::object lib, clingo_control_t *ctl) -> py::object {
@@ -648,6 +667,11 @@ auto py_control_type() -> PyObject * {
 
 namespace {
 
+//! The tag under which owned control objects are registered with their clingo control objects.
+//!
+//! NOTE: should be moved into the module state once the module is ported.
+char const control_owner_tag = 0;
+
 void control_finalizer(void *data) {
     // NOTE: objects cannot be released anymore once the interpreter is gone
     if (Py_IsInitialized() == 0) {
@@ -667,6 +691,21 @@ void control_finalizer(void *data) {
 }
 
 } // namespace
+
+void Control::register_() {
+    handle_error(clingo_control_set_owner(get(), &control_owner_tag, this));
+}
+
+void Control::unregister_() noexcept {
+    if (auto *ctl = get_unchecked(); ctl != nullptr && owns()) {
+        // NOTE: removing an owner does not allocate and cannot fail
+        std::ignore = clingo_control_set_owner(ctl, &control_owner_tag, nullptr);
+    }
+}
+
+auto Control::owner(clingo_control_t *ctl) -> Control * {
+    return static_cast<Control *>(clingo_control_get_owner(ctl, &control_owner_tag));
+}
 
 void Control::setup(PyHeapTypeObject *heap_type) {
     auto *type = &heap_type->ht_type;
@@ -709,7 +748,7 @@ void Control::setup(PyHeapTypeObject *heap_type) {
         // NOTE: releasing the clingo control object first runs its finalizers
         // and ensures that registered objects outlive it
         if (self->owns()) {
-            self->reset();
+            self->invalidate();
         }
         Py_CLEAR(self->list_.ptr());
         Py_CLEAR(self->owner_.ptr());
@@ -719,7 +758,10 @@ void Control::setup(PyHeapTypeObject *heap_type) {
 
 auto py_control_new(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject * {
     try {
-        auto obj = Control::borrow(py::reinterpret_borrow<py::object>(library), ctl);
+        // NOTE: callbacks of owned control objects receive the owning object
+        auto *owner = Control::owner(ctl);
+        auto obj = owner != nullptr ? py::cast(owner, py::return_value_policy::reference)
+                                    : Control::borrow(py::reinterpret_borrow<py::object>(library), ctl);
         if (PyObject_TypeCheck(obj.ptr(), reinterpret_cast<PyTypeObject *>(type)) == 0) {
             PyErr_SetString(PyExc_TypeError, "type is not clingo.control.Control");
             return nullptr;
@@ -737,6 +779,10 @@ auto py_control_detach(PyObject *obj) -> bool {
     auto ref = steal(obj);
     try {
         auto &ctl = py::cast<Control &>(py::handle{obj});
+        // NOTE: owned control objects keep registered objects alive themselves
+        if (ctl.owns()) {
+            return true;
+        }
         auto *c_ctl = ctl.get_unchecked();
         if (ctl.kept() == 0 || c_ctl == nullptr) {
             ctl.invalidate();
@@ -749,6 +795,44 @@ auto py_control_detach(PyObject *obj) -> bool {
             return false;
         }
         std::ignore = ref.release();
+        return true;
+    } catch (py::error_already_set &e) {
+        e.restore();
+    } catch (std::exception const &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    }
+    return false;
+}
+
+auto py_control_open(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject * {
+    try {
+        auto *owner = Control::owner(ctl);
+        auto obj = owner != nullptr ? py::cast(owner, py::return_value_policy::reference)
+                                    : Control::acquire(py::reinterpret_borrow<py::object>(library), ctl);
+        if (PyObject_TypeCheck(obj.ptr(), reinterpret_cast<PyTypeObject *>(type)) == 0) {
+            PyErr_SetString(PyExc_TypeError, "type is not clingo.control.Control");
+            return nullptr;
+        }
+        if (owner == nullptr) {
+            obj.cast<Control &>().opened_ = true;
+        }
+        return obj.release().ptr();
+    } catch (py::error_already_set &e) {
+        e.restore();
+    } catch (std::exception const &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    }
+    return nullptr;
+}
+
+auto py_control_close(PyObject *obj) -> bool {
+    auto ref = steal(obj);
+    try {
+        auto &ctl = py::cast<Control &>(py::handle{obj});
+        if (ctl.opened_) {
+            // NOTE: the control is not used anymore once its callback returned
+            ctl.invalidate();
+        }
         return true;
     } catch (py::error_already_set &e) {
         e.restore();

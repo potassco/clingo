@@ -41,11 +41,13 @@ using PyControl = Annotation<Control>;
 //!
 //! There are two kinds of control objects:
 //!
-//! - Owned control objects are created from Python. They own their clingo
-//!   control object.
+//! - Owned control objects are created from Python or opened for a callback
+//!   (see py_control_open()). They own their clingo control object and are
+//!   registered as its owner so that callbacks receive the same object.
 //! - Non-owned control objects are created for clingo control objects passed
-//!   to callbacks (see py_control_new()). They neither acquire nor release
-//!   their clingo control object.
+//!   to callbacks that are not owned by a Python object (see
+//!   py_control_new()). They neither acquire nor release their clingo control
+//!   object.
 //!
 //! In both cases, objects registered with the control object (e.g.,
 //! propagators) are kept alive by the Python object, which also keeps the
@@ -58,9 +60,19 @@ class Control : public managed_handle<Control, clingo_control_t>, public referen
     using HintConstMap = TypeHint<"typing.Mapping[str, clingo.symbol.Symbol]">;
 
     Control(Library &lib, std::span<std::string const> args);
+    Control(Control const &other) = delete;
+    Control(Control &&other) noexcept = delete;
+    auto operator=(Control const &other) -> Control & = delete;
+    auto operator=(Control &&other) noexcept -> Control & = delete;
+    //! Unregister an owned control object from its clingo control object.
+    ~Control();
 
     //! Create a non-owned control object.
     static auto borrow(py::object lib, clingo_control_t *ctl) -> py::object;
+    //! Create an owned control object for an existing clingo control object.
+    static auto acquire(py::object lib, clingo_control_t *ctl) -> py::object;
+    //! Get the owned control object registered with the given clingo control object (nullptr if there is none).
+    static auto owner(clingo_control_t *ctl) -> Control *;
 
     auto mode() -> clingo_mode_e;
     void parse_files(std::span<std::string const> files);
@@ -113,7 +125,7 @@ class Control : public managed_handle<Control, clingo_control_t>, public referen
     auto c_ptr() -> clingo_control_t * { return get(); }
 
     //! Detach the control object from its clingo control object.
-    void invalidate() noexcept { reset(); }
+    void invalidate() noexcept;
 
     //! Set up garbage collection support.
     //!
@@ -126,6 +138,17 @@ class Control : public managed_handle<Control, clingo_control_t>, public referen
   private:
     using Parent = managed_handle<Control, clingo_control_t>;
     Control(py::object lib, clingo_control_t *ctl, Parent::borrow_t tag);
+    Control(py::object lib, clingo_control_t *ctl);
+
+    //! Register an owned control object with its clingo control object.
+    void register_();
+    //! Remove the registration of an owned control object.
+    void unregister_() noexcept;
+
+    friend auto py_control_open(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject *;
+    friend auto py_control_close(PyObject *obj) -> bool;
+    //! Whether the object was opened with py_control_open().
+    bool opened_ = false;
     static auto callable_([[maybe_unused]] char const *name, [[maybe_unused]] size_t name_size,
                           [[maybe_unused]] size_t arguments_size, [[maybe_unused]] void *data, bool *result) -> bool {
         CLINGO_TRY {
@@ -140,10 +163,29 @@ auto py_control_type() -> PyObject *;
 
 //! Create a `clingo.control.Control` object for a control object passed to a callback.
 //!
-//! The object does not own the clingo control object. It keeps the given
-//! library object alive. Once the callback returns, py_control_detach() must
-//! be called. Returns a new reference or nullptr with a Python error set.
+//! If the clingo control object is owned by a Python object, this object is
+//! returned. Otherwise, a non-owned object keeping the given library object
+//! alive is created. Once the callback returns, py_control_detach() must be
+//! called. Returns a new reference or nullptr with a Python error set.
 auto py_control_new(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject *;
+
+//! Open a `clingo.control.Control` object for a callback.
+//!
+//! This is meant for control objects that are not used anymore once the
+//! callback returns (like the one passed to an application's main function).
+//! Unless the clingo control object is already owned by a Python object, an
+//! owned object acquiring the clingo control object is created. Objects
+//! registered with it are kept alive as long as the Python object. Once the
+//! callback returns, py_control_close() must be called. Returns a new
+//! reference or nullptr with a Python error set.
+auto py_control_open(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject *;
+
+//! Close a control object opened with py_control_open() after its callback returned.
+//!
+//! The function steals the reference to the object. If the object was created
+//! by py_control_open(), it is invalidated, which releases the clingo control
+//! object. Returns false with a Python error set on failure.
+auto py_control_close(PyObject *obj) -> bool;
 
 //! Detach a control object created with py_control_new() after its callback returned.
 //!

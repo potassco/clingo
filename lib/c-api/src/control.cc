@@ -127,6 +127,17 @@ extern "C" auto clingo_control_ref_count(clingo_control_t const *control) -> siz
     return control->ref_count.load();
 }
 
+extern "C" auto clingo_control_set_owner(clingo_control_t *control, void const *tag, void *owner) -> bool {
+    CLINGO_TRY {
+        control->owners.set(tag, owner);
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_control_get_owner(clingo_control_t const *control, void const *tag) -> void * {
+    return control->owners.get(tag);
+}
+
 extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mode) -> bool {
     CLINGO_TRY {
         *mode = static_cast<clingo_mode_t>(control->slv->get_mode());
