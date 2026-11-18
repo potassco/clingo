@@ -67,7 +67,7 @@ struct clingo_control {
     CppClingo::Control::Solver *slv = nullptr;
     Clasp::ClaspConfig *cfg = nullptr;
     Clasp::ClaspFacade *clasp = nullptr;
-    std::vector<std::pair<clingo_control_finalizer_t, void *>> finalizers;
+    std::vector<std::pair<clingo_finalizer_t, void *>> finalizers;
     CppClingo::CAPI::Owners owners;
     std::atomic<size_t> ref_count = 1;
     bool own = false;

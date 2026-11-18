@@ -726,19 +726,21 @@ void Control::setup(PyHeapTypeObject *heap_type) {
         struct Visitor {
             visitproc visit;
             void *arg;
+            int result;
         };
-        auto visitor = Visitor{visit, arg};
-        return clingo_control_visit_finalizers(
+        auto visitor = Visitor{visit, arg, 0};
+        std::ignore = clingo_control_visit_finalizers(
             ctl,
-            [](clingo_control_finalizer_t finalizer, void *finalizer_data, void *data) -> int {
-                // NOTE: only finalizers added by py_control_detach hold Python objects
+            [](clingo_finalizer_t finalizer, void *finalizer_data, void *data) -> bool {
                 if (finalizer != control_finalizer) {
-                    return 0;
+                    return true;
                 }
                 auto *v = static_cast<Visitor *>(data);
-                return v->visit(static_cast<PyObject *>(finalizer_data), v->arg);
+                v->result = v->visit(static_cast<PyObject *>(finalizer_data), v->arg);
+                return v->result == 0;
             },
             &visitor);
+        return visitor.result;
     };
     type->tp_clear = [](PyObject *self_base) -> int {
         auto *self = py::cast<Control *>(py::handle(self_base));
@@ -756,15 +758,29 @@ void Control::setup(PyHeapTypeObject *heap_type) {
     };
 }
 
-auto py_control_new(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject * {
+auto py_control_begin(PyObject *type, PyObject *library, clingo_control_t *ctl, ControlRef ref_type) -> PyObject * {
     try {
-        // NOTE: callbacks of owned control objects receive the owning object
+        auto lib = py::reinterpret_borrow<py::object>(library);
         auto *owner = Control::owner(ctl);
-        auto obj = owner != nullptr ? py::cast(owner, py::return_value_policy::reference)
-                                    : Control::borrow(py::reinterpret_borrow<py::object>(library), ctl);
+        auto obj = py::object{};
+        if (owner != nullptr) {
+            // an existing owner is reused and stays valid after the end call
+            assert(ref_type == ControlRef::Share);
+            obj = py::cast(owner, py::return_value_policy::reference);
+        } else if (ref_type == ControlRef::Claim) {
+            // the claimed control is owned until the end call
+            obj = Control::acquire(lib, ctl);
+        } else {
+            // a non-owning wrapper, see py_control_end
+            obj = Control::borrow(lib, ctl);
+        }
         if (PyObject_TypeCheck(obj.ptr(), reinterpret_cast<PyTypeObject *>(type)) == 0) {
             PyErr_SetString(PyExc_TypeError, "type is not clingo.control.Control");
             return nullptr;
+        }
+        if (owner == nullptr && ref_type == ControlRef::Share) {
+            // the finalizer borrows the wrapper until the matching end call
+            handle_error(clingo_control_add_finalizer(ctl, control_finalizer, obj.ptr()));
         }
         return obj.release().ptr();
     } catch (py::error_already_set &e) {
@@ -775,71 +791,32 @@ auto py_control_new(PyObject *type, PyObject *library, clingo_control_t *ctl) ->
     return nullptr;
 }
 
-auto py_control_detach(PyObject *obj) -> bool {
+void py_control_end(PyObject *obj, ControlRef ref_type) {
     auto ref = steal(obj);
-    try {
-        auto &ctl = py::cast<Control &>(py::handle{obj});
-        // NOTE: owned control objects keep registered objects alive themselves
-        if (ctl.owns()) {
-            return true;
-        }
-        auto *c_ctl = ctl.get_unchecked();
-        if (ctl.kept() == 0 || c_ctl == nullptr) {
-            ctl.invalidate();
-            return true;
-        }
-        // NOTE: registered objects must live as long as the clingo control object
-        if (!clingo_control_add_finalizer(c_ctl, control_finalizer, obj)) {
-            std::ignore = ref.release();
-            py_handle_error();
-            return false;
-        }
-        std::ignore = ref.release();
-        return true;
-    } catch (py::error_already_set &e) {
-        e.restore();
-    } catch (std::exception const &e) {
-        PyErr_SetString(PyExc_RuntimeError, e.what());
+    // this cast cannot fail
+    auto &ctl = py::cast<Control &>(py::handle{obj});
+    if (ref_type == ControlRef::Claim) {
+        // the lifetime of the claimed control object ends here
+        ctl.invalidate();
+        return;
     }
-    return false;
-}
-
-auto py_control_open(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject * {
-    try {
-        auto *owner = Control::owner(ctl);
-        auto obj = owner != nullptr ? py::cast(owner, py::return_value_policy::reference)
-                                    : Control::acquire(py::reinterpret_borrow<py::object>(library), ctl);
-        if (PyObject_TypeCheck(obj.ptr(), reinterpret_cast<PyTypeObject *>(type)) == 0) {
-            PyErr_SetString(PyExc_TypeError, "type is not clingo.control.Control");
-            return nullptr;
-        }
-        if (owner == nullptr) {
-            obj.cast<Control &>().opened_ = true;
-        }
-        return obj.release().ptr();
-    } catch (py::error_already_set &e) {
-        e.restore();
-    } catch (std::exception const &e) {
-        PyErr_SetString(PyExc_RuntimeError, e.what());
+    if (ctl.owns()) {
+        // a registered owner stays alive, we only drop the reference
+        // returned by begin
+        return;
     }
-    return nullptr;
-}
-
-auto py_control_close(PyObject *obj) -> bool {
-    auto ref = steal(obj);
-    try {
-        auto &ctl = py::cast<Control &>(py::handle{obj});
-        if (ctl.opened_) {
-            // NOTE: the control is not used anymore once its callback returned
-            ctl.invalidate();
-        }
-        return true;
-    } catch (py::error_already_set &e) {
-        e.restore();
-    } catch (std::exception const &e) {
-        PyErr_SetString(PyExc_RuntimeError, e.what());
+    auto *c_ctl = ctl.get_unchecked();
+    assert(c_ctl != nullptr);
+    if (ctl.kept() == 0) {
+        // we remove the finalizer because the object keeps no references
+        // to other python objects
+        clingo_control_remove_finalizer(c_ctl, control_finalizer, obj);
+        ctl.invalidate();
+        return;
     }
-    return false;
+    // the finalizer takes over the reference returned by begin and
+    // invalidates the wrapper when the C control is destroyed
+    std::ignore = ref.release();
 }
 
 } // namespace PyClingo

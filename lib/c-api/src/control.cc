@@ -102,8 +102,8 @@ extern "C" void clingo_control_release(clingo_control_t *control) {
     }
 }
 
-extern "C" auto clingo_control_add_finalizer(clingo_control_t *control, clingo_control_finalizer_t finalizer,
-                                             void *data) -> bool {
+extern "C" auto clingo_control_add_finalizer(clingo_control_t *control, clingo_finalizer_t finalizer, void *data)
+    -> bool {
     CLINGO_TRY {
         if (control == nullptr || finalizer == nullptr) {
             return fail_arguments();
@@ -113,14 +113,18 @@ extern "C" auto clingo_control_add_finalizer(clingo_control_t *control, clingo_c
     CLINGO_CATCH;
 }
 
-extern "C" auto clingo_control_visit_finalizers(clingo_control_t const *control,
-                                                clingo_control_finalizer_visitor_t visit, void *data) -> int {
-    for (auto const &[finalizer, finalizer_data] : control->finalizers) {
-        if (auto res = visit(finalizer, finalizer_data, data); res != 0) {
-            return res;
+extern "C" void clingo_control_remove_finalizer(clingo_control_t *control, clingo_finalizer_t finalizer, void *data) {
+    for (auto it = control->finalizers.rbegin(); it != control->finalizers.rend(); ++it) {
+        if (it->first == finalizer && it->second == data) {
+            control->finalizers.erase(std::prev(it.base()));
+            return;
         }
     }
-    return 0;
+}
+
+extern "C" auto clingo_control_visit_finalizers(clingo_control_t const *control, clingo_finalizer_visitor_t visit,
+                                                void *data) -> bool {
+    return std::ranges::all_of(control->finalizers, [&](auto const &fd) { return visit(fd.first, fd.second, data); });
 }
 
 extern "C" auto clingo_control_ref_count(clingo_control_t const *control) -> size_t {

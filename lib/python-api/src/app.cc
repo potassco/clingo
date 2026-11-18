@@ -507,19 +507,14 @@ auto app_main_cb(clingo_control_t *ctl, clingo_string_t const *files, size_t siz
             return store_python_error("creating file list failed");
         }
     }
-    auto *pyctl = py_control_open(state->control_type, py_app_cast(app)->library, ctl);
+
+    auto *pyctl = py_control_begin(state->control_type, py_app_cast(app)->library, ctl, ControlRef::Claim);
     if (pyctl == nullptr) {
         return store_python_error("creating control failed");
     }
     auto ret = steal(PyObject_CallMethod(app, "main", "OO", pyctl, pyfiles.get()));
     auto ok = ret.get() != nullptr || store_python_error("main failed");
-    // NOTE: clingo_main does not use the control anymore once main returned
-    if (!py_control_close(pyctl)) {
-        if (ok) {
-            return store_python_error("closing control failed");
-        }
-        PyErr_Clear();
-    }
+    py_control_end(pyctl, ControlRef::Claim);
     return ok;
 }
 

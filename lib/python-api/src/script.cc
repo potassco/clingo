@@ -164,21 +164,6 @@ auto return_symbols(ScriptModuleState *state, PyObject *res, clingo_symbol_callb
     return cb(syms.data(), syms.size(), cb_data);
 }
 
-//! Detach a control object passed to a main function once the function returned.
-//!
-//! Steals the reference to the control object. The flag indicates whether the
-//! main function succeeded; otherwise, its error has already been stored.
-auto detach_control(PyObject *ctl, bool ok) -> bool {
-    // NOTE: the control is only valid during main unless objects are registered with it
-    if (!py_control_detach(ctl)) {
-        if (ok) {
-            return store_python_error("detaching control failed");
-        }
-        PyErr_Clear();
-    }
-    return ok;
-}
-
 // _ScriptHandle
 
 auto handle_new(ScriptModuleState *state, PyObject *script, PyObject *library, PyObject *scope) -> PyObject * {
@@ -342,13 +327,14 @@ auto main_main(PyObject *self, clingo_control_t *control) -> bool {
     if (state == nullptr) {
         return store_python_error("running main failed");
     }
-    auto *ctl = py_control_new(state->control_type, h->library, control);
+    auto *ctl = py_control_begin(state->control_type, h->library, control, ControlRef::Share);
     if (ctl == nullptr) {
         return store_python_error("creating control failed");
     }
     auto res = steal(PyObject_CallFunctionObjArgs(fun.get(), h->library, ctl, nullptr));
     auto ok = res.get() != nullptr || store_python_error("running main failed");
-    return detach_control(ctl, ok);
+    py_control_end(ctl, ControlRef::Share);
+    return ok;
 }
 
 void main_name([[maybe_unused]] void *data, clingo_string_t *name) {
@@ -591,13 +577,14 @@ auto custom_main_cb([[maybe_unused]] clingo_lib_t *lib, clingo_control_t *contro
     if (h == nullptr) {
         return store_python_error("script main failed");
     }
-    auto *ctl = py_control_new(state->control_type, h->library, control);
+    auto *ctl = py_control_begin(state->control_type, h->library, control, ControlRef::Share);
     if (ctl == nullptr) {
         return store_python_error("creating control failed");
     }
     auto res = steal(PyObject_CallMethodObjArgs(h->script, state->str_main, h->library, ctl, nullptr));
     auto ok = res.get() != nullptr || store_python_error("script main failed");
-    return detach_control(ctl, ok);
+    py_control_end(ctl, ControlRef::Share);
+    return ok;
 }
 
 //! Get a string from the script and cache it in the handle.

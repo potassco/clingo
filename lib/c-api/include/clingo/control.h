@@ -79,10 +79,10 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_const_map_size(clingo_const_map_t const *m
 //!
 //! A control object has to be freed using clingo_control_free().
 //!
-//! @note Only gringo options (without <code>\-\-output</code>) and clasp's options are supported as arguments,
-//! except basic options such as <code>\-\-help</code>.
-//! Furthermore, a control object is blocked while a search call is active;
-//! you must not call any member function during search.
+//! @note Only gringo options (without <code>\-\-output</code>) and clasp's
+//! options are supported as arguments, except basic options such as
+//! <code>\-\-help</code>. Furthermore, a control object is blocked while a
+//! search call is active; you must not call any member function during search.
 //!
 //! @param[in] lib clingo library object
 //! @param[in] arguments string array of command line arguments
@@ -102,8 +102,17 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_acquire(clingo_control_t *control)
 //! @param[in] control the target
 CLINGO_VISIBILITY_DEFAULT void clingo_control_release(clingo_control_t *control);
 
-//! Callback to finalize user data when a control object is destroyed.
-typedef void (*clingo_control_finalizer_t)(void *data);
+//! Get the reference count of the given control object.
+//!
+//! Language bindings can use this to check how many references to the given
+//! control object are held.
+//!
+//! @param[in] control the target
+//! @return the reference count
+CLINGO_VISIBILITY_DEFAULT size_t clingo_control_ref_count(clingo_control_t const *control);
+
+//! Callback to finalize user data when an object is destroyed.
+typedef void (*clingo_finalizer_t)(void *data);
 
 //! Add a function to be called when the given control object is destroyed.
 //!
@@ -113,25 +122,29 @@ typedef void (*clingo_control_finalizer_t)(void *data);
 //! Language bindings can use this to tie the lifetime of objects to the
 //! lifetime of the control object.
 //!
-//! The function must not be called concurrently with other functions
-//! modifying the control object.
-//!
 //! @param[in] control the target
 //! @param[in] finalizer the function to call
 //! @param[in] data the user data passed to the finalizer
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_result_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_control_add_finalizer(clingo_control_t *control,
-                                                            clingo_control_finalizer_t finalizer, void *data);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_add_finalizer(clingo_control_t *control, clingo_finalizer_t finalizer,
+                                                            void *data);
+
+//! Remove a previously added finalizer from the given control object.
+//!
+//! @param[in] control the target
+//! @param[in] finalizer the function to call
+//! @param[in] data the user data passed to the finalizer
+CLINGO_VISIBILITY_DEFAULT void clingo_control_remove_finalizer(clingo_control_t *control, clingo_finalizer_t finalizer,
+                                                               void *data);
 
 //! Callback to visit the finalizers of a control object.
 //!
 //! @param[in] finalizer the finalizer function
 //! @param[in] finalizer_data the user data passed to the finalizer
 //! @param[in] data the user data passed to clingo_control_visit_finalizers()
-//! @return zero to continue visiting and non-zero to stop
-typedef int (*clingo_control_finalizer_visitor_t)(clingo_control_finalizer_t finalizer, void *finalizer_data,
-                                                  void *data);
+//! @return true to continue visiting and false to stop
+typedef bool (*clingo_finalizer_visitor_t)(clingo_finalizer_t finalizer, void *finalizer_data, void *data);
 
 //! Visit the finalizers added to the given control object.
 //!
@@ -141,18 +154,8 @@ typedef int (*clingo_control_finalizer_visitor_t)(clingo_control_finalizer_t fin
 //! @param[in] control the target
 //! @param[in] visit the visitor
 //! @param[in] data the user data passed to the visitor
-//! @return zero if all finalizers were visited or the first non-zero result of the visitor
-CLINGO_VISIBILITY_DEFAULT int clingo_control_visit_finalizers(clingo_control_t const *control,
-                                                              clingo_control_finalizer_visitor_t visit, void *data);
-
-//! Get the reference count of the given control object.
-//!
-//! Language bindings can use this to check whether they hold the only
-//! reference to a control object.
-//!
-//! @param[in] control the target
-//! @return the reference count
-CLINGO_VISIBILITY_DEFAULT size_t clingo_control_ref_count(clingo_control_t const *control);
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_visit_finalizers(clingo_control_t const *control,
+                                                               clingo_finalizer_visitor_t visit, void *data);
 
 //! Set or remove the owner of a control object registered under the given tag.
 //!
@@ -160,9 +163,6 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_control_ref_count(clingo_control_t const
 //! wrapping them. The owner is a borrowed pointer, which must be removed
 //! (by passing NULL) before it becomes invalid. Each binding should use its
 //! own tag, e.g., the address of a static variable.
-//!
-//! The function must not be called concurrently with other functions
-//! modifying the control object.
 //!
 //! @param[in] control the target
 //! @param[in] tag the tag identifying the binding

@@ -37,6 +37,8 @@ class ConstMap {
 class Control;
 using PyControl = Annotation<Control>;
 
+enum class ControlRef : uint8_t { Share, Claim };
+
 //! A control object.
 //!
 //! There are two kinds of control objects:
@@ -145,10 +147,9 @@ class Control : public managed_handle<Control, clingo_control_t>, public referen
     //! Remove the registration of an owned control object.
     void unregister_() noexcept;
 
-    friend auto py_control_open(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject *;
-    friend auto py_control_close(PyObject *obj) -> bool;
-    //! Whether the object was opened with py_control_open().
-    bool opened_ = false;
+    friend auto py_control_begin(PyObject *type, PyObject *library, clingo_control_t *ctl, ControlRef ref)
+        -> PyObject *;
+    friend void py_control_end(PyObject *obj, ControlRef ref);
     static auto callable_([[maybe_unused]] char const *name, [[maybe_unused]] size_t name_size,
                           [[maybe_unused]] size_t arguments_size, [[maybe_unused]] void *data, bool *result) -> bool {
         CLINGO_TRY {
@@ -161,42 +162,29 @@ class Control : public managed_handle<Control, clingo_control_t>, public referen
 //! Get the `clingo.control.Control` type (new reference).
 auto py_control_type() -> PyObject *;
 
-//! Create a `clingo.control.Control` object for a control object passed to a callback.
+//! Begin using a `clingo_control_t` object from Python.
 //!
-//! If the clingo control object is owned by a Python object, this object is
-//! returned. Otherwise, a non-owned object keeping the given library object
-//! alive is created. Once the callback returns, py_control_detach() must be
-//! called. Returns a new reference or nullptr with a Python error set.
-auto py_control_new(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject *;
+//! Returns a new reference to a `clingo.control.Control` object that must be
+//! passed to `py_control_end` with the same reference type.
+//!
+//! If the reference type is claim, the control must not have a Python owner.
+//! The returned object owns the control until the matching end call, which
+//! invalidates it.
+//!
+//! If the reference type is share and the control already has a Python owner,
+//! that owner is returned and stays valid after the end call. Otherwise, a
+//! non-owning object is returned. If it keeps Python objects at the end call,
+//! it stays valid until the `clingo_control_t` object is destroyed; otherwise
+//! the end call invalidates it.
+auto py_control_begin(PyObject *type, PyObject *library, clingo_control_t *ctl, ControlRef ref_type) -> PyObject *;
 
-//! Open a `clingo.control.Control` object for a callback.
+//! End using a `clingo_control_t` object from Python.
 //!
-//! This is meant for control objects that are not used anymore once the
-//! callback returns (like the one passed to an application's main function).
-//! Unless the clingo control object is already owned by a Python object, an
-//! owned object acquiring the clingo control object is created. Objects
-//! registered with it are kept alive as long as the Python object. Once the
-//! callback returns, py_control_close() must be called. Returns a new
-//! reference or nullptr with a Python error set.
-auto py_control_open(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject *;
-
-//! Close a control object opened with py_control_open() after its callback returned.
+//! Steals the reference to the object returned by `py_control_begin`. Returns
+//! false and sets a Python error on failure.
 //!
-//! The function steals the reference to the object. If the object was created
-//! by py_control_open(), it is invalidated, which releases the clingo control
-//! object. Returns false with a Python error set on failure.
-auto py_control_close(PyObject *obj) -> bool;
-
-//! Detach a control object created with py_control_new() after its callback returned.
-//!
-//! The function steals the reference to the object. If objects have been
-//! registered with the control object, the reference is passed to the clingo
-//! control object, which releases it when it is destroyed. Otherwise, the
-//! object is invalidated and the reference is released.
-//!
-//! Returns false with a Python error set on failure. In this case, the
-//! reference is leaked to keep registered objects alive.
-auto py_control_detach(PyObject *obj) -> bool;
+//! See `py_control_begin` for the reference type semantics.
+void py_control_end(PyObject *obj, ControlRef ref_type);
 
 void register_control(pybind11::module &m);
 

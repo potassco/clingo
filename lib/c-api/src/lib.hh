@@ -20,33 +20,27 @@ class Owners {
   public:
     //! Set (owner != nullptr) or remove (owner == nullptr) the owner with the given tag.
     void set(void const *tag, void *owner) {
-        for (auto it = owners_.begin(); it != owners_.end(); ++it) {
-            if (it->first == tag) {
-                if (owner != nullptr) {
-                    it->second = owner;
-                } else {
-                    owners_.erase(it);
-                }
-                return;
+        auto it = std::ranges::find(owners_, tag, &Entry::first);
+        if (it == owners_.end()) {
+            if (owner != nullptr) {
+                owners_.emplace_back(tag, owner);
             }
-        }
-        if (owner != nullptr) {
-            owners_.emplace_back(tag, owner);
+        } else if (owner != nullptr) {
+            it->second = owner;
+        } else {
+            owners_.erase(it);
         }
     }
-
     //! Get the owner with the given tag or nullptr.
     [[nodiscard]] auto get(void const *tag) const -> void * {
-        for (auto const &[key, owner] : owners_) {
-            if (key == tag) {
-                return owner;
-            }
-        }
-        return nullptr;
+        auto it = std::ranges::find(owners_, tag, &Entry::first);
+        return it != owners_.end() ? it->second : nullptr;
     }
 
   private:
-    std::vector<std::pair<void const *, void *>> owners_;
+    using Entry = std::pair<void const *, void *>;
+
+    std::vector<Entry> owners_;
 };
 
 } // namespace CppClingo::CAPI
