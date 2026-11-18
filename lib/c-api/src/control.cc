@@ -113,6 +113,20 @@ extern "C" auto clingo_control_add_finalizer(clingo_control_t *control, clingo_c
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_control_visit_finalizers(clingo_control_t const *control,
+                                                clingo_control_finalizer_visitor_t visit, void *data) -> int {
+    for (auto const &[finalizer, finalizer_data] : control->finalizers) {
+        if (auto res = visit(finalizer, finalizer_data, data); res != 0) {
+            return res;
+        }
+    }
+    return 0;
+}
+
+extern "C" auto clingo_control_ref_count(clingo_control_t const *control) -> size_t {
+    return control->ref_count.load();
+}
+
 extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mode) -> bool {
     CLINGO_TRY {
         *mode = static_cast<clingo_mode_t>(control->slv->get_mode());

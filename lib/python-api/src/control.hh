@@ -115,6 +115,14 @@ class Control : public managed_handle<Control, clingo_control_t>, public referen
     //! Detach the control object from its clingo control object.
     void invalidate() noexcept { reset(); }
 
+    //! Set up garbage collection support.
+    //!
+    //! In addition to the objects kept alive by the control object, an owning
+    //! control object that holds the only reference to its clingo control
+    //! object reports the non-owned control objects kept alive by finalizers.
+    //! When cleared, the clingo control object is released first.
+    static void setup(PyHeapTypeObject *heap_type);
+
   private:
     using Parent = managed_handle<Control, clingo_control_t>;
     Control(py::object lib, clingo_control_t *ctl, Parent::borrow_t tag);

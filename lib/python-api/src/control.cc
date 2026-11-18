@@ -668,6 +668,55 @@ void control_finalizer(void *data) {
 
 } // namespace
 
+void Control::setup(PyHeapTypeObject *heap_type) {
+    auto *type = &heap_type->ht_type;
+    type->tp_flags |= Py_TPFLAGS_HAVE_GC;
+    type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
+        auto *self = py::cast<Control *>(py::handle(self_base));
+        if (!constructed_.contains(self)) {
+            return 0;
+        }
+        Py_VISIT(self->list_.ptr());
+        Py_VISIT(self->owner_.ptr());
+        // NOTE: the objects kept alive by the clingo control object can only
+        // be attributed to this object if it holds the only reference
+        auto *ctl = self->get_unchecked();
+        if (ctl == nullptr || !self->owns() || clingo_control_ref_count(ctl) != 1) {
+            return 0;
+        }
+        struct Visitor {
+            visitproc visit;
+            void *arg;
+        };
+        auto visitor = Visitor{visit, arg};
+        return clingo_control_visit_finalizers(
+            ctl,
+            [](clingo_control_finalizer_t finalizer, void *finalizer_data, void *data) -> int {
+                // NOTE: only finalizers added by py_control_detach hold Python objects
+                if (finalizer != control_finalizer) {
+                    return 0;
+                }
+                auto *v = static_cast<Visitor *>(data);
+                return v->visit(static_cast<PyObject *>(finalizer_data), v->arg);
+            },
+            &visitor);
+    };
+    type->tp_clear = [](PyObject *self_base) -> int {
+        auto *self = py::cast<Control *>(py::handle(self_base));
+        if (!constructed_.contains(self)) {
+            return 0;
+        }
+        // NOTE: releasing the clingo control object first runs its finalizers
+        // and ensures that registered objects outlive it
+        if (self->owns()) {
+            self->reset();
+        }
+        Py_CLEAR(self->list_.ptr());
+        Py_CLEAR(self->owner_.ptr());
+        return 0;
+    };
+}
+
 auto py_control_new(PyObject *type, PyObject *library, clingo_control_t *ctl) -> PyObject * {
     try {
         auto obj = Control::borrow(py::reinterpret_borrow<py::object>(library), ctl);

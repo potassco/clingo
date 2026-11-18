@@ -124,6 +124,36 @@ typedef void (*clingo_control_finalizer_t)(void *data);
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_add_finalizer(clingo_control_t *control,
                                                             clingo_control_finalizer_t finalizer, void *data);
 
+//! Callback to visit the finalizers of a control object.
+//!
+//! @param[in] finalizer the finalizer function
+//! @param[in] finalizer_data the user data passed to the finalizer
+//! @param[in] data the user data passed to clingo_control_visit_finalizers()
+//! @return zero to continue visiting and non-zero to stop
+typedef int (*clingo_control_finalizer_visitor_t)(clingo_control_finalizer_t finalizer, void *finalizer_data,
+                                                  void *data);
+
+//! Visit the finalizers added to the given control object.
+//!
+//! Language bindings can use this to inspect the objects kept alive by a
+//! control object, e.g., to implement cycle detection in garbage collectors.
+//!
+//! @param[in] control the target
+//! @param[in] visit the visitor
+//! @param[in] data the user data passed to the visitor
+//! @return zero if all finalizers were visited or the first non-zero result of the visitor
+CLINGO_VISIBILITY_DEFAULT int clingo_control_visit_finalizers(clingo_control_t const *control,
+                                                              clingo_control_finalizer_visitor_t visit, void *data);
+
+//! Get the reference count of the given control object.
+//!
+//! Language bindings can use this to check whether they hold the only
+//! reference to a control object.
+//!
+//! @param[in] control the target
+//! @return the reference count
+CLINGO_VISIBILITY_DEFAULT size_t clingo_control_ref_count(clingo_control_t const *control);
+
 //! Get the configured mode.
 //!
 //! @param[in] control the target
