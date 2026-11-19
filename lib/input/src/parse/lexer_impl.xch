@@ -43,7 +43,6 @@ namespace CppClingo::Input::Parse {
     COMMENT    = "%"[^*\n\000][^\000\n]*;
     SP         = [ ];
     NL         = [\r\n]+;
-    NOTEND     = ([^#] | '#' [^e] | '#' 'e' [^n] | '#' 'e' 'n' [^d])*;
     ACCESSOR   = [.] IDENTIFIER | "[" POS "]";
     CONVERSION = [!][rs];
     ALIGN      = [<>=^];
@@ -141,7 +140,9 @@ auto ParserState::lex_() -> TokenType {
             <include> INCSTRING            { return TokenType::str_include; }
             <normal> KEYWORD               { return TokenType::error; }
             <normal,theory,include> WS     { state_.start(); continue; }
-            <script> NOTEND / "#end"       { return TokenType::script_content; }
+            // NOTE: the lookahead counts into the pattern length
+            <script> "" / "#end"           { return TokenType::script_content; }
+            <script> [^#\000]+ | "#"       { continue; }
             <blockcomment> "*%" {
                 if(--bc_ == 0) {
                     push_comment(true);
