@@ -22,12 +22,14 @@ using PyObserverObject = struct {
 };
 
 using PyBackendObject = struct {
-    PyObject_HEAD clingo_backend_t *backend;
+    PyObject_HEAD
+    clingo_backend_t *backend;
     PyObject *owner;
 };
 
 using PyBackendManagerObject = struct {
-    PyObject_HEAD clingo_control_t *ctl;
+    PyObject_HEAD
+    clingo_control_t *ctl;
     clingo_backend_t *backend;
     PyObject *owner;
     PyObject *backend_obj;
@@ -530,7 +532,7 @@ auto py_observer_edge([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject
 auto py_observer_methods = std::array{
     PyMethodDef{
         "init_program",
-        py_c_function_cast(py_observer_init_program),
+        method_cast(py_observer_init_program),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
@@ -542,55 +544,55 @@ auto py_observer_methods = std::array{
     },
     PyMethodDef{
         "end_step",
-        py_c_function_cast(py_observer_end_step),
+        method_cast(py_observer_end_step),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "rule",
-        py_c_function_cast(py_observer_rule),
+        method_cast(py_observer_rule),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "weight_rule",
-        py_c_function_cast(py_observer_weight_rule),
+        method_cast(py_observer_weight_rule),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "minimize",
-        py_c_function_cast(py_observer_minimize),
+        method_cast(py_observer_minimize),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "project",
-        py_c_function_cast(py_observer_project),
+        method_cast(py_observer_project),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "external",
-        py_c_function_cast(py_observer_external),
+        method_cast(py_observer_external),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "assume",
-        py_c_function_cast(py_observer_assume),
+        method_cast(py_observer_assume),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "heuristic",
-        py_c_function_cast(py_observer_heuristic),
+        method_cast(py_observer_heuristic),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "edge",
-        py_c_function_cast(py_observer_edge),
+        method_cast(py_observer_edge),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
@@ -1147,97 +1149,97 @@ auto py_backend_theory_atom(PyObject *self, PyObject *args, PyObject *kwargs) ->
 auto py_backend_methods = std::array{
     PyMethodDef{
         "atom",
-        py_c_function_cast(py_backend_atom),
+        method_cast(py_backend_atom),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "rule",
-        py_c_function_cast(py_backend_rule),
+        method_cast(py_backend_rule),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "weight_rule",
-        py_c_function_cast(py_backend_weight_rule),
+        method_cast(py_backend_weight_rule),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "minimize",
-        py_c_function_cast(py_backend_minimize),
+        method_cast(py_backend_minimize),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "project",
-        py_c_function_cast(py_backend_project),
+        method_cast(py_backend_project),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "external",
-        py_c_function_cast(py_backend_external),
+        method_cast(py_backend_external),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "assume",
-        py_c_function_cast(py_backend_assume),
+        method_cast(py_backend_assume),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "heuristic",
-        py_c_function_cast(py_backend_heuristic),
+        method_cast(py_backend_heuristic),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "edge",
-        py_c_function_cast(py_backend_edge),
+        method_cast(py_backend_edge),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_number",
-        py_c_function_cast(py_backend_theory_number),
+        method_cast(py_backend_theory_number),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_string",
-        py_c_function_cast(py_backend_theory_string),
+        method_cast(py_backend_theory_string),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_symbol",
-        py_c_function_cast(py_backend_theory_symbol),
+        method_cast(py_backend_theory_symbol),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_sequence",
-        py_c_function_cast(py_backend_theory_sequence),
+        method_cast(py_backend_theory_sequence),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_function",
-        py_c_function_cast(py_backend_theory_function),
+        method_cast(py_backend_theory_function),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_element",
-        py_c_function_cast(py_backend_theory_element),
+        method_cast(py_backend_theory_element),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_atom",
-        py_c_function_cast(py_backend_theory_atom),
+        method_cast(py_backend_theory_atom),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR(""),
     },

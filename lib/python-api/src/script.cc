@@ -624,25 +624,25 @@ auto py_script_version([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObjec
 auto py_script_methods = std::array{
     PyMethodDef{
         "execute",
-        py_c_function_cast(py_script_execute),
+        method_cast(py_script_execute),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Execute the given code."),
     },
     PyMethodDef{
         "call",
-        py_c_function_cast(py_script_call),
+        method_cast(py_script_call),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Call the function with the given name and arguments and return a symbol or list of symbols."),
     },
     PyMethodDef{
         "callable",
-        py_c_function_cast(py_script_callable),
+        method_cast(py_script_callable),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Check if a function with the given name and number of arguments is callable."),
     },
     PyMethodDef{
         "main",
-        py_c_function_cast(py_script_main),
+        method_cast(py_script_main),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Run the main function with the given library and control object."),
     },
@@ -768,13 +768,13 @@ auto py_enable_python(PyObject *module, PyObject *args, PyObject *kwargs) -> PyO
 auto script_module_methods = std::array{
     PyMethodDef{
         "register",
-        py_c_function_cast(py_register),
+        method_cast(py_register),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Register a script language which can then be embedded into a logic program."),
     },
     PyMethodDef{
         "enable_python",
-        py_c_function_cast(py_enable_python),
+        method_cast(py_enable_python),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Enable embedded python scripts."),
     },

@@ -134,12 +134,6 @@ auto alloc_object(PyObject *type) -> PyObject * {
 
 // argument parsing
 
-using PyCFunctionFastKw = PyObject *(*)(PyObject *, PyObject *const *, Py_ssize_t, PyObject *);
-
-auto fast_cast(PyCFunctionFastKw fun) noexcept -> PyCFunction {
-    return reinterpret_cast<PyCFunction>(reinterpret_cast<void *>(fun)); // NOLINT
-}
-
 auto parse_bool(PyObject *obj, bool *out) -> bool {
     if (obj == nullptr) {
         return true;
@@ -261,7 +255,6 @@ auto int_list(clingo_literal_t const *values, size_t size) -> PyObject * {
     return list.release();
 }
 
-// NOTE: res is taken by reference because it is usually written by the call producing ok
 auto bool_result(bool ok, bool const &res) -> PyObject * {
     if (!ok) {
         return py_handle_error();
@@ -599,43 +592,43 @@ void py_assignment_dealloc(PyObject *self) {
 auto py_assignment_methods = std::array{
     PyMethodDef{
         "decision",
-        fast_cast(py_assignment_decision),
+        method_cast(py_assignment_decision),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Get the decision literal of the given level."),
     },
     PyMethodDef{
         "is_false",
-        fast_cast(py_assignment_is_false),
+        method_cast(py_assignment_is_false),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Check if the given literal is false."),
     },
     PyMethodDef{
         "is_true",
-        fast_cast(py_assignment_is_true),
+        method_cast(py_assignment_is_true),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Check if the given literal is true."),
     },
     PyMethodDef{
         "is_free",
-        fast_cast(py_assignment_is_free),
+        method_cast(py_assignment_is_free),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Check if the given literal is free."),
     },
     PyMethodDef{
         "is_fixed",
-        fast_cast(py_assignment_is_fixed),
+        method_cast(py_assignment_is_fixed),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Check if the truth value of the given literal is fixed."),
     },
     PyMethodDef{
         "level",
-        fast_cast(py_assignment_level),
+        method_cast(py_assignment_level),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Get the decision level of the given literal."),
     },
     PyMethodDef{
         "value",
-        fast_cast(py_assignment_value),
+        method_cast(py_assignment_value),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Get the truth value of the given literal or None if it is unassigned."),
     },
@@ -842,19 +835,19 @@ auto py_trail_end(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObj
 auto py_trail_methods = std::array{
     PyMethodDef{
         "level",
-        fast_cast(py_trail_level),
+        method_cast(py_trail_level),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Get the literals assigned at the given decision level."),
     },
     PyMethodDef{
         "begin",
-        fast_cast(py_trail_begin),
+        method_cast(py_trail_begin),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Get the index of the first literal on the given level."),
     },
     PyMethodDef{
         "end",
-        fast_cast(py_trail_end),
+        method_cast(py_trail_end),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Get the index after the last literal on the given level."),
     },
@@ -1121,37 +1114,37 @@ auto py_control_propagate(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyO
 auto py_control_methods = std::array{
     PyMethodDef{
         "add_clause",
-        fast_cast(py_control_add_clause),
+        method_cast(py_control_add_clause),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Add a clause and return whether it could be integrated without conflict."),
     },
     PyMethodDef{
         "add_weight_constraint",
-        fast_cast(py_control_add_weight_constraint),
+        method_cast(py_control_add_weight_constraint),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Add a weight constraint and return whether it could be added without conflict."),
     },
     PyMethodDef{
         "add_literal",
-        fast_cast(py_control_add_literal),
+        method_cast(py_control_add_literal),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Add a fresh literal to the solver."),
     },
     PyMethodDef{
         "add_nogood",
-        fast_cast(py_control_add_nogood),
+        method_cast(py_control_add_nogood),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("A shortcut for `add_clause([-literal for literal in literals], tag, lock)`."),
     },
     PyMethodDef{
         "add_watch",
-        fast_cast(py_control_add_watch),
+        method_cast(py_control_add_watch),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Add a watch for the given solver literal."),
     },
     PyMethodDef{
         "has_watch",
-        fast_cast(py_control_has_watch),
+        method_cast(py_control_has_watch),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Check if a watch exists for the given solver literal."),
     },
@@ -1163,7 +1156,7 @@ auto py_control_methods = std::array{
     },
     PyMethodDef{
         "remove_watch",
-        fast_cast(py_control_remove_watch),
+        method_cast(py_control_remove_watch),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Remove the watch for the given solver literal."),
     },
@@ -1373,19 +1366,19 @@ auto py_init_clear(PyObject *self) -> int {
 auto py_init_methods = std::array{
     PyMethodDef{
         "add_minimize",
-        fast_cast(py_init_add_minimize),
+        method_cast(py_init_add_minimize),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Add a weighted literal to minimize to the solver."),
     },
     PyMethodDef{
         "freeze_literal",
-        fast_cast(py_init_freeze_literal),
+        method_cast(py_init_freeze_literal),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Freeze the given literal to exempt it from simplification."),
     },
     PyMethodDef{
         "solver_literal",
-        fast_cast(py_init_solver_literal),
+        method_cast(py_init_solver_literal),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Map the given program literal or None for true to a solver literal."),
     },
@@ -1505,37 +1498,37 @@ auto py_propagator_decide([[maybe_unused]] PyObject *self, PyObject *const *args
 auto py_propagator_methods = std::array{
     PyMethodDef{
         "init",
-        fast_cast(py_propagator_init),
+        method_cast(py_propagator_init),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Initialize the propagator before each solving step."),
     },
     PyMethodDef{
         "attach",
-        fast_cast(py_propagator_attach),
+        method_cast(py_propagator_attach),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Initialize a solver thread before solving starts."),
     },
     PyMethodDef{
         "propagate",
-        fast_cast(py_propagator_propagate),
+        method_cast(py_propagator_propagate),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Propagate the given non-empty list of changed watched literals."),
     },
     PyMethodDef{
         "undo",
-        fast_cast(py_propagator_undo),
+        method_cast(py_propagator_undo),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Undo the assignment of the given literals."),
     },
     PyMethodDef{
         "check",
-        fast_cast(py_propagator_check),
+        method_cast(py_propagator_check),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Check the assignment on fixpoints or total assignments."),
     },
     PyMethodDef{
         "decide",
-        fast_cast(py_propagator_decide),
+        method_cast(py_propagator_decide),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Return the literal to decide on next or 0 to make no decision."),
     },

@@ -26,70 +26,82 @@ constexpr auto theory_term_members = std::array<IntEnumMember, 6>{
 };
 
 using PyBaseObject = struct {
-    PyObject_HEAD PyObject *owner;
+    PyObject_HEAD
+    PyObject *owner;
     //! Address of a pointer that is null once the base is no longer valid.
     void const *valid;
     clingo_base_t const *base;
 };
 
 using PyAtomBaseObject = struct {
-    PyObject_HEAD PyBaseObject *owner;
+    PyObject_HEAD
+    PyBaseObject *owner;
     clingo_atom_base_t const *base;
 };
 
 using PyAtomObject = struct {
-    PyObject_HEAD PyAtomBaseObject *owner;
+    PyObject_HEAD
+    PyAtomBaseObject *owner;
     size_t index;
 };
 
 using PyTermBaseObject = struct {
-    PyObject_HEAD PyBaseObject *owner;
+    PyObject_HEAD
+    PyBaseObject *owner;
     clingo_term_base_t const *base;
 };
 
 using PyTermObject = struct {
-    PyObject_HEAD PyTermBaseObject *owner;
+    PyObject_HEAD
+    PyTermBaseObject *owner;
     size_t index;
 };
 
 using PyTheoryBaseObject = struct {
-    PyObject_HEAD PyBaseObject *owner;
+    PyObject_HEAD
+    PyBaseObject *owner;
     clingo_theory_base_t const *base;
 };
 
 using PyTheoryElementObject = struct {
-    PyObject_HEAD PyTheoryBaseObject *owner;
+    PyObject_HEAD
+    PyTheoryBaseObject *owner;
     size_t index;
 };
 
 using PyTheoryAtomObject = struct {
-    PyObject_HEAD PyTheoryBaseObject *owner;
+    PyObject_HEAD
+    PyTheoryBaseObject *owner;
     size_t index;
 };
 
 using PyTheoryTermObject = struct {
-    PyObject_HEAD PyTheoryBaseObject *owner;
+    PyObject_HEAD
+    PyTheoryBaseObject *owner;
     size_t index;
 };
 
 enum class IterType : uint8_t { keys, values, items };
 
 using PyBaseIter = struct {
-    PyObject_HEAD PyBaseObject *owner;
+    PyObject_HEAD
+    PyBaseObject *owner;
     Py_ssize_t index;
     Py_ssize_t size;
     IterType kind;
 };
 
 using PyAtomBaseIter = struct {
-    PyObject_HEAD PyAtomBaseObject *owner;
+    PyObject_HEAD
+    PyAtomBaseObject *owner;
     Py_ssize_t index;
     Py_ssize_t size;
     IterType kind;
 };
 
 using PyTermBaseIter = struct {
-    PyObject_HEAD PyTermBaseObject *owner;
+    PyObject_HEAD
+    PyTermBaseObject *owner;
     Py_ssize_t index;
     Py_ssize_t size;
     IterType kind;
@@ -512,7 +524,7 @@ auto py_atom_base_items(PyObject *self, [[maybe_unused]] PyObject *args) -> PyOb
 auto py_atom_base_methods = std::array{
     PyMethodDef{
         "get",
-        py_c_function_cast(py_atom_base_get),
+        method_cast(py_atom_base_get),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Get value or default."),
     },
@@ -921,7 +933,7 @@ auto py_term_base_items(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObj
 auto py_term_base_methods = std::array{
     PyMethodDef{
         "get",
-        py_c_function_cast(py_term_base_get),
+        method_cast(py_term_base_get),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Get value or default."),
     },
@@ -1966,7 +1978,7 @@ auto py_base_getset = std::array{
 auto py_base_methods = std::array{
     PyMethodDef{
         "get",
-        py_c_function_cast(py_base_get),
+        method_cast(py_base_get),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Get value or default."),
     },
@@ -1990,31 +2002,31 @@ auto py_base_methods = std::array{
     },
     PyMethodDef{
         "is_external",
-        py_c_function_cast(py_base_is_external),
+        method_cast(py_base_is_external),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Check external."),
     },
     PyMethodDef{
         "is_fact",
-        py_c_function_cast(py_base_is_fact),
+        method_cast(py_base_is_fact),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Check fact."),
     },
     PyMethodDef{
         "is_shown",
-        py_c_function_cast(py_base_is_shown),
+        method_cast(py_base_is_shown),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Check shown."),
     },
     PyMethodDef{
         "is_projected",
-        py_c_function_cast(py_base_is_projected),
+        method_cast(py_base_is_projected),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Check projected."),
     },
     PyMethodDef{
         "is_current",
-        py_c_function_cast(py_base_is_current),
+        method_cast(py_base_is_current),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Check current."),
     },

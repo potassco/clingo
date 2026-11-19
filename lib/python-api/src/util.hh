@@ -569,7 +569,13 @@ template <size_t N> auto cast_kw(std::array<char const *, N> const &kwlist) -> c
     return const_cast<char **>(kwlist.data());
 }
 
-inline auto py_c_function_cast(PyCFunctionWithKeywords fun) noexcept -> PyCFunction {
+using PyCFunctionFastWithKeywords = PyObject *(*)(PyObject *, PyObject *const *, Py_ssize_t, PyObject *);
+
+inline auto method_cast(PyCFunctionWithKeywords fun) noexcept -> PyCFunction {
+    return reinterpret_cast<PyCFunction>(reinterpret_cast<void *>(fun)); // NOLINT
+}
+
+inline auto method_cast(PyCFunctionFastWithKeywords fun) noexcept -> PyCFunction {
     return reinterpret_cast<PyCFunction>(reinterpret_cast<void *>(fun)); // NOLINT
 }
 

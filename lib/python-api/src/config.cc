@@ -12,7 +12,8 @@ namespace PyClingo {
 namespace {
 
 using PyConfigObject = struct {
-    PyObject_HEAD clingo_config_t *config;
+    PyObject_HEAD
+    clingo_config_t *config;
     PyObject *owner;
     //! Address of a pointer of the owner that is null once the owner is invalid (nullptr if not tracked).
     void const *valid;
@@ -646,7 +647,7 @@ auto py_config_add_entry(PyObject *self, PyObject *args, PyObject *kwargs) -> Py
 auto py_config_methods = std::array{
     PyMethodDef{
         "add_entry",
-        py_c_function_cast(py_config_add_entry),
+        method_cast(py_config_add_entry),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Add a custom configuration entry."),
     },

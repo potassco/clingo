@@ -697,7 +697,7 @@ auto py_parse_term([[maybe_unused]] PyObject *module, PyObject *args) -> PyObjec
 auto py_symbol_methods = std::array{
     PyMethodDef{
         "match",
-        py_c_function_cast(py_symbol_match),
+        method_cast(py_symbol_match),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Match functions or tuples against a given signature."),
     },
@@ -845,7 +845,7 @@ auto symbol_module_methods = std::array{
     },
     PyMethodDef{
         "Function",
-        py_c_function_cast(py_function),
+        method_cast(py_function),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Construct a function symbol."),
     },

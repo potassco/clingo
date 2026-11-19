@@ -646,31 +646,31 @@ auto py_model_thread_id(PyObject *self, [[maybe_unused]] void *closure) -> PyObj
 auto py_model_methods = std::array{
     PyMethodDef{
         "symbols",
-        py_c_function_cast(py_model_symbols),
+        method_cast(py_model_symbols),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Get the symbols in the model."),
     },
     PyMethodDef{
         "contains",
-        py_c_function_cast(py_model_contains),
+        method_cast(py_model_contains),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Check if the model contains the given atom."),
     },
     PyMethodDef{
         "is_true",
-        py_c_function_cast(py_model_is_true),
+        method_cast(py_model_is_true),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Check if the given program literal is true."),
     },
     PyMethodDef{
         "is_consequence",
-        py_c_function_cast(py_model_is_consequence),
+        method_cast(py_model_is_consequence),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Check if the given program literal is a consequence."),
     },
     PyMethodDef{
         "extend",
-        py_c_function_cast(py_model_extend),
+        method_cast(py_model_extend),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Extend a model with the given symbols."),
     },
@@ -812,13 +812,13 @@ auto py_control_add_nogood(PyObject *self, PyObject *args, PyObject *kwargs) -> 
 auto py_control_methods = std::array{
     PyMethodDef{
         "add_clause",
-        py_c_function_cast(py_control_add_clause),
+        method_cast(py_control_add_clause),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Add a clause that applies to the current solving step."),
     },
     PyMethodDef{
         "add_nogood",
-        py_c_function_cast(py_control_add_nogood),
+        method_cast(py_control_add_nogood),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Add a nogood that applies to the current solving step."),
     },
@@ -1238,7 +1238,7 @@ auto py_handle_methods = std::array{
     },
     PyMethodDef{
         "wait",
-        py_c_function_cast(py_handle_wait),
+        method_cast(py_handle_wait),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Wait for the solve call to finish or the next result with an optional timeout."),
     },

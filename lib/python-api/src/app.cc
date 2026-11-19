@@ -27,23 +27,27 @@ struct AppModuleState {
 };
 
 using PyFlagObject = struct {
-    PyObject_HEAD bool value;
+    PyObject_HEAD
+    bool value;
 };
 
 using PyOptionsObject = struct {
-    PyObject_HEAD clingo_options_t *opts;
+    PyObject_HEAD
+    clingo_options_t *opts;
     PyObject *keep;
 };
 
 using PyAppObject = struct {
-    PyObject_HEAD PyObject *program_name;
+    PyObject_HEAD
+    PyObject *program_name;
     PyObject *version;
     PyObject *commit_hash;
 };
 
 //! The state of an application while it is run by clingo_main.
 using PyAppRunObject = struct {
-    PyObject_HEAD PyObject *app;
+    PyObject_HEAD
+    PyObject *app;
     //! The library passed to clingo_main.
     PyObject *library;
     //! Objects passed to clingo while registering options.
@@ -332,19 +336,19 @@ auto py_options_set_default_value(PyObject *self, PyObject *args, PyObject *kwar
 auto py_options_methods = std::array{
     PyMethodDef{
         "add",
-        py_c_function_cast(py_options_add),
+        method_cast(py_options_add),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Add an option with a custom parser."),
     },
     PyMethodDef{
         "add_flag",
-        py_c_function_cast(py_options_add_flag),
+        method_cast(py_options_add_flag),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Add a Boolean flag option."),
     },
     PyMethodDef{
         "set_default_value",
-        py_c_function_cast(py_options_set_default_value),
+        method_cast(py_options_set_default_value),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Set the default value of an existing clingo option."),
     },
@@ -451,13 +455,13 @@ auto py_app_methods = std::array{
     },
     PyMethodDef{
         "print_model",
-        py_c_function_cast(py_app_noop_kw),
+        method_cast(py_app_noop_kw),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Print the given model in a custom format."),
     },
     PyMethodDef{
         "main",
-        py_c_function_cast(py_app_noop_kw),
+        method_cast(py_app_noop_kw),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Run the main execution flow of the application."),
     },
@@ -797,7 +801,7 @@ auto py_pyclingo(PyObject *module, [[maybe_unused]] PyObject *arg) -> PyObject *
 auto app_module_methods = std::array{
     PyMethodDef{
         "clingo_main",
-        py_c_function_cast(py_clingo_main),
+        method_cast(py_clingo_main),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Entry point for running a clingo application; returns the exit code."),
     },
