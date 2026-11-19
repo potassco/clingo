@@ -79,10 +79,10 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_const_map_size(clingo_const_map_t const *m
 //!
 //! A control object has to be freed using clingo_control_free().
 //!
-//! @note Only gringo options (without <code>\-\-output</code>) and clasp's options are supported as arguments,
-//! except basic options such as <code>\-\-help</code>.
-//! Furthermore, a control object is blocked while a search call is active;
-//! you must not call any member function during search.
+//! @note Only gringo options (without <code>\-\-output</code>) and clasp's
+//! options are supported as arguments, except basic options such as
+//! <code>\-\-help</code>. Furthermore, a control object is blocked while a
+//! search call is active; you must not call any member function during search.
 //!
 //! @param[in] lib clingo library object
 //! @param[in] arguments string array of command line arguments
@@ -101,6 +101,43 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_acquire(clingo_control_t *control)
 //!
 //! @param[in] control the target
 CLINGO_VISIBILITY_DEFAULT void clingo_control_release(clingo_control_t *control);
+
+//! Add a function to be called when the given control object is destroyed.
+//!
+//! Finalizers are called in reverse order of registration after all objects
+//! registered with the control object (e.g., propagators) have been released
+//! and before the library associated with the control object is released.
+//! Language bindings can use this to tie the lifetime of objects to the
+//! lifetime of the control object.
+//!
+//! @param[in] control the target
+//! @param[in] finalizer the function to call
+//! @param[in] data the user data passed to the finalizer
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_add_finalizer(clingo_control_t *control, clingo_finalizer_t finalizer,
+                                                            void *data);
+
+//! Set or remove the owner of a control object registered under the given tag.
+//!
+//! Language bindings can use this to map control objects back to the objects
+//! wrapping them. The owner is a borrowed pointer, which must be removed
+//! (by passing NULL) before it becomes invalid. Each binding should use its
+//! own tag, e.g., the address of a static variable.
+//!
+//! @param[in] control the target
+//! @param[in] tag the tag identifying the binding
+//! @param[in] owner the owner or NULL to remove it
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_owner(clingo_control_t *control, void const *tag, void *owner);
+
+//! Get the owner of a control object registered under the given tag.
+//!
+//! @param[in] control the target
+//! @param[in] tag the tag identifying the binding
+//! @return the owner or NULL if there is none
+CLINGO_VISIBILITY_DEFAULT void *clingo_control_get_owner(clingo_control_t const *control, void const *tag);
 
 //! Get the configured mode.
 //!

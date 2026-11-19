@@ -20,10 +20,12 @@ constexpr auto symbol_type_members = std::array<IntEnumMember, 6>{
 constexpr size_t symbol_type_count = symbol_type_members.size();
 
 using PySymbolObject = struct {
-    PyObject_HEAD clingo_symbol_t sym;
+    PyObject_HEAD
+    clingo_symbol_t sym;
 };
 
 struct SymbolModuleState {
+    PyObject *lib_type{nullptr};
     PyObject *symbol_type{nullptr};
     PyObject *symbol_type_enum{nullptr};
     std::array<PyObject *, symbol_type_count> vals{};
@@ -75,15 +77,6 @@ auto symbol_args_list(PyObject *type, clingo_symbol_t sym) -> PyObject * {
         ++i;
     }
     return list.release();
-}
-
-auto cast_library(PyObject *obj) -> Library * {
-    try {
-        return &py::cast<Library &>(py::reinterpret_borrow<py::object>(obj));
-    } catch (py::cast_error const &) {
-        PyErr_SetString(PyExc_TypeError, "lib must be a Library");
-        return nullptr;
-    }
 }
 
 auto cast_symbol(PyObject *self) -> PySymbolObject * {
@@ -495,19 +488,14 @@ auto py_number([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * 
         return nullptr;
     }
 
-    auto *lib = cast_library(lib_obj);
-    if (lib == nullptr) {
+    auto *state = get_symbol_module_state(module);
+    if (state == nullptr) {
         return nullptr;
     }
 
     int overflow = 0;
     long val = PyLong_AsLongAndOverflow(num_obj, &overflow);
     if (PyErr_Occurred() != nullptr) {
-        return nullptr;
-    }
-
-    auto *state = get_symbol_module_state(module);
-    if (state == nullptr) {
         return nullptr;
     }
 
@@ -525,7 +513,11 @@ auto py_number([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * 
             return nullptr;
         }
 
-        if (!clingo_symbol_create_number_str(*lib, s, static_cast<size_t>(n), &sym)) {
+        auto *lib = py_library_get(state->lib_type, lib_obj);
+        if (lib == nullptr) {
+            return nullptr;
+        }
+        if (!clingo_symbol_create_number_str(lib, s, static_cast<size_t>(n), &sym)) {
             return py_handle_error();
         }
     }
@@ -541,18 +533,17 @@ auto py_string([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * 
         return nullptr;
     }
 
-    auto *lib = cast_library(lib_obj);
-    if (lib == nullptr) {
-        return nullptr;
-    }
-
     auto *state = get_symbol_module_state(module);
     if (state == nullptr) {
         return nullptr;
     }
+    auto *lib = py_library_get(state->lib_type, lib_obj);
+    if (lib == nullptr) {
+        return nullptr;
+    }
 
     clingo_symbol_t sym = 0;
-    if (!clingo_symbol_create_string(*lib, s, static_cast<size_t>(n), &sym)) {
+    if (!clingo_symbol_create_string(lib, s, static_cast<size_t>(n), &sym)) {
         return py_handle_error();
     }
     return py_symbol_new(state->symbol_type, sym, false);
@@ -622,11 +613,6 @@ auto py_tuple([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * {
         return nullptr;
     }
 
-    auto *lib = cast_library(lib_obj);
-    if (lib == nullptr) {
-        return nullptr;
-    }
-
     auto *state = get_symbol_module_state(module);
     if (state == nullptr) {
         return nullptr;
@@ -637,8 +623,12 @@ auto py_tuple([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * {
         return nullptr;
     }
 
+    auto *lib = py_library_get(state->lib_type, lib_obj);
+    if (lib == nullptr) {
+        return nullptr;
+    }
     clingo_symbol_t sym = 0;
-    if (!clingo_symbol_create_tuple(*lib, syms.data, syms.size, &sym)) {
+    if (!clingo_symbol_create_tuple(lib, syms.data, syms.size, &sym)) {
         return py_handle_error();
     }
     return py_symbol_new(state->symbol_type, sym, false);
@@ -658,11 +648,6 @@ auto py_function([[maybe_unused]] PyObject *module, PyObject *args, PyObject *kw
         return nullptr;
     }
 
-    auto *lib = cast_library(lib_obj);
-    if (lib == nullptr) {
-        return nullptr;
-    }
-
     auto *state = get_symbol_module_state(module);
     if (state == nullptr) {
         return nullptr;
@@ -673,9 +658,13 @@ auto py_function([[maybe_unused]] PyObject *module, PyObject *args, PyObject *kw
         return nullptr;
     }
 
+    auto *lib = py_library_get(state->lib_type, lib_obj);
+    if (lib == nullptr) {
+        return nullptr;
+    }
     clingo_symbol_t sym = 0;
-    if (!clingo_symbol_create_function(*lib, name, static_cast<size_t>(name_len), syms.data, syms.size,
-                                       is_positive != 0, &sym)) {
+    if (!clingo_symbol_create_function(lib, name, static_cast<size_t>(name_len), syms.data, syms.size, is_positive != 0,
+                                       &sym)) {
         return py_handle_error();
     }
     return py_symbol_new(state->symbol_type, sym, false);
@@ -689,18 +678,17 @@ auto py_parse_term([[maybe_unused]] PyObject *module, PyObject *args) -> PyObjec
         return nullptr;
     }
 
-    auto *lib = cast_library(lib_obj);
-    if (lib == nullptr) {
-        return nullptr;
-    }
-
     auto *state = get_symbol_module_state(module);
     if (state == nullptr) {
         return nullptr;
     }
+    auto *lib = py_library_get(state->lib_type, lib_obj);
+    if (lib == nullptr) {
+        return nullptr;
+    }
 
     clingo_symbol_t sym = 0;
-    if (!clingo_parse_term(*lib, s, static_cast<size_t>(n), &sym)) {
+    if (!clingo_parse_term(lib, s, static_cast<size_t>(n), &sym)) {
         return py_handle_error();
     }
     return py_symbol_new(state->symbol_type, sym, false);
@@ -709,7 +697,7 @@ auto py_parse_term([[maybe_unused]] PyObject *module, PyObject *args) -> PyObjec
 auto py_symbol_methods = std::array{
     PyMethodDef{
         "match",
-        py_c_function_cast(py_symbol_match),
+        method_cast(py_symbol_match),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Match functions or tuples against a given signature."),
     },
@@ -857,7 +845,7 @@ auto symbol_module_methods = std::array{
     },
     PyMethodDef{
         "Function",
-        py_c_function_cast(py_function),
+        method_cast(py_function),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Construct a function symbol."),
     },
@@ -883,6 +871,7 @@ auto symbol_module_traverse(PyObject *module, visitproc visit, void *arg) -> int
     for (auto &obj : state->vals) {
         Py_VISIT(obj);
     }
+    Py_VISIT(state->lib_type);
     Py_VISIT(state->symbol_type);
     Py_VISIT(state->symbol_type_enum);
     return 0;
@@ -896,6 +885,7 @@ auto symbol_module_clear(PyObject *module) -> int {
     for (auto &obj : state->vals) {
         Py_CLEAR(obj);
     }
+    Py_CLEAR(state->lib_type);
     Py_CLEAR(state->symbol_type);
     Py_CLEAR(state->symbol_type_enum);
     return 0;
@@ -928,6 +918,10 @@ void register_symbol(pybind11::module &m) {
 
     auto *state = get_symbol_module_state(symbol.get());
     if (state == nullptr) {
+        throw py::error_already_set();
+    }
+    state->lib_type = py_library_type();
+    if (state->lib_type == nullptr) {
         throw py::error_already_set();
     }
 

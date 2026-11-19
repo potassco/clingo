@@ -5,6 +5,7 @@
 #include "core.hh"
 #include "ground.hh"
 #include "iterator.hh"
+#include "propagate.hh"
 #include "solve.hh"
 #include "stats.hh"
 #include "util.hh"
@@ -49,10 +50,39 @@ auto ConstMap::size() const -> size_t {
 }
 
 Control::Control(Library &lib, std::span<std::string const> args) {
+    keep_owner(py::cast(lib, py::return_value_policy::reference));
     auto cargs = transform(args, [](auto const &str) { return clingo_string_t{str.data(), str.size()}; });
     clingo_control_t *ctl = nullptr;
     handle_error(clingo_control_new(lib, cargs.data(), cargs.size(), &ctl));
     reset(ctl, false);
+    register_();
+}
+
+Control::Control(py::object lib, clingo_control_t *ctl, Parent::borrow_t tag) : Parent{ctl, tag} {
+    keep_owner(std::move(lib));
+    register_();
+}
+
+Control::Control(py::object lib, clingo_control_t *ctl) : Parent{ctl} {
+    keep_owner(std::move(lib));
+    register_();
+}
+
+Control::~Control() {
+    unregister_();
+}
+
+auto Control::acquire(py::object lib, clingo_control_t *ctl) -> py::object {
+    return py::cast(std::unique_ptr<Control>(new Control{std::move(lib), ctl}));
+}
+
+void Control::invalidate() noexcept {
+    unregister_();
+    reset();
+}
+
+auto Control::borrow(py::object lib, clingo_control_t *ctl) -> py::object {
+    return py::cast(std::unique_ptr<Control>(new Control{std::move(lib), ctl, Parent::borrow_t{}}));
 }
 
 auto Control::mode() -> clingo_mode_e {
@@ -147,7 +177,7 @@ auto Control::base() -> TypeHint<"clingo.base.Base"> {
     if (type.get() == nullptr) {
         throw py::error_already_set();
     }
-    auto pybase = steal(py_base_new(py::cast(this).ptr(), type.get(), base));
+    auto pybase = steal(py_base_new(py::cast(this).ptr(), pointer_slot(ptr_ref()), type.get(), base));
     if (pybase.get() == nullptr) {
         throw py::error_already_set();
     }
@@ -182,7 +212,8 @@ auto Control::config() -> TypeHint<"clingo.config.Config"> {
     if (type.get() == nullptr) {
         throw py::error_already_set();
     }
-    auto cfg = steal(py_config_new(py::cast(this).ptr(), keeper_ref(), type.get(), config, key));
+    auto cfg =
+        steal(py_config_new(py::cast(this).ptr(), pointer_slot(ptr_ref()), keeper_ref(), type.get(), config, key));
     if (cfg.get() == nullptr) {
         throw py::error_already_set();
     }
@@ -199,7 +230,8 @@ auto Control::stats() -> StatsView {
         throw py::error_already_set();
     }
 
-    auto res = steal(py_stats_new(py::cast(this).ptr(), type.get(), const_cast<clingo_stats_t *>(stats), key));
+    auto res = steal(py_stats_new(py::cast(this).ptr(), pointer_slot(ptr_ref()), type.get(),
+                                  const_cast<clingo_stats_t *>(stats), key));
     if (res.get() == nullptr) {
         throw py::error_already_set();
     }
@@ -337,10 +369,14 @@ void Control::set_parts(std::optional<PartSpan> parts) {
     }
 }
 
-void Control::register_propagator(Annotation<Propagator> const &propagator) {
-    auto &prop = propagator.cast<Propagator &>();
-    tie(propagator);
-    PyClingo::register_propagator(get(), prop);
+void Control::register_propagator(TypeHint<"clingo.propagate.Propagator"> propagator) {
+    auto type = steal(py_propagator_type());
+    if (type.get() == nullptr) {
+        throw py::error_already_set();
+    }
+    if (!py_register_propagator(type.get(), get(), keeper_ref(), owner_ref(), propagator.ptr())) {
+        throw py::error_already_set();
+    }
 }
 
 void Control::release(clingo_control_t *ctl) noexcept {
@@ -354,17 +390,6 @@ void Control::acquire(clingo_control_t *ctl, bool inc) {
     if (ctl != nullptr && inc) {
         clingo_control_acquire(ctl);
     }
-}
-
-auto Control::cast(clingo_control_t *ctl, bool convert) -> PyControl {
-    auto *ptr = from_registry(ctl);
-    if (ptr != nullptr) {
-        return py::cast(ptr);
-    }
-    if (convert) {
-        return py::cast(std::unique_ptr<Control>(new Control{ctl}));
-    }
-    throw py::cast_error("invalid Control cast");
 }
 
 void register_control(pybind11::module &m) {
@@ -629,6 +654,126 @@ The result is directly convertible to JSON using Python's `json` module.
         .def_property_readonly("const_map", &Control::const_map,
                                R"(Get the map of constants defined by `#const` directives.)")
         .def_property("parts", &Control::parts, &Control::set_parts, R"(Get/set the program parts to ground.)");
+}
+
+auto py_control_type() -> PyObject * {
+    try {
+        return py::type::of<Control>().release().ptr();
+    } catch (py::error_already_set &e) {
+        e.restore();
+    } catch (std::exception const &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    }
+    return nullptr;
+}
+
+namespace {
+
+//! The tag under which owned control objects are registered with their clingo control objects.
+//!
+//! NOTE: should be moved into the module state once the module is ported.
+char const control_owner_tag = 0;
+
+//! Invalidate a non-owned control object and release the reference held by its clingo control object.
+void control_finalizer(void *data) {
+    // NOTE: objects cannot be released anymore once the interpreter is gone
+    if (Py_IsInitialized() == 0) {
+        return;
+    }
+    auto gil = GILGuard{};
+    auto *obj = static_cast<PyObject *>(data);
+    try {
+        py::cast<Control &>(py::handle{obj}).invalidate();
+    } catch (py::error_already_set &e) {
+        e.discard_as_unraisable("control finalizer");
+    } catch (std::exception const &) {
+        // NOTE: only control objects created by py_control_begin are passed here
+        assert(false);
+    }
+    Py_DECREF(obj);
+}
+
+} // namespace
+
+void Control::register_() {
+    handle_error(clingo_control_set_owner(get(), &control_owner_tag, this));
+}
+
+void Control::unregister_() noexcept {
+    if (auto *ctl = get_unchecked(); ctl != nullptr && owner(ctl) == this) {
+        // NOTE: removing an owner does not allocate and cannot fail
+        std::ignore = clingo_control_set_owner(ctl, &control_owner_tag, nullptr);
+    }
+}
+
+auto Control::owner(clingo_control_t *ctl) -> Control * {
+    return static_cast<Control *>(clingo_control_get_owner(ctl, &control_owner_tag));
+}
+
+void Control::setup(PyHeapTypeObject *heap_type) {
+    reference_keeper<Control>::setup(heap_type);
+    auto *type = &heap_type->ht_type;
+    type->tp_clear = [](PyObject *self_base) -> int {
+        auto *self = py::cast<Control *>(py::handle(self_base));
+        if (!constructed_.contains(self)) {
+            return 0;
+        }
+        // NOTE: releasing the clingo control object first runs its finalizers
+        // and ensures that registered objects outlive it
+        if (self->owns()) {
+            self->invalidate();
+        }
+        Py_CLEAR(self->list_.ptr());
+        Py_CLEAR(self->owner_.ptr());
+        return 0;
+    };
+}
+
+auto py_control_begin(PyObject *type, PyObject *library, clingo_control_t *ctl, ControlRef ref_type) -> PyObject * {
+    try {
+        auto lib = py::reinterpret_borrow<py::object>(library);
+        auto *owner = Control::owner(ctl);
+        auto obj = py::object{};
+        if (owner != nullptr) {
+            // an existing owner is reused and stays valid after the end call
+            if (ref_type == ControlRef::claim) {
+                throw std::runtime_error{"cannot claim a control object that already has an owner"};
+            }
+            obj = py::cast(owner, py::return_value_policy::reference);
+        } else if (ref_type == ControlRef::claim) {
+            // the claimed control is owned until the end call
+            obj = Control::acquire(lib, ctl);
+        } else {
+            // a non-owned control object registered as owner
+            obj = Control::borrow(lib, ctl);
+        }
+        if (PyObject_TypeCheck(obj.ptr(), reinterpret_cast<PyTypeObject *>(type)) == 0) {
+            PyErr_SetString(PyExc_TypeError, "type is not clingo.control.Control");
+            return nullptr;
+        }
+        if (owner == nullptr && ref_type == ControlRef::share) {
+            // the clingo control object keeps the non-owned object alive; if
+            // this fails, destroying the object removes its registration
+            handle_error(clingo_control_add_finalizer(ctl, control_finalizer, obj.ptr()));
+            Py_INCREF(obj.ptr());
+        }
+        return obj.release().ptr();
+    } catch (py::error_already_set &e) {
+        e.restore();
+    } catch (std::exception const &e) {
+        PyErr_SetString(PyExc_RuntimeError, e.what());
+    }
+    return nullptr;
+}
+
+void py_control_end(PyObject *obj, ControlRef ref_type) noexcept {
+    auto ref = steal(obj);
+    if (ref_type == ControlRef::claim) {
+        // the lifetime of the claimed control object ends here
+        auto *ctl = py_cast<Control>(obj);
+        assert(ctl != nullptr);
+        ctl->invalidate();
+    }
 }
 
 } // namespace PyClingo

@@ -32,21 +32,27 @@ struct SolveModuleState {
 };
 
 struct PyResultObject {
-    PyObject_HEAD clingo_solve_result_bitset_t res;
+    PyObject_HEAD
+    clingo_solve_result_bitset_t res;
 };
 
 struct PyModelObject {
-    PyObject_HEAD clingo_model_t *mdl;
+    PyObject_HEAD
+    clingo_model_t *mdl;
     PyObject *control;
     bool is_mutable;
 };
 
 struct PyControlObject {
-    PyObject_HEAD clingo_solve_control_t *ctl;
+    PyObject_HEAD
+    clingo_solve_control_t *ctl;
 };
 
 struct PyHandleObject {
-    PyObject_HEAD clingo_solve_handle_t *hnd;
+    PyObject_HEAD
+    clingo_solve_handle_t *hnd;
+    //! The statistics passed to on_statistics (null outside of the callback).
+    clingo_stats_t *stats;
     PyObject *owner;
     PyObject *on_model;
     PyObject *on_unsat;
@@ -640,31 +646,31 @@ auto py_model_thread_id(PyObject *self, [[maybe_unused]] void *closure) -> PyObj
 auto py_model_methods = std::array{
     PyMethodDef{
         "symbols",
-        py_c_function_cast(py_model_symbols),
+        method_cast(py_model_symbols),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Get the symbols in the model."),
     },
     PyMethodDef{
         "contains",
-        py_c_function_cast(py_model_contains),
+        method_cast(py_model_contains),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Check if the model contains the given atom."),
     },
     PyMethodDef{
         "is_true",
-        py_c_function_cast(py_model_is_true),
+        method_cast(py_model_is_true),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Check if the given program literal is true."),
     },
     PyMethodDef{
         "is_consequence",
-        py_c_function_cast(py_model_is_consequence),
+        method_cast(py_model_is_consequence),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Check if the given program literal is a consequence."),
     },
     PyMethodDef{
         "extend",
-        py_c_function_cast(py_model_extend),
+        method_cast(py_model_extend),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Extend a model with the given symbols."),
     },
@@ -758,7 +764,7 @@ auto py_control_base(PyObject *self, [[maybe_unused]] void *closure) -> PyObject
     if (!clingo_solve_control_base(ctl, &base)) {
         return py_handle_error();
     }
-    return py_base_new(self, state->base_type, base);
+    return py_base_new(self, pointer_slot(&control_cast(self)->ctl), state->base_type, base);
 }
 
 auto control_add(PyObject *self, PyObject *lits, bool negate) -> PyObject * {
@@ -806,13 +812,13 @@ auto py_control_add_nogood(PyObject *self, PyObject *args, PyObject *kwargs) -> 
 auto py_control_methods = std::array{
     PyMethodDef{
         "add_clause",
-        py_c_function_cast(py_control_add_clause),
+        method_cast(py_control_add_clause),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Add a clause that applies to the current solving step."),
     },
     PyMethodDef{
         "add_nogood",
-        py_c_function_cast(py_control_add_nogood),
+        method_cast(py_control_add_nogood),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Add a nogood that applies to the current solving step."),
     },
@@ -902,19 +908,26 @@ auto on_stats_cb(clingo_stats_t *stats, void *data) -> bool {
                                      clingo_stats_type_map, &accu)) {
         return false;
     }
-    auto step_stats = steal(py_stats_new(h->owner, state->stats_type, stats, step));
-    if (step_stats.get() == nullptr) {
-        return store_python_error("creating step statistics failed");
-    }
-    auto accu_stats = steal(py_stats_new(h->owner, state->stats_type, stats, accu));
-    if (accu_stats.get() == nullptr) {
-        return store_python_error("creating accumulated statistics failed");
-    }
-    auto res = steal(PyObject_CallFunctionObjArgs(h->on_stats, step_stats.get(), accu_stats.get(), nullptr));
-    if (res.get() == nullptr) {
-        return store_python_error("on_stats failed");
-    }
-    return true;
+    assert(h->stats == nullptr);
+    h->stats = stats;
+    auto ok = [&] {
+        auto *self = static_cast<PyObject *>(data);
+        auto step_stats = steal(py_stats_new(self, pointer_slot(&h->stats), state->stats_type, stats, step));
+        if (step_stats.get() == nullptr) {
+            return store_python_error("creating step statistics failed");
+        }
+        auto accu_stats = steal(py_stats_new(self, pointer_slot(&h->stats), state->stats_type, stats, accu));
+        if (accu_stats.get() == nullptr) {
+            return store_python_error("creating accumulated statistics failed");
+        }
+        auto res = steal(PyObject_CallFunctionObjArgs(h->on_stats, step_stats.get(), accu_stats.get(), nullptr));
+        if (res.get() == nullptr) {
+            return store_python_error("on_stats failed");
+        }
+        return true;
+    }();
+    h->stats = nullptr;
+    return ok;
 }
 
 void on_finish_cb(clingo_solve_result_bitset_t result, void *data) {
@@ -942,7 +955,7 @@ void close_handle(PyHandleObject *h) {
     model_clear(h->cur_model);
     auto *hnd = std::exchange(h->hnd, nullptr);
     if (hnd != nullptr) {
-        with_gil_released([&]() {
+        with_gil_released([&] {
             clingo_solve_handle_close(hnd);
             return true;
         });
@@ -1005,7 +1018,7 @@ auto py_handle_clear(PyObject *self) -> int {
 }
 
 auto fetch_model(clingo_solve_handle_t *hnd, clingo_model_t **mdl) -> bool {
-    if (!with_gil_released([&]() { return clingo_solve_handle_model(hnd, mdl); })) {
+    if (!with_gil_released([&] { return clingo_solve_handle_model(hnd, mdl); })) {
         py_handle_error();
         return false;
     }
@@ -1023,7 +1036,7 @@ auto py_handle_get(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject *
     }
     model_clear(handle_cast(self)->cur_model);
     clingo_solve_result_bitset_t res = 0;
-    if (!with_gil_released([&]() { return clingo_solve_handle_get(hnd, &res); })) {
+    if (!with_gil_released([&] { return clingo_solve_handle_get(hnd, &res); })) {
         return py_handle_error();
     }
     return result_new(state, res);
@@ -1035,7 +1048,7 @@ auto py_handle_cancel(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObjec
         return nullptr;
     }
     model_clear(handle_cast(self)->cur_model);
-    if (!with_gil_released([&]() { return clingo_solve_handle_cancel(hnd); })) {
+    if (!with_gil_released([&] { return clingo_solve_handle_cancel(hnd); })) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
@@ -1103,7 +1116,7 @@ auto py_handle_core(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject 
     }
     clingo_literal_t const *lits = nullptr;
     size_t size = 0;
-    if (!with_gil_released([&]() { return clingo_solve_handle_core(hnd, &lits, &size); })) {
+    if (!with_gil_released([&] { return clingo_solve_handle_core(hnd, &lits, &size); })) {
         return py_handle_error();
     }
     return int_list(lits, size);
@@ -1128,7 +1141,7 @@ auto py_handle_wait(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObjec
         return nullptr;
     }
     bool result = false;
-    if (!with_gil_released([&]() { return clingo_solve_handle_wait(hnd, timeout, &result); })) {
+    if (!with_gil_released([&] { return clingo_solve_handle_wait(hnd, timeout, &result); })) {
         return py_handle_error();
     }
     return PyBool_FromLong(result ? 1 : 0);
@@ -1225,7 +1238,7 @@ auto py_handle_methods = std::array{
     },
     PyMethodDef{
         "wait",
-        py_c_function_cast(py_handle_wait),
+        method_cast(py_handle_wait),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Wait for the solve call to finish or the next result with an optional timeout."),
     },
@@ -1411,7 +1424,7 @@ auto py_solve_start(PyObject *type, clingo_control_t *ctl, PyObject *owner,
         nullptr,
     };
     auto has_handler = on_model != nullptr || on_unsat != nullptr || on_stats != nullptr || on_finish != nullptr;
-    auto ok = with_gil_released([&]() {
+    auto ok = with_gil_released([&] {
         return clingo_control_solve(ctl, mode, assumptions.data(), assumptions.size(), has_handler ? &handler : nullptr,
                                     static_cast<void *>(obj.get()), &h->hnd);
     });
@@ -1435,7 +1448,7 @@ auto py_solve(PyObject *type, clingo_control_t *ctl, PyObject *owner, std::span<
         return nullptr;
     }
     clingo_solve_result_bitset_t res = 0;
-    if (!with_gil_released([&]() { return clingo_solve_handle_get(h->hnd, &res); })) {
+    if (!with_gil_released([&] { return clingo_solve_handle_get(h->hnd, &res); })) {
         return py_handle_error();
     }
     close_handle(h);

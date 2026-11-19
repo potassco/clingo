@@ -12,7 +12,7 @@ Checks: >
   -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-magic-numbers,
-  -cppcoreguidelines-macro-to-enum
+  -cppcoreguidelines-macro-to-enum,
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-pro-type-vararg,
   -cppcoreguidelines-special-member-functions,

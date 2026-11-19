@@ -18,7 +18,10 @@ constexpr auto stats_type_members = std::array<IntEnumMember, 3>{
 };
 
 using PyStatsObject = struct {
-    PyObject_HEAD PyObject *owner;
+    PyObject_HEAD
+    PyObject *owner;
+    //! Address of a pointer of the owner that is null once the owner is invalid (nullptr if not tracked).
+    void const *valid;
     clingo_stats_t *stats;
     uint64_t key;
 };
@@ -34,7 +37,9 @@ enum class IterKind : uint8_t {
 };
 
 using PyStatsIterObject = struct {
-    PyObject_HEAD PyObject *owner;
+    PyObject_HEAD
+    PyObject *owner;
+    void const *valid;
     clingo_stats_t *stats;
     uint64_t key;
     size_t index;
@@ -76,7 +81,23 @@ auto py_stats_cast(PyObject *obj) -> PyStatsObject * {
     return reinterpret_cast<PyStatsObject *>(obj);
 }
 
-auto py_stats_alloc(PyObject *owner, PyObject *type, clingo_stats_t *stats, uint64_t key) -> PyObject * {
+//! Check whether the owner of a stats object is still valid (sets a Python error otherwise).
+auto stats_valid(void const *valid) -> bool {
+    if (valid != nullptr && !pointer_valid(valid)) {
+        PyErr_SetString(PyExc_RuntimeError, "stats are no longer valid");
+        return false;
+    }
+    return true;
+}
+
+//! Cast to a stats object whose owner is still valid (nullptr with a Python error set otherwise).
+auto py_stats_checked(PyObject *obj) -> PyStatsObject * {
+    auto *o = py_stats_cast(obj);
+    return stats_valid(o->valid) ? o : nullptr;
+}
+
+auto py_stats_alloc(PyObject *owner, void const *valid, PyObject *type, clingo_stats_t *stats, uint64_t key)
+    -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
     auto *obj = to->tp_alloc(to, 0);
     if (obj == nullptr) {
@@ -84,6 +105,7 @@ auto py_stats_alloc(PyObject *owner, PyObject *type, clingo_stats_t *stats, uint
     }
     auto *s = reinterpret_cast<PyStatsObject *>(obj);
     s->owner = owner;
+    s->valid = valid;
     s->stats = stats;
     s->key = key;
     Py_XINCREF(owner);
@@ -99,6 +121,7 @@ auto py_stats_traverse(PyObject *self, visitproc visit, void *arg) -> int {
 
 auto py_stats_clear(PyObject *self) -> int {
     auto *o = reinterpret_cast<PyStatsObject *>(self);
+    o->valid = invalid_slot();
     Py_CLEAR(o->owner);
     return 0;
 }
@@ -503,7 +526,10 @@ auto stats_nestify(clingo_stats_t *stats, uint64_t key) -> PyObject * {
 }
 
 auto stats_subscript_impl(PyObject *self, PyObject *key, PyObject *out_type, char const *missing_error) -> PyObject * {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
 
     if (PyUnicode_Check(key) != 0) {
         char const *k = nullptr;
@@ -521,7 +547,7 @@ auto stats_subscript_impl(PyObject *self, PyObject *key, PyObject *out_type, cha
             PyErr_SetString(PyExc_IndexError, missing_error);
             return nullptr;
         }
-        return py_stats_alloc(o->owner, out_type, o->stats, subkey);
+        return py_stats_alloc(o->owner, o->valid, out_type, o->stats, subkey);
     }
 
     size_t i = 0;
@@ -541,11 +567,14 @@ auto stats_subscript_impl(PyObject *self, PyObject *key, PyObject *out_type, cha
     if (!clingo_stats_array_at(o->stats, o->key, i, &subkey)) {
         return py_handle_error();
     }
-    return py_stats_alloc(o->owner, out_type, o->stats, subkey);
+    return py_stats_alloc(o->owner, o->valid, out_type, o->stats, subkey);
 }
 
 auto stats_map_subscript_impl(PyObject *self, PyObject *key, PyObject *out_type) -> PyObject * {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
 
     char const *k = nullptr;
     Py_ssize_t kn = 0;
@@ -563,7 +592,7 @@ auto stats_map_subscript_impl(PyObject *self, PyObject *key, PyObject *out_type)
         return nullptr;
     }
 
-    return py_stats_alloc(o->owner, out_type, o->stats, subkey);
+    return py_stats_alloc(o->owner, o->valid, out_type, o->stats, subkey);
 }
 
 auto stats_map_get_impl(PyObject *self, PyObject *args, PyObject *out_type) -> PyObject * {
@@ -573,7 +602,10 @@ auto stats_map_get_impl(PyObject *self, PyObject *args, PyObject *out_type) -> P
         return nullptr;
     }
 
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
 
     char const *k = nullptr;
     Py_ssize_t kn = 0;
@@ -592,11 +624,14 @@ auto stats_map_get_impl(PyObject *self, PyObject *args, PyObject *out_type) -> P
         return def;
     }
 
-    return py_stats_alloc(o->owner, out_type, o->stats, subkey);
+    return py_stats_alloc(o->owner, o->valid, out_type, o->stats, subkey);
 }
 
 auto stats_array_subscript_impl(PyObject *self, Py_ssize_t index, PyObject *out_type) -> PyObject * {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
     if (index < 0) {
         PyErr_SetString(PyExc_IndexError, "array index out of bounds");
         return nullptr;
@@ -616,11 +651,14 @@ auto stats_array_subscript_impl(PyObject *self, Py_ssize_t index, PyObject *out_
     if (!clingo_stats_array_at(o->stats, o->key, i, &subkey)) {
         return py_handle_error();
     }
-    return py_stats_alloc(o->owner, out_type, o->stats, subkey);
+    return py_stats_alloc(o->owner, o->valid, out_type, o->stats, subkey);
 }
 
 auto stats_get_array_impl(PyObject *self, PyObject *out_type) -> PyObject * {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
     clingo_stats_type_t ty = 0;
     if (!stats_type_of(o->stats, o->key, &ty)) {
         return nullptr;
@@ -629,11 +667,14 @@ auto stats_get_array_impl(PyObject *self, PyObject *out_type) -> PyObject * {
         PyErr_SetString(PyExc_TypeError, "not an array");
         return nullptr;
     }
-    return py_stats_alloc(o->owner, out_type, o->stats, o->key);
+    return py_stats_alloc(o->owner, o->valid, out_type, o->stats, o->key);
 }
 
 auto stats_get_map_impl(PyObject *self, PyObject *out_type) -> PyObject * {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
     clingo_stats_type_t ty = 0;
     if (!stats_type_of(o->stats, o->key, &ty)) {
         return nullptr;
@@ -642,7 +683,7 @@ auto stats_get_map_impl(PyObject *self, PyObject *out_type) -> PyObject * {
         PyErr_SetString(PyExc_TypeError, "not a map");
         return nullptr;
     }
-    return py_stats_alloc(o->owner, out_type, o->stats, o->key);
+    return py_stats_alloc(o->owner, o->valid, out_type, o->stats, o->key);
 }
 
 auto py_stats_get_type_enum(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
@@ -651,7 +692,10 @@ auto py_stats_get_type_enum(PyObject *self, [[maybe_unused]] void *arg) -> PyObj
         return nullptr;
     }
 
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
     clingo_stats_type_t ty = 0;
     if (!stats_type_of(o->stats, o->key, &ty)) {
         return nullptr;
@@ -668,7 +712,10 @@ auto py_stats_get_type_enum(PyObject *self, [[maybe_unused]] void *arg) -> PyObj
 }
 
 auto py_stats_str(PyObject *self) -> PyObject * {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
     auto bld = Guard<clingo_string_builder_t *, clingo_string_builder_free>();
     if (!clingo_string_builder_new(&bld.get())) {
         return py_handle_error();
@@ -684,21 +731,21 @@ auto py_stats_str(PyObject *self) -> PyObject * {
 }
 
 auto py_stats_view_len(PyObject *self) -> Py_ssize_t {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return -1;
+    }
     clingo_stats_type_t ty = 0;
     if (!stats_type_of(o->stats, o->key, &ty)) {
         return -1;
     }
 
     size_t n = 0;
-    if (ty == clingo_stats_type_array) {
-        if (!stats_array_len(o->stats, o->key, &n)) {
-            return -1;
-        }
-    } else if (ty == clingo_stats_type_map) {
-        if (!stats_map_len(o->stats, o->key, &n)) {
-            return -1;
-        }
+    if (ty == clingo_stats_type_array && !stats_array_len(o->stats, o->key, &n)) {
+        return -1;
+    }
+    if (ty == clingo_stats_type_map && !stats_map_len(o->stats, o->key, &n)) {
+        return -1;
     }
 
     if (n > static_cast<size_t>(std::numeric_limits<Py_ssize_t>::max())) {
@@ -709,7 +756,10 @@ auto py_stats_view_len(PyObject *self) -> Py_ssize_t {
 }
 
 auto py_stats_view_contains(PyObject *self, PyObject *key) -> int {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return -1;
+    }
 
     clingo_stats_type_t ty = 0;
     if (!stats_type_of(o->stats, o->key, &ty)) {
@@ -739,7 +789,10 @@ auto py_stats_iter_new(PyObject *owner, IterKind kind) -> PyObject * {
         return nullptr;
     }
 
-    auto *o = py_stats_cast(owner);
+    auto *o = py_stats_checked(owner);
+    if (o == nullptr) {
+        return nullptr;
+    }
 
     size_t n = 0;
     switch (kind) {
@@ -768,6 +821,7 @@ auto py_stats_iter_new(PyObject *owner, IterKind kind) -> PyObject * {
     if (obj == nullptr) {
         return nullptr;
     }
+    it->valid = o->valid;
     it->stats = o->stats;
     it->key = o->key;
     it->index = 0;
@@ -788,6 +842,7 @@ auto py_stats_iter_traverse(PyObject *self, visitproc visit, void *arg) -> int {
 
 auto py_stats_iter_clear(PyObject *self) -> int {
     auto *it = reinterpret_cast<PyStatsIterObject *>(self);
+    it->valid = invalid_slot();
     Py_CLEAR(it->owner);
     return 0;
 }
@@ -799,6 +854,9 @@ auto py_stats_iter_next(PyObject *self) -> PyObject * {
     }
 
     auto *it = reinterpret_cast<PyStatsIterObject *>(self);
+    if (!stats_valid(it->valid)) {
+        return nullptr;
+    }
     if (it->index >= it->size) {
         return nullptr;
     }
@@ -833,7 +891,7 @@ auto py_stats_iter_next(PyObject *self) -> PyObject * {
             auto *val_type = (it->kind == IterKind::map_values_view || it->kind == IterKind::map_items_view)
                                  ? state->stats_view_type
                                  : state->stats_type;
-            auto val = steal(py_stats_alloc(it->owner, val_type, it->stats, subkey));
+            auto val = steal(py_stats_alloc(it->owner, it->valid, val_type, it->stats, subkey));
             if (val.get() == nullptr) {
                 return nullptr;
             }
@@ -857,7 +915,7 @@ auto py_stats_iter_next(PyObject *self) -> PyObject * {
             }
 
             auto *val_type = it->kind == IterKind::array_items_view ? state->stats_view_type : state->stats_type;
-            return py_stats_alloc(it->owner, val_type, it->stats, subkey);
+            return py_stats_alloc(it->owner, it->valid, val_type, it->stats, subkey);
         }
     }
 
@@ -882,7 +940,10 @@ auto py_stats_subscript(PyObject *self, PyObject *key) -> PyObject * {
 }
 
 auto py_stats_view_iter(PyObject *self) -> PyObject * {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
     clingo_stats_type_t ty = 0;
     if (!stats_type_of(o->stats, o->key, &ty)) {
         return nullptr;
@@ -899,7 +960,10 @@ auto py_stats_view_iter(PyObject *self) -> PyObject * {
 }
 
 auto py_stats_iter(PyObject *self) -> PyObject * {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
     clingo_stats_type_t ty = 0;
     if (!stats_type_of(o->stats, o->key, &ty)) {
         return nullptr;
@@ -916,7 +980,10 @@ auto py_stats_iter(PyObject *self) -> PyObject * {
 }
 
 auto py_stats_view_nestify(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
     return stats_nestify(o->stats, o->key);
 }
 
@@ -953,7 +1020,10 @@ auto py_stats_get_map(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * 
 }
 
 auto py_stats_view_get_value(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
     clingo_stats_type_t ty = 0;
     if (!stats_type_of(o->stats, o->key, &ty)) {
         return nullptr;
@@ -1004,7 +1074,10 @@ auto py_stats_array_ass_subscript(PyObject *self, Py_ssize_t index, PyObject *va
         return -1;
     }
     auto i = static_cast<size_t>(index);
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return -1;
+    }
 
     size_t n = 0;
     if (!clingo_stats_array_size(o->stats, o->key, &n)) {
@@ -1026,7 +1099,10 @@ auto py_stats_array_ass_subscript(PyObject *self, Py_ssize_t index, PyObject *va
 }
 
 auto py_stats_array_append(PyObject *self, PyObject *arg) -> PyObject * {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
 
     clingo_stats_type_t subtype = 0;
     auto prepared = PyGuard{nullptr};
@@ -1113,7 +1189,10 @@ auto py_stats_map_setdefault(PyObject *self, PyObject *args) -> PyObject * {
     if (state == nullptr) {
         return nullptr;
     }
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
 
     char const *k = nullptr;
     Py_ssize_t kn = 0;
@@ -1129,7 +1208,7 @@ auto py_stats_map_setdefault(PyObject *self, PyObject *args) -> PyObject * {
     }
 
     if (found) {
-        return py_stats_alloc(o->owner, state->stats_type, o->stats, old_subkey);
+        return py_stats_alloc(o->owner, o->valid, state->stats_type, o->stats, old_subkey);
     }
 
     clingo_stats_type_t subtype = 0;
@@ -1147,7 +1226,7 @@ auto py_stats_map_setdefault(PyObject *self, PyObject *args) -> PyObject * {
         return nullptr;
     }
 
-    return py_stats_alloc(o->owner, state->stats_type, o->stats, subkey);
+    return py_stats_alloc(o->owner, o->valid, state->stats_type, o->stats, subkey);
 }
 
 auto py_stats_map_view_iter(PyObject *self) -> PyObject * {
@@ -1180,7 +1259,10 @@ auto py_stats_map_ass_subscript(PyObject *self, PyObject *key, PyObject *value) 
         return -1;
     }
 
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return -1;
+    }
 
     char const *k = nullptr;
     Py_ssize_t kn = 0;
@@ -1211,7 +1293,10 @@ auto py_stats_map_ass_subscript(PyObject *self, PyObject *key, PyObject *value) 
 }
 
 auto py_stats_update_method(PyObject *self, PyObject *arg) -> PyObject * {
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return nullptr;
+    }
     if (stats_update(o->stats, o->key, arg, false) < 0) {
         return nullptr;
     }
@@ -1224,7 +1309,10 @@ auto py_stats_set_value(PyObject *self, PyObject *value, [[maybe_unused]] void *
         return -1;
     }
 
-    auto *o = py_stats_cast(self);
+    auto *o = py_stats_checked(self);
+    if (o == nullptr) {
+        return -1;
+    }
     clingo_stats_type_t ty = 0;
     if (!stats_type_of(o->stats, o->key, &ty)) {
         return -1;
@@ -1545,8 +1633,9 @@ void register_stats(pybind11::module &m) {
     }
 }
 
-auto py_stats_new(PyObject *owner, PyObject *type, clingo_stats_t *stats, uint64_t key) -> PyObject * {
-    return py_stats_alloc(owner, type, stats, key);
+auto py_stats_new(PyObject *owner, void const *valid, PyObject *type, clingo_stats_t *stats, uint64_t key)
+    -> PyObject * {
+    return py_stats_alloc(owner, valid, type, stats, key);
 }
 
 auto py_stats_type() -> PyObject * {
@@ -1590,6 +1679,9 @@ auto py_stats_get(PyObject *type, PyObject *obj, clingo_stats_t **stats, uint64_
         return false;
     }
     auto *s = reinterpret_cast<PyStatsObject *>(obj);
+    if (!stats_valid(s->valid)) {
+        return false;
+    }
     if (stats != nullptr) {
         *stats = s->stats;
     }

@@ -118,10 +118,42 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t leve
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_lib_set_owner(clingo_lib_t *lib, void const *tag, void *owner) -> bool {
+    CLINGO_TRY {
+        lib->owners.set(tag, owner);
+    }
+    CLINGO_CATCH;
+}
+
+extern "C" auto clingo_lib_get_owner(clingo_lib_t const *lib, void const *tag) -> void * {
+    return lib->owners.get(tag);
+}
+
+extern "C" auto clingo_lib_add_finalizer(clingo_lib_t *lib, clingo_finalizer_t finalizer, void *data) -> bool {
+    CLINGO_TRY {
+        if (lib == nullptr || finalizer == nullptr) {
+            return fail_arguments();
+        }
+        lib->finalizers.emplace_back(finalizer, data);
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" void clingo_lib_acquire(clingo_lib_t *lib) {
     if (lib != nullptr) {
         ++lib->ref_count;
     }
+}
+
+//! Run the finalizers and release the logger and scripts.
+static void release_resources(clingo_lib_t *lib) {
+    while (!lib->finalizers.empty()) {
+        auto [finalizer, data] = lib->finalizers.back();
+        lib->finalizers.pop_back();
+        finalizer(data);
+    }
+    lib->log = CppClingo::Logger{};
+    lib->scripts = CppClingo::Control::Scripts{};
 }
 
 extern "C" void clingo_lib_release(clingo_lib_t *lib) {
@@ -129,7 +161,7 @@ extern "C" void clingo_lib_release(clingo_lib_t *lib) {
         return;
     }
     if (lib->fast_release) {
-        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        release_resources(lib);
         delete lib;
         return;
     }
@@ -150,15 +182,11 @@ extern "C" void clingo_lib_release(clingo_lib_t *lib) {
             item->next_ = survivors;
             survivors = item;
         } else {
-            // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
             delete item;
         }
     };
 
-    // reset logger and scripts in case they are holding symbols
-    // the store might be kept alive if it is still holding symbols
-    lib->log = CppClingo::Logger{};
-    lib->scripts = CppClingo::Control::Scripts{};
+    release_resources(lib);
     collect_or_keep(lib);
 
     while (pending != nullptr) {

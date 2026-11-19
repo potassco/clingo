@@ -8,6 +8,9 @@
 
 #include <clingo/control.h>
 
+#include <utility>
+#include <vector>
+
 struct clingo_control {
     //! Construct a control object that is bound later.
     //!
@@ -38,6 +41,11 @@ struct clingo_control {
             delete clasp;
             delete cfg;
         }
+        while (!finalizers.empty()) {
+            auto [finalizer, data] = finalizers.back();
+            finalizers.pop_back();
+            finalizer(data);
+        }
         clingo_lib_release(lib);
     }
     //! Bind the control object to the clasp and clingo objects.
@@ -56,6 +64,8 @@ struct clingo_control {
     CppClingo::Control::Solver *slv = nullptr;
     Clasp::ClaspConfig *cfg = nullptr;
     Clasp::ClaspFacade *clasp = nullptr;
+    std::vector<std::pair<clingo_finalizer_t, void *>> finalizers;
+    CppClingo::CAPI::Owners owners;
     std::atomic<size_t> ref_count = 1;
     bool own = false;
 };

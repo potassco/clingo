@@ -24,7 +24,8 @@ struct GroundModuleState {
 };
 
 using PyGroundHandleObject = struct {
-    PyObject_HEAD clingo_ground_handle_t *hnd;
+    PyObject_HEAD
+    clingo_ground_handle_t *hnd;
     GroundModuleState *state;
     PyObject *owner;
     PyObject *ctx;
@@ -205,7 +206,7 @@ auto close_handle(PyGroundHandleObject *h) -> bool {
     if (hnd == nullptr) {
         return true;
     }
-    return with_gil_released([&]() {
+    return with_gil_released([&] {
         clingo_ground_handle_close(hnd);
         return true;
     });
@@ -235,7 +236,7 @@ auto py_handle_get(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject *
         return nullptr;
     }
     clingo_ground_result_t res = 0;
-    if (!with_gil_released([&]() { return clingo_ground_handle_get(hnd, &res); })) {
+    if (!with_gil_released([&] { return clingo_ground_handle_get(hnd, &res); })) {
         return py_handle_error();
     }
     return PyObject_CallFunction(py_handle_cast(self)->state->ground_result_enum, "i", static_cast<int>(res));
@@ -246,7 +247,7 @@ auto py_handle_cancel(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObjec
     if (hnd == nullptr) {
         return nullptr;
     }
-    if (!with_gil_released([&]() { return clingo_ground_handle_cancel(hnd); })) {
+    if (!with_gil_released([&] { return clingo_ground_handle_cancel(hnd); })) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
@@ -270,7 +271,7 @@ auto py_handle_wait(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObjec
         return nullptr;
     }
     bool result = false;
-    if (!with_gil_released([&]() { return clingo_ground_handle_wait(hnd, timeout, &result); })) {
+    if (!with_gil_released([&] { return clingo_ground_handle_wait(hnd, timeout, &result); })) {
         return py_handle_error();
     }
     return PyBool_FromLong(result ? 1 : 0);
@@ -313,7 +314,7 @@ auto py_handle_methods = std::array{
     },
     PyMethodDef{
         "wait",
-        py_c_function_cast(py_handle_wait),
+        method_cast(py_handle_wait),
         METH_VARARGS | METH_KEYWORDS,
         PyDoc_STR("Wait for the ground call to finish or the next result with an optional timeout."),
     },
@@ -439,7 +440,7 @@ auto py_ground(PyObject *type, clingo_control_t *ctl, clingo_part_t const *parts
     auto data = BlockingData{state, ctx};
     auto handler = clingo_ground_event_handler_t{context_callable, blocking_call, nullptr, nullptr};
     auto ok = with_gil_released(
-        [&]() { return clingo_control_ground(ctl, parts, size, ctx != nullptr ? &handler : nullptr, &data); });
+        [&] { return clingo_control_ground(ctl, parts, size, ctx != nullptr ? &handler : nullptr, &data); });
     if (!ok) {
         py_handle_error();
         return false;

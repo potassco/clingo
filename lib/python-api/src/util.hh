@@ -7,10 +7,14 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <algorithm>
 #include <compare> // IWYU pragma: keep
 #include <concepts>
+#include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <ranges>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -95,80 +99,117 @@ template <class T> struct value_handle {
     pointer ptr_ = nullptr;
 };
 
-template <class T, class P> class registered_handle {
-  private:
+//! Check whether the pointer stored at the given address is not null.
+//!
+//! The pointer can be of any pointer type; it is read via memcpy to not
+//! violate aliasing rules.
+inline auto pointer_valid(void const *slot) noexcept -> bool {
+    void *ptr = nullptr;
+    std::memcpy(static_cast<void *>(&ptr), slot, sizeof(ptr));
+    return ptr != nullptr;
+}
+
+//! Get the address of a pointer as a slot for pointer_valid().
+template <class P> auto pointer_slot(P *const *slot) noexcept -> void const * {
+    return static_cast<void const *>(slot);
+}
+
+//! The pointer observed via invalid_slot().
+inline void *const invalid_pointer = nullptr;
+
+//! Get a slot for pointer_valid() that is never valid.
+inline auto invalid_slot() noexcept -> void const * {
+    return pointer_slot(&invalid_pointer);
+}
+
+//! A handle to a reference counted C object.
+//!
+//! The handle either owns a reference to the object or borrows it. A borrowed
+//! handle neither acquires nor releases the object. Accessing the object via
+//! get() throws once the handle has been reset (e.g., invalidated).
+//!
+//! The pointer is stored as `void *` so that views can observe its address via
+//! ptr_ref() to check whether the object is still valid.
+template <class T, class P> class managed_handle {
+  public:
     friend T;
 
-    registered_handle() = default;
+    //! Tag to construct a handle that does not own the pointer.
+    struct borrow_t {};
 
-    registered_handle(registered_handle const &other) = delete; // NOLINT
+    managed_handle() = default;
 
-    auto operator=(registered_handle const &other) -> registered_handle & = delete; // NOLINT
+    managed_handle(managed_handle const &other) = delete; // NOLINT
 
-    registered_handle(registered_handle &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {
-        auto it = registry.find(ptr_);
-        assert(it != registry.end());
-        it->second = static_cast<T *>(this);
-    }
+    auto operator=(managed_handle const &other) -> managed_handle & = delete; // NOLINT
 
-    auto operator=(registered_handle &&other) noexcept -> registered_handle & {
+    managed_handle(managed_handle &&other) noexcept
+        : ptr_{std::exchange(other.ptr_, nullptr)}, owns_{std::exchange(other.owns_, true)} {}
+
+    auto operator=(managed_handle &&other) noexcept -> managed_handle & {
         if (this != &other) {
-            assert(ptr_ == nullptr || ptr_ != other.ptr_);
-            registry.erase(ptr_);
-            T::release(ptr_);
+            release_();
             ptr_ = std::exchange(other.ptr_, nullptr);
-            if (ptr_ != nullptr) {
-                auto it = registry.find(get());
-                it->second = static_cast<T *>(this);
-            }
+            owns_ = std::exchange(other.owns_, true);
         }
         return *this;
     }
-    ~registered_handle() noexcept {
-        registry.erase(ptr_);
-        T::release(ptr_);
-    }
-    explicit registered_handle(P *ptr, bool inc = true) : ptr_{ptr} {
-        T::acquire(ptr_, inc);
-        if (ptr_ != nullptr) {
-            registry.emplace(ptr_, static_cast<T *>(this));
-        }
-    }
+    ~managed_handle() noexcept { release_(); }
+    explicit managed_handle(P *ptr, bool inc = true) : ptr_{ptr} { T::acquire(ptr, inc); }
+    //! Construct a handle that neither acquires nor releases the pointer.
+    managed_handle(P *ptr, borrow_t /*tag*/) : ptr_{ptr}, owns_{false} {}
 
-    [[nodiscard]] auto get() const noexcept -> P * { return ptr_; }
+    //! Get the pointer and throw if the handle is no longer valid.
+    [[nodiscard]] auto get() const -> P * {
+        if (ptr_ == nullptr) {
+            throw std::runtime_error{T::invalid_message};
+        }
+        return get_unchecked();
+    }
+    //! Get the pointer or nullptr if the handle is no longer valid.
+    [[nodiscard]] auto get_unchecked() const noexcept -> P * { return static_cast<P *>(ptr_); }
+    //! Get the address of the held pointer, which is null once the handle is no longer valid.
+    [[nodiscard]] auto ptr_ref() const noexcept -> void *const * { return &ptr_; }
+    //! Check whether the handle owns the pointer.
+    [[nodiscard]] auto owns() const noexcept -> bool { return owns_; }
+
     void reset(std::nullptr_t = nullptr) noexcept {
-        registry.erase(ptr_);
-        T::release(ptr_);
+        release_();
         ptr_ = nullptr;
+        owns_ = true;
     }
     void reset(P *ptr, bool inc = true) {
-        registry.erase(ptr_);
-        T::release(ptr_);
+        release_();
         ptr_ = ptr;
-        T::acquire(ptr_, inc);
-        if (ptr_ != nullptr) {
-            registry.emplace(ptr_, static_cast<T *>(this));
+        owns_ = true;
+        T::acquire(ptr, inc);
+    }
+
+  private:
+    void release_() noexcept {
+        if (owns_) {
+            T::release(get_unchecked());
         }
     }
 
-    static auto from_registry(P *ptr) -> T * {
-        if (auto it = registry.find(ptr); it != registry.end()) {
-            return it->second;
-        }
-        return nullptr;
-    }
-
-    static std::unordered_map<P *, T *> registry;
-    P *ptr_ = nullptr;
+    void *ptr_ = nullptr;
+    bool owns_ = true;
 };
-
-template <class T, class P> std::unordered_map<P *, T *> registered_handle<T, P>::registry;
 
 template <class T> class reference_keeper {
   public:
     void tie(py::handle obj) { list_.append(obj); }
 
     auto keeper_ref() -> PyObject * { return list_.ptr(); }
+
+    //! The number of objects kept alive via tie().
+    [[nodiscard]] auto kept() const -> size_t { return list_.ptr() != nullptr ? py::len(list_) : 0; }
+
+    //! Keep a single owner alive (in addition to the tied objects).
+    void keep_owner(py::object obj) { owner_ = std::move(obj); }
+
+    //! Get the owner set with keep_owner() (borrowed, might be nullptr).
+    [[nodiscard]] auto owner_ref() const -> PyObject * { return owner_.ptr(); }
 
     static void setup(PyHeapTypeObject *heap_type) {
         auto *type = &heap_type->ht_type;
@@ -177,6 +218,7 @@ template <class T> class reference_keeper {
             auto *self = py::cast<T *>(py::handle(self_base));
             if (constructed_.contains(self)) {
                 Py_VISIT(self->list_.ptr());
+                Py_VISIT(self->owner_.ptr());
             }
             return 0;
         };
@@ -184,6 +226,7 @@ template <class T> class reference_keeper {
             auto *self = py::cast<T *>(py::handle(self_base));
             if (constructed_.contains(self)) {
                 Py_CLEAR(self->list_.ptr());
+                Py_CLEAR(self->owner_.ptr());
             }
             return 0;
         };
@@ -206,6 +249,7 @@ template <class T> class reference_keeper {
     reference_keeper() { constructed_.emplace(static_cast<T *>(this)); }
 
     py::list list_;
+    py::object owner_;
 };
 
 template <class T> inline std::unordered_set<T *> reference_keeper<T>::constructed_ = {};
@@ -525,7 +569,13 @@ template <size_t N> auto cast_kw(std::array<char const *, N> const &kwlist) -> c
     return const_cast<char **>(kwlist.data());
 }
 
-inline auto py_c_function_cast(PyCFunctionWithKeywords fun) noexcept -> PyCFunction {
+using PyCFunctionFastWithKeywords = PyObject *(*)(PyObject *, PyObject *const *, Py_ssize_t, PyObject *);
+
+inline auto method_cast(PyCFunctionWithKeywords fun) noexcept -> PyCFunction {
+    return reinterpret_cast<PyCFunction>(reinterpret_cast<void *>(fun)); // NOLINT
+}
+
+inline auto method_cast(PyCFunctionFastWithKeywords fun) noexcept -> PyCFunction {
     return reinterpret_cast<PyCFunction>(reinterpret_cast<void *>(fun)); // NOLINT
 }
 
@@ -594,15 +644,29 @@ template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *wha
     return true;
 }
 
-template <class T> auto py_cast(PyObject *obj) -> T * {
+//! Cast a Python object to a pybind11 wrapped C++ object.
+//!
+//! For managed handles, this also checks that the handle is still valid.
+template <class T> auto py_cast(PyObject *obj) noexcept -> T * {
     try {
         auto res = py::handle{obj}.cast<T *>();
         if (res == nullptr) {
             PyErr_SetString(PyExc_TypeError, "object is not of the expected type");
+            return nullptr;
+        }
+        if constexpr (requires { res->get_unchecked(); }) {
+            if (res->get_unchecked() == nullptr) {
+                PyErr_SetString(PyExc_RuntimeError, T::invalid_message);
+                return nullptr;
+            }
         }
         return res;
     } catch (py::error_already_set &e) {
-        e.restore();
+        try {
+            e.restore();
+        } catch (...) {
+            PyErr_SetString(PyExc_RuntimeError, "error restoring Python exception");
+        }
         return nullptr;
     } catch (py::cast_error &) {
         PyErr_SetString(PyExc_TypeError, "object is not of the expected type");
@@ -612,6 +676,71 @@ template <class T> auto py_cast(PyObject *obj) -> T * {
         return nullptr;
     }
 }
+
+//! A growable array of trivially copyable values.
+//!
+//! The container does not depend on Python and does not throw: allocation
+//! failures are reported via return values and have to be handled by the
+//! caller.
+template <class T> class TrivialVector {
+    static_assert(std::is_trivially_copyable_v<T>);
+
+  public:
+    TrivialVector() = default;
+    TrivialVector(TrivialVector const &) = delete;
+    auto operator=(TrivialVector const &) -> TrivialVector & = delete;
+    TrivialVector(TrivialVector &&other) noexcept
+        : data_{std::exchange(other.data_, nullptr)}, size_{std::exchange(other.size_, 0)},
+          capacity_{std::exchange(other.capacity_, 0)} {}
+    auto operator=(TrivialVector &&other) noexcept -> TrivialVector & {
+        std::swap(data_, other.data_);
+        std::swap(size_, other.size_);
+        std::swap(capacity_, other.capacity_);
+        return *this;
+    }
+    ~TrivialVector() {
+        std::free(data_); // NOLINT(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+    }
+
+    //! Ensure capacity for at least n values.
+    [[nodiscard]] auto reserve(size_t n) noexcept -> bool {
+        if (n <= capacity_) {
+            return true;
+        }
+        if (n > std::numeric_limits<size_t>::max() / sizeof(T)) {
+            return false;
+        }
+        // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+        auto *data = static_cast<T *>(std::realloc(static_cast<void *>(data_), n * sizeof(T)));
+        if (data == nullptr) {
+            return false;
+        }
+        data_ = data;
+        capacity_ = n;
+        return true;
+    }
+    //! Append a value.
+    [[nodiscard]] auto push_back(T const &value) noexcept -> bool {
+        static constexpr size_t min_capacity = 8;
+        if (size_ == capacity_ && !reserve(std::max(2 * capacity_, min_capacity))) {
+            return false;
+        }
+        data_[size_++] = value;
+        return true;
+    }
+    //! Remove all values keeping the capacity.
+    void clear() noexcept { size_ = 0; }
+
+    [[nodiscard]] auto data() const noexcept -> T * { return data_; }
+    [[nodiscard]] auto size() const noexcept -> size_t { return size_; }
+    [[nodiscard]] auto capacity() const noexcept -> size_t { return capacity_; }
+    [[nodiscard]] auto empty() const noexcept -> bool { return size_ == 0; }
+
+  private:
+    T *data_ = nullptr;
+    size_t size_ = 0;
+    size_t capacity_ = 0;
+};
 
 template <class T> struct PyBuffer {
     PyBuffer() = default;
@@ -713,6 +842,58 @@ inline auto parse_string_sequence(PyObject *obj, PyGuard &seq, PyBuffer<clingo_s
         *it++ = clingo_string_t{s, static_cast<size_t>(len)};
     }
 
+    return true;
+}
+
+//! Parse required and optional arguments passed with the METH_FASTCALL | METH_KEYWORDS convention.
+inline auto parse_args(char const *fname, std::initializer_list<char const *> req,
+                       std::initializer_list<char const *> opt, PyObject *const *args, Py_ssize_t nargs,
+                       PyObject *kwnames, std::initializer_list<PyObject **> out) -> bool {
+    assert(req.size() + opt.size() == out.size());
+    auto n = out.size();
+    auto const *outs = out.begin();
+    auto name = [&](size_t j) { return j < req.size() ? req.begin()[j] : opt.begin()[j - req.size()]; };
+    for (auto *x : out) {
+        *x = nullptr;
+    }
+    if (std::cmp_greater(nargs, n)) {
+        PyErr_Format(PyExc_TypeError, "%s() takes at most %zu arguments (%zd given)", fname, n, nargs);
+        return false;
+    }
+    for (Py_ssize_t i = 0; i < nargs; ++i) {
+        *outs[i] = args[i];
+    }
+    if (kwnames != nullptr) {
+        auto nkw = PyTuple_Size(kwnames);
+        if (nkw < 0) {
+            return false;
+        }
+        for (Py_ssize_t k = 0; k < nkw; ++k) {
+            auto *key = PyTuple_GetItem(kwnames, k);
+            if (key == nullptr) {
+                return false;
+            }
+            size_t j = 0;
+            while (j < n && PyUnicode_CompareWithASCIIString(key, name(j)) != 0) {
+                ++j;
+            }
+            if (j == n) {
+                PyErr_Format(PyExc_TypeError, "%s() got an unexpected keyword argument '%U'", fname, key);
+                return false;
+            }
+            if (*outs[j] != nullptr) {
+                PyErr_Format(PyExc_TypeError, "%s() got multiple values for argument '%s'", fname, name(j));
+                return false;
+            }
+            *outs[j] = args[nargs + k];
+        }
+    }
+    for (size_t j = 0; j < req.size(); ++j) {
+        if (*outs[j] == nullptr) {
+            PyErr_Format(PyExc_TypeError, "%s() missing required argument '%s'", fname, name(j));
+            return false;
+        }
+    }
     return true;
 }
 

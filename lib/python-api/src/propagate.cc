@@ -1,929 +1,2060 @@
-#include <clingo/propagate.h>
+#define PY_SSIZE_T_CLEAN
 
-#include <pybind11/native_enum.h>
-
-#include <algorithm>
-#include <utility>
+#include "propagate.hh"
 
 #include "base.hh"
-#include "iterable.hh"
-#include "iterator.hh"
-#include "propagate.hh"
+#include "core.hh"
 #include "util.hh"
+
+#include <clingo/propagate.h>
+
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <initializer_list>
+#include <utility>
 
 namespace PyClingo {
 
 namespace {
 
-auto to_rng(uint32_t size, py::slice const &slc) {
-    return py::module::import("builtins").attr("range")(size)[slc];
+// objects
+
+struct PropagateModuleState {
+    PyObject *base_type{nullptr};
+    PyObject *weight_constraint_type_enum{nullptr};
+    PyObject *check_mode_enum{nullptr};
+    PyObject *undo_mode_enum{nullptr};
+    PyObject *assignment_type{nullptr};
+    PyObject *trail_type{nullptr};
+    PyObject *trail_view_type{nullptr};
+    PyObject *control_type{nullptr};
+    PyObject *init_type{nullptr};
+    PyObject *propagator_type{nullptr};
+    PyObject *handle_type{nullptr};
+    PyObject *str_init{nullptr};
+    PyObject *str_attach{nullptr};
+    PyObject *str_propagate{nullptr};
+    PyObject *str_undo{nullptr};
+    PyObject *str_check{nullptr};
+    PyObject *str_decide{nullptr};
+};
+
+constexpr auto state_members = std::array{
+    &PropagateModuleState::base_type,       &PropagateModuleState::weight_constraint_type_enum,
+    &PropagateModuleState::check_mode_enum, &PropagateModuleState::undo_mode_enum,
+    &PropagateModuleState::assignment_type, &PropagateModuleState::trail_type,
+    &PropagateModuleState::trail_view_type, &PropagateModuleState::control_type,
+    &PropagateModuleState::init_type,       &PropagateModuleState::propagator_type,
+    &PropagateModuleState::handle_type,     &PropagateModuleState::str_init,
+    &PropagateModuleState::str_attach,      &PropagateModuleState::str_propagate,
+    &PropagateModuleState::str_undo,        &PropagateModuleState::str_check,
+    &PropagateModuleState::str_decide,
+};
+
+struct PyAssignmentObject {
+    PyObject_HEAD
+    clingo_assignment_t const *ass;
+    PyObject *trail;
+};
+
+struct PyTrailObject {
+    PyObject_HEAD
+    clingo_assignment_t const *ass;
+};
+
+struct PyTrailViewObject {
+    PyObject_HEAD
+    PyObject *trail;
+    Py_ssize_t start;
+    Py_ssize_t step;
+    Py_ssize_t size;
+};
+
+struct PyPropagateControlObject {
+    PyObject_HEAD
+    clingo_propagate_control_t *ctl;
+};
+
+struct PyPropagateInitObject {
+    PyPropagateControlObject base;
+    clingo_propagate_init_t *init;
+    PyObject *library;
+};
+
+struct PyPropagatorHandleObject {
+    PyObject_HEAD
+    PyObject *propagator;
+    PyObject *library;
+    // NOTE: per solver thread wrappers stored as [assignment, control, ...]
+    PyObject **cache;
+    size_t cache_size;
+    bool has_init;
+    bool has_attach;
+    bool has_propagate;
+    bool has_undo;
+    bool has_check;
+    bool has_decide;
+};
+
+template <class T> auto as(PyObject *obj) -> T * {
+    return reinterpret_cast<T *>(obj);
+}
+
+auto get_state(PyObject *module) -> PropagateModuleState * {
+    auto *state = static_cast<PropagateModuleState *>(PyModule_GetState(module));
+    if (state == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "propagate module state is unavailable");
+        return nullptr;
+    }
+    return state;
+}
+
+auto get_state_from_type(PyObject *type) -> PropagateModuleState * {
+    auto *state = static_cast<PropagateModuleState *>(PyType_GetModuleState(reinterpret_cast<PyTypeObject *>(type)));
+    if (state == nullptr) {
+        if (PyErr_Occurred() == nullptr) {
+            PyErr_SetString(PyExc_RuntimeError, "propagate module state is unavailable");
+        }
+        return nullptr;
+    }
+    return state;
+}
+
+auto state_of(PyObject *self) -> PropagateModuleState * {
+    return get_state_from_type(reinterpret_cast<PyObject *>(Py_TYPE(self)));
+}
+
+auto alloc_object(PyObject *type) -> PyObject * {
+    return PyType_GenericAlloc(reinterpret_cast<PyTypeObject *>(type), 0);
+}
+
+// argument parsing
+
+auto parse_bool(PyObject *obj, bool *out) -> bool {
+    if (obj == nullptr) {
+        return true;
+    }
+    auto res = PyObject_IsTrue(obj);
+    if (res < 0) {
+        return false;
+    }
+    *out = res != 0;
+    return true;
+}
+
+auto parse_literal_arg(char const *fname, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames,
+                       clingo_literal_t *lit) -> bool {
+    PyObject *lit_obj{};
+    return parse_args(fname, {"literal"}, {}, args, nargs, kwnames, {&lit_obj}) && parse_num(lit_obj, lit, "literal");
+}
+
+auto parse_level_arg(char const *fname, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, uint32_t *level)
+    -> bool {
+    PyObject *level_obj{};
+    return parse_args(fname, {"level"}, {}, args, nargs, kwnames, {&level_obj}) && parse_num(level_obj, level, "level");
+}
+
+//! Temporarily take a thread local buffer.
+//!
+//! Reentrant calls (e.g., via `__index__`) see an empty buffer and allocate
+//! their own one.
+template <class T> class BufferLease {
+  public:
+    explicit BufferLease(TrivialVector<T> &pool) : pool_{pool}, buf_{std::move(pool)} { buf_.clear(); }
+    BufferLease(BufferLease const &) = delete;
+    BufferLease(BufferLease &&) = delete;
+    auto operator=(BufferLease const &) -> BufferLease & = delete;
+    auto operator=(BufferLease &&) -> BufferLease & = delete;
+    ~BufferLease() {
+        if (buf_.capacity() > pool_.capacity()) {
+            pool_ = std::move(buf_);
+        }
+    }
+
+    auto get() -> TrivialVector<T> & { return buf_; }
+
+  private:
+    TrivialVector<T> &pool_;
+    TrivialVector<T> buf_;
+};
+
+thread_local auto lit_pool = TrivialVector<clingo_literal_t>{};
+thread_local auto wlit_pool = TrivialVector<clingo_weighted_literal_t>{};
+
+// NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
+template <class F> auto for_each_item(PyObject *obj, F &&fun) -> bool {
+    auto it = steal(PyObject_GetIter(obj));
+    if (it.get() == nullptr) {
+        return false;
+    }
+    for (;;) {
+        auto item = steal(PyIter_Next(it.get()));
+        if (item.get() == nullptr) {
+            break;
+        }
+        if (!fun(item.get())) {
+            return false;
+        }
+    }
+    return PyErr_Occurred() == nullptr;
+}
+
+auto parse_literals(PyObject *obj, bool negate, TrivialVector<clingo_literal_t> &out) -> bool {
+    return for_each_item(obj, [&](PyObject *item) {
+        clingo_literal_t lit = 0;
+        if (!parse_num(item, &lit, "literal")) {
+            return false;
+        }
+        if (!out.push_back(negate ? -lit : lit)) {
+            PyErr_NoMemory();
+            return false;
+        }
+        return true;
+    });
+}
+
+auto parse_weighted_literals(PyObject *obj, TrivialVector<clingo_weighted_literal_t> &out) -> bool {
+    static constexpr char const *msg = "weighted literal must be a pair (literal, weight)";
+    return for_each_item(obj, [&](PyObject *item) {
+        auto pair = steal(PySequence_Tuple(item));
+        if (pair.get() == nullptr) {
+            return false;
+        }
+        if (PyTuple_Size(pair.get()) != 2) {
+            PyErr_SetString(PyExc_TypeError, msg);
+            return false;
+        }
+        auto wlit = clingo_weighted_literal_t{0, 0};
+        if (!parse_num(PyTuple_GetItem(pair.get(), 0), &wlit.literal, "literal") ||
+            !parse_num(PyTuple_GetItem(pair.get(), 1), &wlit.weight, "weight")) {
+            return false;
+        }
+        if (!out.push_back(wlit)) {
+            PyErr_NoMemory();
+            return false;
+        }
+        return true;
+    });
+}
+
+auto int_list(clingo_literal_t const *values, size_t size) -> PyObject * {
+    auto list = steal(PyList_New(static_cast<Py_ssize_t>(size)));
+    if (list.get() == nullptr) {
+        return nullptr;
+    }
+    for (size_t i = 0; i < size; ++i) {
+        auto *value = PyLong_FromLong(values[i]);
+        if (value == nullptr || PyList_SetItem(list.get(), static_cast<Py_ssize_t>(i), value) < 0) {
+            return nullptr;
+        }
+    }
+    return list.release();
+}
+
+auto bool_result(bool ok, bool const &res) -> PyObject * {
+    if (!ok) {
+        return py_handle_error();
+    }
+    return PyBool_FromLong(res ? 1 : 0);
+}
+
+auto none_result(bool ok) -> PyObject * {
+    if (!ok) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+// sequence helpers
+
+auto normalize_index(PyObject *key, Py_ssize_t size, Py_ssize_t *index) -> bool {
+    auto i = PyNumber_AsSsize_t(key, PyExc_IndexError);
+    if (i == -1 && PyErr_Occurred() != nullptr) {
+        return false;
+    }
+    if (i < 0) {
+        i += size;
+    }
+    if (i < 0 || i >= size) {
+        PyErr_SetString(PyExc_IndexError, "index out of range");
+        return false;
+    }
+    *index = i;
+    return true;
+}
+
+auto check_index(Py_ssize_t index, Py_ssize_t size) -> bool {
+    if (index < 0 || index >= size) {
+        PyErr_SetString(PyExc_IndexError, "index out of range");
+        return false;
+    }
+    return true;
+}
+
+auto unpack_slice(PyObject *slice, Py_ssize_t size, Py_ssize_t *start, Py_ssize_t *step, Py_ssize_t *len) -> bool {
+    Py_ssize_t stop = 0;
+    if (PySlice_Unpack(slice, start, &stop, step) < 0) {
+        return false;
+    }
+    *len = PySlice_AdjustIndices(size, start, &stop, *step);
+    return true;
+}
+
+auto invalid_key() -> PyObject * {
+    PyErr_SetString(PyExc_TypeError, "indices must be integers or slices");
+    return nullptr;
+}
+
+// Assignment
+
+auto assignment_get(PyObject *self) -> clingo_assignment_t const * {
+    auto const *ass = as<PyAssignmentObject>(self)->ass;
+    if (ass == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "assignment is no longer valid");
+    }
+    return ass;
+}
+
+auto assignment_size(clingo_assignment_t const *ass) -> Py_ssize_t {
+    size_t size = 0;
+    if (!clingo_assignment_size(ass, &size)) {
+        py_handle_error();
+        return -1;
+    }
+    return static_cast<Py_ssize_t>(size);
+}
+
+auto assignment_at(clingo_assignment_t const *ass, Py_ssize_t index) -> PyObject * {
+    clingo_literal_t lit = 0;
+    if (!clingo_assignment_at(ass, static_cast<size_t>(index), &lit)) {
+        return py_handle_error();
+    }
+    return PyLong_FromLong(lit);
+}
+
+using LitFlagFun = bool (*)(clingo_assignment_t const *, clingo_literal_t, bool *);
+
+auto assignment_lit_flag(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, char const *fname,
+                         LitFlagFun fun) -> PyObject * {
+    clingo_literal_t lit = 0;
+    if (!parse_literal_arg(fname, args, nargs, kwnames, &lit)) {
+        return nullptr;
+    }
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    bool res = false;
+    return bool_result(fun(ass, lit, &res), res);
+}
+
+auto assignment_truth_value(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames,
+                            char const *fname, clingo_truth_value_t *value) -> bool {
+    clingo_literal_t lit = 0;
+    if (!parse_literal_arg(fname, args, nargs, kwnames, &lit)) {
+        return false;
+    }
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return false;
+    }
+    if (!clingo_assignment_truth_value(ass, lit, value)) {
+        py_handle_error();
+        return false;
+    }
+    return true;
+}
+
+auto py_assignment_is_true(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    return assignment_lit_flag(self, args, nargs, kwnames, "is_true", clingo_assignment_is_true);
+}
+
+auto py_assignment_is_false(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    return assignment_lit_flag(self, args, nargs, kwnames, "is_false", clingo_assignment_is_false);
+}
+
+auto py_assignment_is_fixed(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    return assignment_lit_flag(self, args, nargs, kwnames, "is_fixed", clingo_assignment_is_fixed);
+}
+
+auto py_assignment_is_free(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    clingo_truth_value_t value = 0;
+    if (!assignment_truth_value(self, args, nargs, kwnames, "is_free", &value)) {
+        return nullptr;
+    }
+    return PyBool_FromLong(value == clingo_truth_value_free ? 1 : 0);
+}
+
+auto py_assignment_value(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    clingo_truth_value_t value = 0;
+    if (!assignment_truth_value(self, args, nargs, kwnames, "value", &value)) {
+        return nullptr;
+    }
+    switch (value) {
+        case clingo_truth_value_true: {
+            Py_RETURN_TRUE;
+        }
+        case clingo_truth_value_false: {
+            Py_RETURN_FALSE;
+        }
+        default: {
+            Py_RETURN_NONE;
+        }
+    }
+}
+
+auto py_assignment_level(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    clingo_literal_t lit = 0;
+    if (!parse_literal_arg("level", args, nargs, kwnames, &lit)) {
+        return nullptr;
+    }
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    uint32_t level = 0;
+    if (!clingo_assignment_level(ass, lit, &level)) {
+        return py_handle_error();
+    }
+    return PyLong_FromUnsignedLong(level);
+}
+
+auto py_assignment_decision(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    uint32_t level = 0;
+    if (!parse_level_arg("decision", args, nargs, kwnames, &level)) {
+        return nullptr;
+    }
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    clingo_literal_t lit = 0;
+    if (!clingo_assignment_decision(ass, level, &lit)) {
+        return py_handle_error();
+    }
+    return PyLong_FromLong(lit);
+}
+
+auto py_assignment_thread_id(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    clingo_id_t id = 0;
+    if (!clingo_assignment_thread_id(ass, &id)) {
+        return py_handle_error();
+    }
+    return PyLong_FromUnsignedLong(id);
+}
+
+auto py_assignment_decision_level(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    uint32_t level = 0;
+    if (!clingo_assignment_decision_level(ass, &level)) {
+        return py_handle_error();
+    }
+    return PyLong_FromUnsignedLong(level);
+}
+
+auto py_assignment_root_level(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    uint32_t level = 0;
+    if (!clingo_assignment_root_level(ass, &level)) {
+        return py_handle_error();
+    }
+    return PyLong_FromUnsignedLong(level);
+}
+
+auto py_assignment_has_conflict(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    bool res = false;
+    return bool_result(clingo_assignment_has_conflict(ass, &res), res);
+}
+
+auto py_assignment_is_total(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    bool res = false;
+    return bool_result(clingo_assignment_is_total(ass, &res), res);
+}
+
+auto py_assignment_trail(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
+    if (assignment_get(self) == nullptr) {
+        return nullptr;
+    }
+    auto *trail = as<PyAssignmentObject>(self)->trail;
+    Py_INCREF(trail);
+    return trail;
+}
+
+auto py_assignment_len(PyObject *self) -> Py_ssize_t {
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return -1;
+    }
+    return assignment_size(ass);
+}
+
+auto py_assignment_item(PyObject *self, Py_ssize_t index) -> PyObject * {
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    auto size = assignment_size(ass);
+    if (size < 0 || !check_index(index, size)) {
+        return nullptr;
+    }
+    return assignment_at(ass, index);
+}
+
+auto py_assignment_subscript(PyObject *self, PyObject *key) -> PyObject * {
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    auto size = assignment_size(ass);
+    if (size < 0) {
+        return nullptr;
+    }
+    if (PySlice_Check(key) != 0) {
+        Py_ssize_t start = 0;
+        Py_ssize_t step = 0;
+        Py_ssize_t len = 0;
+        if (!unpack_slice(key, size, &start, &step, &len)) {
+            return nullptr;
+        }
+        auto list = steal(PyList_New(len));
+        if (list.get() == nullptr) {
+            return nullptr;
+        }
+        for (Py_ssize_t i = 0; i < len; ++i) {
+            auto *lit = assignment_at(ass, start + (i * step));
+            if (lit == nullptr || PyList_SetItem(list.get(), i, lit) < 0) {
+                return nullptr;
+            }
+        }
+        return list.release();
+    }
+    if (PyIndex_Check(key) == 0) {
+        return invalid_key();
+    }
+    Py_ssize_t index = 0;
+    if (!normalize_index(key, size, &index)) {
+        return nullptr;
+    }
+    return assignment_at(ass, index);
+}
+
+auto py_assignment_contains(PyObject *self, PyObject *value) -> int {
+    auto const *ass = assignment_get(self);
+    if (ass == nullptr) {
+        return -1;
+    }
+    if (PyLong_Check(value) == 0) {
+        return 0;
+    }
+    clingo_literal_t lit = 0;
+    if (!parse_num(value, &lit, "literal")) {
+        if (PyErr_ExceptionMatches(PyExc_OverflowError) != 0) {
+            PyErr_Clear();
+            return 0;
+        }
+        return -1;
+    }
+    bool res = false;
+    if (!clingo_assignment_has_literal(ass, lit, &res)) {
+        py_handle_error();
+        return -1;
+    }
+    return res ? 1 : 0;
+}
+
+void py_assignment_dealloc(PyObject *self) {
+    Py_CLEAR(as<PyAssignmentObject>(self)->trail);
+    free_object(self);
+}
+
+auto py_assignment_methods = std::array{
+    PyMethodDef{
+        "decision",
+        method_cast(py_assignment_decision),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Get the decision literal of the given level."),
+    },
+    PyMethodDef{
+        "is_false",
+        method_cast(py_assignment_is_false),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Check if the given literal is false."),
+    },
+    PyMethodDef{
+        "is_true",
+        method_cast(py_assignment_is_true),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Check if the given literal is true."),
+    },
+    PyMethodDef{
+        "is_free",
+        method_cast(py_assignment_is_free),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Check if the given literal is free."),
+    },
+    PyMethodDef{
+        "is_fixed",
+        method_cast(py_assignment_is_fixed),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Check if the truth value of the given literal is fixed."),
+    },
+    PyMethodDef{
+        "level",
+        method_cast(py_assignment_level),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Get the decision level of the given literal."),
+    },
+    PyMethodDef{
+        "value",
+        method_cast(py_assignment_value),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Get the truth value of the given literal or None if it is unassigned."),
+    },
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
+auto py_assignment_getset = std::array{
+    PyGetSetDef{
+        "thread_id",
+        py_assignment_thread_id,
+        nullptr,
+        PyDoc_STR("The id of the thread the assignment belongs to."),
+        nullptr,
+    },
+    PyGetSetDef{
+        "decision_level",
+        py_assignment_decision_level,
+        nullptr,
+        PyDoc_STR("The current decision level."),
+        nullptr,
+    },
+    PyGetSetDef{
+        "has_conflict",
+        py_assignment_has_conflict,
+        nullptr,
+        PyDoc_STR("Whether the assignment is conflicting."),
+        nullptr,
+    },
+    PyGetSetDef{"is_total", py_assignment_is_total, nullptr, PyDoc_STR("Whether all literals are assigned."), nullptr},
+    PyGetSetDef{
+        "root_level",
+        py_assignment_root_level,
+        nullptr,
+        PyDoc_STR("The lowest decision level that can be backtracked to."),
+        nullptr,
+    },
+    PyGetSetDef{"trail", py_assignment_trail, nullptr, PyDoc_STR("The trail of assigned literals."), nullptr},
+    PyGetSetDef{nullptr, nullptr, nullptr, nullptr, nullptr},
+};
+
+auto py_assignment_slots = std::array{
+    PyType_Slot{Py_tp_doc, const_cast<char *>("The state of the literals in the solver.")}, // NOLINT
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_assignment_dealloc)},
+    PyType_Slot{Py_tp_methods, py_assignment_methods.data()},
+    PyType_Slot{Py_tp_getset, py_assignment_getset.data()},
+    PyType_Slot{Py_sq_length, reinterpret_cast<void *>(py_assignment_len)},
+    PyType_Slot{Py_sq_item, reinterpret_cast<void *>(py_assignment_item)},
+    PyType_Slot{Py_sq_contains, reinterpret_cast<void *>(py_assignment_contains)},
+    PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_assignment_len)},
+    PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_assignment_subscript)},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_assignment_spec = PyType_Spec{
+    "clingo.propagate.Assignment",
+    sizeof(PyAssignmentObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    py_assignment_slots.data(),
+};
+
+// Trail and _TrailView
+
+auto view_new(PropagateModuleState *state, PyObject *trail, Py_ssize_t start, Py_ssize_t step, Py_ssize_t size)
+    -> PyObject * {
+    auto *obj = alloc_object(state->trail_view_type);
+    if (obj == nullptr) {
+        return nullptr;
+    }
+    auto *v = as<PyTrailViewObject>(obj);
+    Py_INCREF(trail);
+    v->trail = trail;
+    v->start = start;
+    v->step = step;
+    v->size = size;
+    return obj;
+}
+
+auto trail_size(clingo_assignment_t const *ass) -> Py_ssize_t {
+    uint32_t size = 0;
+    if (!clingo_assignment_trail_size(ass, &size)) {
+        py_handle_error();
+        return -1;
+    }
+    return static_cast<Py_ssize_t>(size);
+}
+
+auto trail_at(clingo_assignment_t const *ass, Py_ssize_t offset) -> PyObject * {
+    clingo_literal_t lit = 0;
+    if (!clingo_assignment_trail_at(ass, static_cast<uint32_t>(offset), &lit)) {
+        return py_handle_error();
+    }
+    return PyLong_FromLong(lit);
+}
+
+auto trail_get(PyObject *self) -> clingo_assignment_t const * {
+    auto const *ass = as<PyTrailObject>(self)->ass;
+    if (ass == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "trail is no longer valid");
+    }
+    return ass;
+}
+
+auto py_trail_len(PyObject *self) -> Py_ssize_t {
+    auto const *ass = trail_get(self);
+    if (ass == nullptr) {
+        return -1;
+    }
+    return trail_size(ass);
+}
+
+auto py_trail_item(PyObject *self, Py_ssize_t index) -> PyObject * {
+    auto const *ass = trail_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    auto size = trail_size(ass);
+    if (size < 0 || !check_index(index, size)) {
+        return nullptr;
+    }
+    return trail_at(ass, index);
+}
+
+auto py_trail_subscript(PyObject *self, PyObject *key) -> PyObject * {
+    auto const *ass = trail_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    auto size = trail_size(ass);
+    if (size < 0) {
+        return nullptr;
+    }
+    if (PySlice_Check(key) != 0) {
+        auto *state = state_of(self);
+        if (state == nullptr) {
+            return nullptr;
+        }
+        Py_ssize_t start = 0;
+        Py_ssize_t step = 0;
+        Py_ssize_t len = 0;
+        if (!unpack_slice(key, size, &start, &step, &len)) {
+            return nullptr;
+        }
+        return view_new(state, self, start, step, len);
+    }
+    if (PyIndex_Check(key) == 0) {
+        return invalid_key();
+    }
+    Py_ssize_t index = 0;
+    if (!normalize_index(key, size, &index)) {
+        return nullptr;
+    }
+    return trail_at(ass, index);
+}
+
+auto trail_level(PyObject *self, char const *fname, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames,
+                 uint32_t *begin, uint32_t *end) -> bool {
+    uint32_t level = 0;
+    if (!parse_level_arg(fname, args, nargs, kwnames, &level)) {
+        return false;
+    }
+    auto const *ass = trail_get(self);
+    if (ass == nullptr) {
+        return false;
+    }
+    if ((begin != nullptr && !clingo_assignment_trail_begin(ass, level, begin)) ||
+        (end != nullptr && !clingo_assignment_trail_end(ass, level, end))) {
+        py_handle_error();
+        return false;
+    }
+    return true;
+}
+
+auto py_trail_level(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    uint32_t begin = 0;
+    uint32_t end = 0;
+    if (!trail_level(self, "level", args, nargs, kwnames, &begin, &end)) {
+        return nullptr;
+    }
+    auto *state = state_of(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    auto size = end > begin ? static_cast<Py_ssize_t>(end - begin) : 0;
+    return view_new(state, self, static_cast<Py_ssize_t>(begin), 1, size);
+}
+
+auto py_trail_begin(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    uint32_t begin = 0;
+    if (!trail_level(self, "begin", args, nargs, kwnames, &begin, nullptr)) {
+        return nullptr;
+    }
+    return PyLong_FromUnsignedLong(begin);
+}
+
+auto py_trail_end(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    uint32_t end = 0;
+    if (!trail_level(self, "end", args, nargs, kwnames, nullptr, &end)) {
+        return nullptr;
+    }
+    return PyLong_FromUnsignedLong(end);
+}
+
+auto py_trail_methods = std::array{
+    PyMethodDef{
+        "level",
+        method_cast(py_trail_level),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Get the literals assigned at the given decision level."),
+    },
+    PyMethodDef{
+        "begin",
+        method_cast(py_trail_begin),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Get the index of the first literal on the given level."),
+    },
+    PyMethodDef{
+        "end",
+        method_cast(py_trail_end),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Get the index after the last literal on the given level."),
+    },
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
+auto py_trail_slots = std::array{
+    PyType_Slot{Py_tp_doc, const_cast<char *>("The sequence of literals assigned by the solver.")}, // NOLINT
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{Py_tp_methods, py_trail_methods.data()},
+    PyType_Slot{Py_sq_length, reinterpret_cast<void *>(py_trail_len)},
+    PyType_Slot{Py_sq_item, reinterpret_cast<void *>(py_trail_item)},
+    PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_trail_len)},
+    PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_trail_subscript)},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_trail_spec = PyType_Spec{
+    "clingo.propagate.Trail", sizeof(PyTrailObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    py_trail_slots.data(),
+};
+
+auto view_get(PyObject *self) -> clingo_assignment_t const * {
+    return trail_get(as<PyTrailViewObject>(self)->trail);
+}
+
+auto view_at(PyObject *self, clingo_assignment_t const *ass, Py_ssize_t index) -> PyObject * {
+    auto *v = as<PyTrailViewObject>(self);
+    return trail_at(ass, v->start + (index * v->step));
+}
+
+auto py_view_len(PyObject *self) -> Py_ssize_t {
+    if (view_get(self) == nullptr) {
+        return -1;
+    }
+    return as<PyTrailViewObject>(self)->size;
+}
+
+auto py_view_item(PyObject *self, Py_ssize_t index) -> PyObject * {
+    auto const *ass = view_get(self);
+    if (ass == nullptr || !check_index(index, as<PyTrailViewObject>(self)->size)) {
+        return nullptr;
+    }
+    return view_at(self, ass, index);
+}
+
+auto py_view_subscript(PyObject *self, PyObject *key) -> PyObject * {
+    auto const *ass = view_get(self);
+    if (ass == nullptr) {
+        return nullptr;
+    }
+    auto *v = as<PyTrailViewObject>(self);
+    if (PySlice_Check(key) != 0) {
+        auto *state = state_of(self);
+        if (state == nullptr) {
+            return nullptr;
+        }
+        Py_ssize_t start = 0;
+        Py_ssize_t step = 0;
+        Py_ssize_t len = 0;
+        if (!unpack_slice(key, v->size, &start, &step, &len)) {
+            return nullptr;
+        }
+        return view_new(state, v->trail, v->start + (start * v->step), v->step * step, len);
+    }
+    if (PyIndex_Check(key) == 0) {
+        return invalid_key();
+    }
+    Py_ssize_t index = 0;
+    if (!normalize_index(key, v->size, &index)) {
+        return nullptr;
+    }
+    return view_at(self, ass, index);
+}
+
+void py_view_dealloc(PyObject *self) {
+    Py_CLEAR(as<PyTrailViewObject>(self)->trail);
+    free_object(self);
+}
+
+auto py_view_slots = std::array{
+    PyType_Slot{Py_tp_doc, const_cast<char *>("A view on a subrange of the solver's trail.")}, // NOLINT
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_view_dealloc)},
+    PyType_Slot{Py_sq_length, reinterpret_cast<void *>(py_view_len)},
+    PyType_Slot{Py_sq_item, reinterpret_cast<void *>(py_view_item)},
+    PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_view_len)},
+    PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_view_subscript)},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_view_spec = PyType_Spec{
+    "clingo.propagate._TrailView", sizeof(PyTrailViewObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    py_view_slots.data(),
+};
+
+//! Create an unbound assignment together with its trail.
+auto assignment_new(PropagateModuleState *state) -> PyObject * {
+    auto trail = steal(alloc_object(state->trail_type));
+    if (trail.get() == nullptr) {
+        return nullptr;
+    }
+    auto *obj = alloc_object(state->assignment_type);
+    if (obj != nullptr) {
+        as<PyAssignmentObject>(obj)->trail = trail.release();
+    }
+    return obj;
+}
+
+//! Set the assignment of an assignment wrapper and its trail.
+void assignment_set(PyObject *obj, clingo_assignment_t const *ass) {
+    auto *a = as<PyAssignmentObject>(obj);
+    assert(ass == nullptr || a->ass == nullptr);
+    a->ass = ass;
+    as<PyTrailObject>(a->trail)->ass = ass;
+}
+
+// PropagateControl
+
+auto control_get(PyObject *self) -> clingo_propagate_control_t * {
+    auto *ctl = as<PyPropagateControlObject>(self)->ctl;
+    if (ctl == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "propagate control is no longer valid");
+    }
+    return ctl;
+}
+
+auto control_add_clause(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, char const *fname,
+                        bool negate) -> PyObject * {
+    PyObject *lits_obj = Py_None;
+    PyObject *tag_obj{};
+    PyObject *lock_obj{};
+    if (!parse_args(fname, {"literals"}, {"tag", "lock"}, args, nargs, kwnames, {&lits_obj, &tag_obj, &lock_obj})) {
+        return nullptr;
+    }
+    auto *ctl = control_get(self);
+    if (ctl == nullptr) {
+        return nullptr;
+    }
+    auto tag = false;
+    auto lock = false;
+    if (!parse_bool(tag_obj, &tag) || !parse_bool(lock_obj, &lock)) {
+        return nullptr;
+    }
+    auto lease = BufferLease{lit_pool};
+    auto &lits = lease.get();
+    if (!parse_literals(lits_obj, negate, lits)) {
+        return nullptr;
+    }
+    clingo_clause_type_t type = 0;
+    if (tag) {
+        type |= clingo_clause_type_volatile;
+    }
+    if (lock) {
+        type |= clingo_clause_type_static;
+    }
+    auto res = false;
+    return bool_result(clingo_propagate_control_add_clause(ctl, lits.data(), lits.size(), type, &res), res);
+}
+
+auto py_control_add_clause(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    return control_add_clause(self, args, nargs, kwnames, "add_clause", false);
+}
+
+auto py_control_add_nogood(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    return control_add_clause(self, args, nargs, kwnames, "add_nogood", true);
+}
+
+auto py_control_add_weight_constraint(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *lit_obj{};
+    PyObject *wlits_obj = Py_None; // overwritten by parse_args (non-null for clang-analyzer)
+    PyObject *bound_obj{};
+    PyObject *type_obj{};
+    if (!parse_args("add_weight_constraint", {"literal", "literals", "bound"}, {"type"}, args, nargs, kwnames,
+                    {&lit_obj, &wlits_obj, &bound_obj, &type_obj})) {
+        return nullptr;
+    }
+    auto *ctl = control_get(self);
+    if (ctl == nullptr) {
+        return nullptr;
+    }
+    clingo_literal_t lit = 0;
+    clingo_weight_t bound = 0;
+    clingo_weight_constraint_type_t type = clingo_weight_constraint_type_equivalence;
+    if (!parse_num(lit_obj, &lit, "literal") || !parse_num(bound_obj, &bound, "bound") ||
+        !parse_num(type_obj, &type, "type")) {
+        return nullptr;
+    }
+    auto lease = BufferLease{wlit_pool};
+    auto &wlits = lease.get();
+    if (!parse_weighted_literals(wlits_obj, wlits)) {
+        return nullptr;
+    }
+    auto res = false;
+    return bool_result(
+        clingo_propagate_control_add_weight_constraint(ctl, lit, wlits.data(), wlits.size(), bound, type, &res), res);
+}
+
+auto py_control_add_literal(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *freeze_obj{};
+    if (!parse_args("add_literal", {}, {"freeze"}, args, nargs, kwnames, {&freeze_obj})) {
+        return nullptr;
+    }
+    auto *ctl = control_get(self);
+    if (ctl == nullptr) {
+        return nullptr;
+    }
+    auto freeze = true;
+    if (!parse_bool(freeze_obj, &freeze)) {
+        return nullptr;
+    }
+    clingo_literal_t lit = 0;
+    if (!clingo_propagate_control_add_literal(ctl, freeze, &lit)) {
+        return py_handle_error();
+    }
+    return PyLong_FromLong(lit);
+}
+
+auto py_control_add_watch(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    clingo_literal_t lit = 0;
+    if (!parse_literal_arg("add_watch", args, nargs, kwnames, &lit)) {
+        return nullptr;
+    }
+    auto *ctl = control_get(self);
+    if (ctl == nullptr) {
+        return nullptr;
+    }
+    return none_result(clingo_propagate_control_add_watch(ctl, lit));
+}
+
+auto py_control_has_watch(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    clingo_literal_t lit = 0;
+    if (!parse_literal_arg("has_watch", args, nargs, kwnames, &lit)) {
+        return nullptr;
+    }
+    auto *ctl = control_get(self);
+    if (ctl == nullptr) {
+        return nullptr;
+    }
+    auto res = false;
+    return bool_result(clingo_propagate_control_has_watch(ctl, lit, &res), res);
+}
+
+auto py_control_remove_watch(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    clingo_literal_t lit = 0;
+    if (!parse_literal_arg("remove_watch", args, nargs, kwnames, &lit)) {
+        return nullptr;
+    }
+    auto *ctl = control_get(self);
+    if (ctl == nullptr) {
+        return nullptr;
+    }
+    return none_result(clingo_propagate_control_remove_watch(ctl, lit));
+}
+
+auto py_control_propagate(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    auto *ctl = control_get(self);
+    if (ctl == nullptr) {
+        return nullptr;
+    }
+    auto res = false;
+    return bool_result(clingo_propagate_control_propagate(ctl, &res), res);
+}
+
+auto py_control_methods = std::array{
+    PyMethodDef{
+        "add_clause",
+        method_cast(py_control_add_clause),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Add a clause and return whether it could be integrated without conflict."),
+    },
+    PyMethodDef{
+        "add_weight_constraint",
+        method_cast(py_control_add_weight_constraint),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Add a weight constraint and return whether it could be added without conflict."),
+    },
+    PyMethodDef{
+        "add_literal",
+        method_cast(py_control_add_literal),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Add a fresh literal to the solver."),
+    },
+    PyMethodDef{
+        "add_nogood",
+        method_cast(py_control_add_nogood),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("A shortcut for `add_clause([-literal for literal in literals], tag, lock)`."),
+    },
+    PyMethodDef{
+        "add_watch",
+        method_cast(py_control_add_watch),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Add a watch for the given solver literal."),
+    },
+    PyMethodDef{
+        "has_watch",
+        method_cast(py_control_has_watch),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Check if a watch exists for the given solver literal."),
+    },
+    PyMethodDef{
+        "propagate",
+        py_control_propagate,
+        METH_NOARGS,
+        PyDoc_STR("Propagate and return False if the propagator must return immediately."),
+    },
+    PyMethodDef{
+        "remove_watch",
+        method_cast(py_control_remove_watch),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Remove the watch for the given solver literal."),
+    },
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
+auto py_control_slots = std::array{
+    PyType_Slot{Py_tp_doc,
+                const_cast<char *>("An object to add clauses, literals, and watches while solving.")}, // NOLINT
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{Py_tp_methods, py_control_methods.data()},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_control_spec = PyType_Spec{
+    "clingo.propagate.PropagateControl",
+    sizeof(PyPropagateControlObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_BASETYPE,
+    py_control_slots.data(),
+};
+
+// PropagateInit
+
+auto init_get(PyObject *self) -> clingo_propagate_init_t * {
+    auto *init = as<PyPropagateInitObject>(self)->init;
+    if (init == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "propagate init is no longer valid");
+    }
+    return init;
+}
+
+auto py_init_add_minimize(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *lit_obj{};
+    PyObject *weight_obj{};
+    PyObject *priority_obj{};
+    if (!parse_args("add_minimize", {"literal", "weight"}, {"priority"}, args, nargs, kwnames,
+                    {&lit_obj, &weight_obj, &priority_obj})) {
+        return nullptr;
+    }
+    auto *init = init_get(self);
+    if (init == nullptr) {
+        return nullptr;
+    }
+    clingo_literal_t lit = 0;
+    clingo_weight_t weight = 0;
+    clingo_weight_t priority = 0;
+    if (!parse_num(lit_obj, &lit, "literal") || !parse_num(weight_obj, &weight, "weight") ||
+        !parse_num(priority_obj, &priority, "priority")) {
+        return nullptr;
+    }
+    return none_result(clingo_propagate_init_add_minimize(init, lit, weight, priority));
+}
+
+auto py_init_freeze_literal(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    clingo_literal_t lit = 0;
+    if (!parse_literal_arg("freeze_literal", args, nargs, kwnames, &lit)) {
+        return nullptr;
+    }
+    auto *init = init_get(self);
+    if (init == nullptr) {
+        return nullptr;
+    }
+    return none_result(clingo_propagate_init_freeze_literal(init, lit));
+}
+
+auto py_init_solver_literal(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *lit_obj{};
+    if (!parse_args("solver_literal", {"literal"}, {}, args, nargs, kwnames, {&lit_obj})) {
+        return nullptr;
+    }
+    auto *init = init_get(self);
+    if (init == nullptr) {
+        return nullptr;
+    }
+    clingo_literal_t lit = 0;
+    if (lit_obj != Py_None && !parse_num(lit_obj, &lit, "literal")) {
+        return nullptr;
+    }
+    clingo_literal_t res = 0;
+    if (!clingo_propagate_init_solver_literal(init, lit, &res)) {
+        return py_handle_error();
+    }
+    return PyLong_FromLong(res);
+}
+
+auto py_init_library(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
+    auto *library = as<PyPropagateInitObject>(self)->library;
+    if (library == nullptr) {
+        Py_RETURN_NONE;
+    }
+    Py_INCREF(library);
+    return library;
+}
+
+auto py_init_base(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
+    auto *init = init_get(self);
+    if (init == nullptr) {
+        return nullptr;
+    }
+    auto *state = state_of(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    clingo_base_t const *base = nullptr;
+    if (!clingo_propagate_init_base(init, &base)) {
+        return py_handle_error();
+    }
+    return py_base_new(self, pointer_slot(&as<PyPropagateInitObject>(self)->init), state->base_type, base);
+}
+
+auto py_init_get_check_mode(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
+    auto *init = init_get(self);
+    if (init == nullptr) {
+        return nullptr;
+    }
+    auto *state = state_of(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    clingo_propagator_check_mode_t mode = 0;
+    if (!clingo_propagate_init_get_check_mode(init, &mode)) {
+        return py_handle_error();
+    }
+    return PyObject_CallFunction(state->check_mode_enum, "i", static_cast<int>(mode));
+}
+
+auto py_init_set_check_mode(PyObject *self, PyObject *value, [[maybe_unused]] void *closure) -> int {
+    if (value == nullptr) {
+        PyErr_SetString(PyExc_TypeError, "cannot delete check_mode");
+        return -1;
+    }
+    auto *init = init_get(self);
+    if (init == nullptr) {
+        return -1;
+    }
+    clingo_propagator_check_mode_t mode = 0;
+    if (!parse_num(value, &mode, "check_mode")) {
+        return -1;
+    }
+    if (!clingo_propagate_init_set_check_mode(init, mode)) {
+        py_handle_error();
+        return -1;
+    }
+    return 0;
+}
+
+auto py_init_get_undo_mode(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
+    auto *init = init_get(self);
+    if (init == nullptr) {
+        return nullptr;
+    }
+    auto *state = state_of(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    clingo_propagator_undo_mode_t mode = 0;
+    if (!clingo_propagate_init_get_undo_mode(init, &mode)) {
+        return py_handle_error();
+    }
+    return PyObject_CallFunction(state->undo_mode_enum, "i", static_cast<int>(mode));
+}
+
+auto py_init_set_undo_mode(PyObject *self, PyObject *value, [[maybe_unused]] void *closure) -> int {
+    if (value == nullptr) {
+        PyErr_SetString(PyExc_TypeError, "cannot delete undo_mode");
+        return -1;
+    }
+    auto *init = init_get(self);
+    if (init == nullptr) {
+        return -1;
+    }
+    clingo_propagator_undo_mode_t mode = 0;
+    if (!parse_num(value, &mode, "undo_mode")) {
+        return -1;
+    }
+    if (!clingo_propagate_init_set_undo_mode(init, mode)) {
+        py_handle_error();
+        return -1;
+    }
+    return 0;
+}
+
+auto py_init_number_of_threads(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
+    auto *init = init_get(self);
+    if (init == nullptr) {
+        return nullptr;
+    }
+    clingo_id_t res = 0;
+    if (!clingo_propagate_init_number_of_threads(init, &res)) {
+        return py_handle_error();
+    }
+    return PyLong_FromUnsignedLong(res);
+}
+
+auto py_init_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(as<PyPropagateInitObject>(self)->library);
+    return 0;
+}
+
+auto py_init_clear(PyObject *self) -> int {
+    Py_CLEAR(as<PyPropagateInitObject>(self)->library);
+    return 0;
+}
+
+auto py_init_methods = std::array{
+    PyMethodDef{
+        "add_minimize",
+        method_cast(py_init_add_minimize),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Add a weighted literal to minimize to the solver."),
+    },
+    PyMethodDef{
+        "freeze_literal",
+        method_cast(py_init_freeze_literal),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Freeze the given literal to exempt it from simplification."),
+    },
+    PyMethodDef{
+        "solver_literal",
+        method_cast(py_init_solver_literal),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Map the given program literal or None for true to a solver literal."),
+    },
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
+auto py_init_getset = std::array{
+    PyGetSetDef{"library", py_init_library, nullptr, PyDoc_STR("The library object managing symbols."), nullptr},
+    PyGetSetDef{"base", py_init_base, nullptr, PyDoc_STR("The base object to inspect the grounder's base."), nullptr},
+    PyGetSetDef{
+        "check_mode",
+        py_init_get_check_mode,
+        py_init_set_check_mode,
+        PyDoc_STR("Get/set the check mode for the propagator."),
+        nullptr,
+    },
+    PyGetSetDef{
+        "number_of_threads",
+        py_init_number_of_threads,
+        nullptr,
+        PyDoc_STR("The number of solver threads."),
+        nullptr,
+    },
+    PyGetSetDef{
+        "undo_mode",
+        py_init_get_undo_mode,
+        py_init_set_undo_mode,
+        PyDoc_STR("Get/set the undo mode for the propagator."),
+        nullptr,
+    },
+    PyGetSetDef{nullptr, nullptr, nullptr, nullptr, nullptr},
+};
+
+auto py_init_slots = std::array{
+    PyType_Slot{Py_tp_doc, const_cast<char *>("An object to initialize a propagator.")}, // NOLINT
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_init_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_init_clear)},
+    PyType_Slot{Py_tp_methods, py_init_methods.data()},
+    PyType_Slot{Py_tp_getset, py_init_getset.data()},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_init_spec = PyType_Spec{
+    "clingo.propagate.PropagateInit",
+    sizeof(PyPropagateInitObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
+    py_init_slots.data(),
+};
+
+// Propagator
+
+auto py_propagator_init([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *ass_obj{};
+    PyObject *init_obj{};
+    if (!parse_args("init", {"assignment", "init"}, {}, args, nargs, kwnames, {&ass_obj, &init_obj})) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_propagator_attach([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *ass_obj{};
+    PyObject *ctl_obj{};
+    if (!parse_args("attach", {"assignment", "control"}, {}, args, nargs, kwnames, {&ass_obj, &ctl_obj})) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_propagator_propagate([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs,
+                             PyObject *kwnames) -> PyObject * {
+    PyObject *ass_obj{};
+    PyObject *ctl_obj{};
+    PyObject *changes_obj{};
+    if (!parse_args("propagate", {"assignment", "control", "changes"}, {}, args, nargs, kwnames,
+                    {&ass_obj, &ctl_obj, &changes_obj})) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_propagator_undo([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *ass_obj{};
+    PyObject *changes_obj{};
+    if (!parse_args("undo", {"assignment", "changes"}, {}, args, nargs, kwnames, {&ass_obj, &changes_obj})) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_propagator_check([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *ass_obj{};
+    PyObject *ctl_obj{};
+    if (!parse_args("check", {"assignment", "control"}, {}, args, nargs, kwnames, {&ass_obj, &ctl_obj})) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_propagator_decide([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *ass_obj{};
+    PyObject *fallback_obj{};
+    if (!parse_args("decide", {"assignment", "fallback"}, {}, args, nargs, kwnames, {&ass_obj, &fallback_obj})) {
+        return nullptr;
+    }
+    Py_INCREF(fallback_obj);
+    return fallback_obj;
+}
+
+auto py_propagator_methods = std::array{
+    PyMethodDef{
+        "init",
+        method_cast(py_propagator_init),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Initialize the propagator before each solving step."),
+    },
+    PyMethodDef{
+        "attach",
+        method_cast(py_propagator_attach),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Initialize a solver thread before solving starts."),
+    },
+    PyMethodDef{
+        "propagate",
+        method_cast(py_propagator_propagate),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Propagate the given non-empty list of changed watched literals."),
+    },
+    PyMethodDef{
+        "undo",
+        method_cast(py_propagator_undo),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Undo the assignment of the given literals."),
+    },
+    PyMethodDef{
+        "check",
+        method_cast(py_propagator_check),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Check the assignment on fixpoints or total assignments."),
+    },
+    PyMethodDef{
+        "decide",
+        method_cast(py_propagator_decide),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Return the literal to decide on next or 0 to make no decision."),
+    },
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
+auto py_propagator_slots = std::array{
+    PyType_Slot{Py_tp_doc, const_cast<char *>("Base class for custom propagators.")}, // NOLINT
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{Py_tp_methods, py_propagator_methods.data()},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_propagator_spec = PyType_Spec{
+    "clingo.propagate.Propagator", sizeof(PyObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    py_propagator_slots.data(),
+};
+
+// _PropagatorHandle
+
+auto handle_cast(void *data) -> PyPropagatorHandleObject * {
+    return as<PyPropagatorHandleObject>(static_cast<PyObject *>(data));
+}
+
+void handle_clear_cache(PyPropagatorHandleObject *h) {
+    auto *cache = std::exchange(h->cache, nullptr);
+    auto size = std::exchange(h->cache_size, 0);
+    for (size_t i = 0; i < size; ++i) {
+        Py_XDECREF(cache[i]);
+    }
+    PyMem_Free(static_cast<void *>(cache));
+}
+
+auto py_handle_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    auto *h = as<PyPropagatorHandleObject>(self);
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(h->propagator);
+    Py_VISIT(h->library);
+    for (size_t i = 0; i < h->cache_size; ++i) {
+        Py_VISIT(h->cache[i]);
+    }
+    return 0;
+}
+
+auto py_handle_clear(PyObject *self) -> int {
+    auto *h = as<PyPropagatorHandleObject>(self);
+    // NOTE: running callbacks hold their own references
+    Py_CLEAR(h->propagator);
+    Py_CLEAR(h->library);
+    handle_clear_cache(h);
+    return 0;
+}
+
+auto py_handle_slots = std::array{
+    PyType_Slot{Py_tp_doc,
+                const_cast<char *>("Internal object connecting a propagator to a control object.")}, // NOLINT
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_handle_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_handle_clear)},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_handle_spec = PyType_Spec{
+    "clingo.propagate._PropagatorHandle",
+    sizeof(PyPropagatorHandleObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
+    py_handle_slots.data(),
+};
+
+//! Create an unbound propagate control.
+auto control_new(PropagateModuleState *state) -> PyObject * {
+    return alloc_object(state->control_type);
+}
+
+//! Make room for the per thread wrappers of all solver threads.
+auto handle_reserve(PyPropagatorHandleObject *h, clingo_propagate_init_t const *init) -> bool {
+    clingo_id_t threads = 0;
+    if (!clingo_propagate_init_number_of_threads(init, &threads)) {
+        py_handle_error();
+        return false;
+    }
+    auto size = 2 * static_cast<size_t>(threads);
+    if (size <= h->cache_size) {
+        return true;
+    }
+    auto *cache = static_cast<PyObject **>(PyMem_Realloc(static_cast<void *>(h->cache), size * sizeof(PyObject *)));
+    if (cache == nullptr) {
+        PyErr_NoMemory();
+        return false;
+    }
+    std::fill(cache + h->cache_size, cache + size, nullptr);
+    h->cache = cache;
+    h->cache_size = size;
+    return true;
+}
+
+auto handle_cached(PyPropagatorHandleObject *h, PropagateModuleState *state, size_t index,
+                   PyObject *(*make)(PropagateModuleState *)) -> PyObject * {
+    assert(index < h->cache_size);
+    auto *&slot = h->cache[index];
+    if (slot == nullptr) {
+        slot = make(state);
+    }
+    return slot;
+}
+
+// callbacks
+
+//! Set a pointer member of a wrapper object.
+template <class T, class P, P *T::*Member> void set_member(PyObject *obj, P *ptr) {
+    auto *&member = as<T>(obj)->*Member;
+    assert(ptr == nullptr || member == nullptr);
+    member = ptr;
+}
+
+//! Bind a wrapper to a clingo object for the duration of a callback.
+//!
+//! Callbacks of a propagator are never nested, so the wrapper is unbound when
+//! the callback starts.
+template <auto Set> class Binding {
+  public:
+    template <class P> Binding(PyObject *obj, P *ptr) : obj_{borrow(obj)} { Set(obj, ptr); }
+    Binding(Binding const &) = delete;
+    Binding(Binding &&) = delete;
+    auto operator=(Binding const &) -> Binding & = delete;
+    auto operator=(Binding &&) -> Binding & = delete;
+    ~Binding() { Set(obj_.get(), nullptr); }
+
+  private:
+    PyGuard obj_;
+};
+
+using AssignmentBinding = Binding<assignment_set>;
+using ControlBinding =
+    Binding<set_member<PyPropagateControlObject, clingo_propagate_control_t, &PyPropagateControlObject::ctl>>;
+using InitBinding = Binding<set_member<PyPropagateInitObject, clingo_propagate_init_t, &PyPropagateInitObject::init>>;
+
+struct Call {
+    PyPropagatorHandleObject *handle{nullptr};
+    PropagateModuleState *state{nullptr};
+    PyGuard propagator{nullptr};
+};
+
+auto call_begin(void *data, Call &call) -> bool {
+    auto *self = static_cast<PyObject *>(data);
+    call.handle = handle_cast(data);
+    call.propagator = borrow(call.handle->propagator);
+    if (call.propagator.get() == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "propagator has been released");
+        return false;
+    }
+    call.state = state_of(self);
+    return call.state != nullptr;
+}
+
+auto thread_objects(Call &call, clingo_assignment_t const *ass, PyObject **ass_obj, PyObject **ctl_obj) -> bool {
+    clingo_id_t id = 0;
+    if (!clingo_assignment_thread_id(ass, &id)) {
+        py_handle_error();
+        return false;
+    }
+    auto index = 2 * static_cast<size_t>(id);
+    *ass_obj = handle_cached(call.handle, call.state, index, assignment_new);
+    if (*ass_obj == nullptr) {
+        return false;
+    }
+    if (ctl_obj != nullptr) {
+        *ctl_obj = handle_cached(call.handle, call.state, index + 1, control_new);
+        if (*ctl_obj == nullptr) {
+            return false;
+        }
+    }
+    return true;
+}
+
+auto init_cb(clingo_assignment_t const *ass, clingo_propagate_init_t *init, void *data) -> bool {
+    auto gil = GILGuard{};
+    auto *h = handle_cast(data);
+    if (!handle_reserve(h, init)) {
+        return store_python_error("propagator init failed");
+    }
+    if (!h->has_init) {
+        return true;
+    }
+    auto call = Call{};
+    if (!call_begin(data, call)) {
+        return store_python_error("propagator init failed");
+    }
+    clingo_propagate_control_t *ctl = nullptr;
+    if (!clingo_propagate_init_control(init, &ctl)) {
+        return false;
+    }
+    auto ass_obj = steal(assignment_new(call.state));
+    auto init_obj = steal(alloc_object(call.state->init_type));
+    if (ass_obj.get() == nullptr || init_obj.get() == nullptr) {
+        return store_python_error("propagator init failed");
+    }
+    auto *library = call.handle->library;
+    Py_XINCREF(library);
+    as<PyPropagateInitObject>(init_obj.get())->library = library;
+    auto ass_bind = AssignmentBinding{ass_obj.get(), ass};
+    auto ctl_bind = ControlBinding{init_obj.get(), ctl};
+    auto init_bind = InitBinding{init_obj.get(), init};
+    auto res = steal(PyObject_CallMethodObjArgs(call.propagator.get(), call.state->str_init, ass_obj.get(),
+                                                init_obj.get(), nullptr));
+    if (res.get() == nullptr) {
+        return store_python_error("propagator init failed");
+    }
+    return true;
+}
+
+auto control_cb(void *data, clingo_assignment_t const *ass, clingo_propagate_control_t *ctl,
+                PyObject *PropagateModuleState::*name, char const *what) -> bool {
+    auto gil = GILGuard{};
+    auto call = Call{};
+    PyObject *ass_obj = nullptr;
+    PyObject *ctl_obj = nullptr;
+    if (!call_begin(data, call) || !thread_objects(call, ass, &ass_obj, &ctl_obj)) {
+        return store_python_error(what);
+    }
+    auto ass_bind = AssignmentBinding{ass_obj, ass};
+    auto ctl_bind = ControlBinding{ctl_obj, ctl};
+    auto res = steal(PyObject_CallMethodObjArgs(call.propagator.get(), call.state->*name, ass_obj, ctl_obj, nullptr));
+    if (res.get() == nullptr) {
+        return store_python_error(what);
+    }
+    return true;
+}
+
+auto attach_cb(clingo_assignment_t const *ass, clingo_propagate_control_t *ctl, void *data) -> bool {
+    if (!handle_cast(data)->has_attach) {
+        return true;
+    }
+    return control_cb(data, ass, ctl, &PropagateModuleState::str_attach, "propagator attach failed");
+}
+
+auto check_cb(clingo_assignment_t const *ass, clingo_propagate_control_t *ctl, void *data) -> bool {
+    if (!handle_cast(data)->has_check) {
+        return true;
+    }
+    return control_cb(data, ass, ctl, &PropagateModuleState::str_check, "propagator check failed");
+}
+
+auto propagate_cb(clingo_assignment_t const *ass, clingo_propagate_control_t *ctl, clingo_literal_t const *changes,
+                  size_t size, void *data) -> bool {
+    if (!handle_cast(data)->has_propagate) {
+        return true;
+    }
+    auto gil = GILGuard{};
+    auto call = Call{};
+    PyObject *ass_obj = nullptr;
+    PyObject *ctl_obj = nullptr;
+    if (!call_begin(data, call) || !thread_objects(call, ass, &ass_obj, &ctl_obj)) {
+        return store_python_error("propagator propagate failed");
+    }
+    auto ass_bind = AssignmentBinding{ass_obj, ass};
+    auto ctl_bind = ControlBinding{ctl_obj, ctl};
+    auto lits = steal(int_list(changes, size));
+    if (lits.get() == nullptr) {
+        return store_python_error("propagator propagate failed");
+    }
+    auto res = steal(PyObject_CallMethodObjArgs(call.propagator.get(), call.state->str_propagate, ass_obj, ctl_obj,
+                                                lits.get(), nullptr));
+    if (res.get() == nullptr) {
+        return store_python_error("propagator propagate failed");
+    }
+    return true;
+}
+
+void undo_cb(clingo_assignment_t const *ass, clingo_literal_t const *changes, size_t size, void *data) {
+    if (!handle_cast(data)->has_undo) {
+        return;
+    }
+    auto gil = GILGuard{};
+    if (handle_cast(data)->propagator == nullptr) {
+        // NOTE: there is nothing to undo for a released propagator
+        return;
+    }
+    auto call = Call{};
+    PyObject *ass_obj = nullptr;
+    if (call_begin(data, call) && thread_objects(call, ass, &ass_obj, nullptr)) {
+        auto ass_bind = AssignmentBinding{ass_obj, ass};
+        auto lits = steal(int_list(changes, size));
+        if (lits.get() != nullptr) {
+            auto res = steal(
+                PyObject_CallMethodObjArgs(call.propagator.get(), call.state->str_undo, ass_obj, lits.get(), nullptr));
+            if (res.get() != nullptr) {
+                return;
+            }
+        }
+    }
+    PyErr_Print();
+    fprintf(stderr, "panic: propagator undo failed\n");
+    std::abort();
+}
+
+auto decide_cb(clingo_assignment_t const *ass, clingo_literal_t fallback, void *data, clingo_literal_t *decision)
+    -> bool {
+    auto gil = GILGuard{};
+    auto call = Call{};
+    PyObject *ass_obj = nullptr;
+    if (!call_begin(data, call) || !thread_objects(call, ass, &ass_obj, nullptr)) {
+        return store_python_error("propagator decide failed");
+    }
+    auto ass_bind = AssignmentBinding{ass_obj, ass};
+    auto lit = steal(PyLong_FromLong(fallback));
+    if (lit.get() == nullptr) {
+        return store_python_error("propagator decide failed");
+    }
+    auto res =
+        steal(PyObject_CallMethodObjArgs(call.propagator.get(), call.state->str_decide, ass_obj, lit.get(), nullptr));
+    if (res.get() == nullptr || !parse_num(res.get(), decision, "decision")) {
+        return store_python_error("propagator decide failed");
+    }
+    return true;
+}
+
+constexpr auto c_prop = clingo_propagator_t{
+    init_cb, attach_cb, propagate_cb, undo_cb, check_cb, nullptr, nullptr,
+};
+
+constexpr auto c_heu = clingo_propagator_t{
+    init_cb, attach_cb, propagate_cb, undo_cb, check_cb, decide_cb, nullptr,
+};
+
+//! Check whether the type of the propagator overrides the given method.
+auto is_overridden(PyObject *base_type, PyObject *propagator, PyObject *name, bool *res) -> bool {
+    auto impl = steal(PyObject_GetAttr(reinterpret_cast<PyObject *>(Py_TYPE(propagator)), name));
+    if (impl.get() == nullptr) {
+        return false;
+    }
+    auto def = steal(PyObject_GetAttr(base_type, name));
+    if (def.get() == nullptr) {
+        return false;
+    }
+    *res = impl.get() != def.get();
+    return true;
+}
+
+// module
+
+constexpr auto weight_constraint_type_members = std::array<IntEnumMember, 3>{
+    IntEnumMember{"Equivalence", static_cast<int>(clingo_weight_constraint_type_equivalence)},
+    IntEnumMember{"LeftImplication", static_cast<int>(clingo_weight_constraint_type_implication_left)},
+    IntEnumMember{"RightImplication", static_cast<int>(clingo_weight_constraint_type_implication_right)},
+};
+
+constexpr auto check_mode_members = std::array<IntEnumMember, 4>{
+    IntEnumMember{"Off", static_cast<int>(clingo_propagator_check_mode_none)},
+    IntEnumMember{"Fixpoint", static_cast<int>(clingo_propagator_check_mode_fixpoint)},
+    IntEnumMember{"Total", static_cast<int>(clingo_propagator_check_mode_total)},
+    IntEnumMember{"Both", static_cast<int>(clingo_propagator_check_mode_both)},
+};
+
+constexpr auto undo_mode_members = std::array<IntEnumMember, 2>{
+    IntEnumMember{"Default", static_cast<int>(clingo_propagator_undo_mode_default)},
+    IntEnumMember{"Always", static_cast<int>(clingo_propagator_undo_mode_always)},
+};
+
+auto propagate_module_traverse(PyObject *module, visitproc visit, void *arg) -> int {
+    auto *state = static_cast<PropagateModuleState *>(PyModule_GetState(module));
+    if (state == nullptr) {
+        return 0;
+    }
+    for (auto member : state_members) {
+        Py_VISIT(state->*member);
+    }
+    return 0;
+}
+
+auto propagate_module_clear(PyObject *module) -> int {
+    auto *state = static_cast<PropagateModuleState *>(PyModule_GetState(module));
+    if (state == nullptr) {
+        return 0;
+    }
+    for (auto member : state_members) {
+        Py_CLEAR(state->*member);
+    }
+    return 0;
+}
+
+void propagate_module_free(void *module) {
+    propagate_module_clear(static_cast<PyObject *>(module));
+}
+
+PyModuleDef propagate_def = {
+    PyModuleDef_HEAD_INIT,
+    "clingo.propagate",
+    PyDoc_STR("Functions and classes to implement custom propagators."),
+    static_cast<Py_ssize_t>(sizeof(PropagateModuleState)),
+    nullptr,
+    nullptr,
+    propagate_module_traverse,
+    propagate_module_clear,
+    propagate_module_free,
+};
+
+auto register_sequences(PropagateModuleState *state) -> bool {
+    auto abc = steal(PyImport_ImportModule("collections.abc"));
+    if (abc.get() == nullptr) {
+        return false;
+    }
+    auto seq = steal(PyObject_GetAttrString(abc.get(), "Sequence"));
+    if (seq.get() == nullptr) {
+        return false;
+    }
+    for (auto *type : {state->assignment_type, state->trail_type, state->trail_view_type}) {
+        auto res = steal(PyObject_CallMethod(seq.get(), "register", "O", type));
+        if (res.get() == nullptr) {
+            return false;
+        }
+    }
+    return true;
+}
+
+auto intern_names(PropagateModuleState *state) -> bool {
+    auto names = std::array{
+        std::pair{&state->str_init, "init"},           std::pair{&state->str_attach, "attach"},
+        std::pair{&state->str_propagate, "propagate"}, std::pair{&state->str_undo, "undo"},
+        std::pair{&state->str_check, "check"},         std::pair{&state->str_decide, "decide"},
+    };
+    // NOLINTNEXTLINE(readability-use-anyofallof)
+    for (auto [store, name] : names) {
+        *store = PyUnicode_InternFromString(name);
+        if (*store == nullptr) {
+            return false;
+        }
+    }
+    return true;
 }
 
 } // namespace
 
-class TrailView {
-  public:
-    using value_type = clingo_literal_t;
-
-    TrailView(clingo_assignment_t const *assignment, py::object rng) : assignment_{assignment}, rng_{std::move(rng)} {}
-
-    [[nodiscard]] auto slice(py::slice const &slc) const -> Sequence<clingo_literal_t> {
-        return py::cast(TrailView{assignment_, rng_[slc]});
+auto py_propagator_type() -> PyObject * {
+    auto mod = steal(PyImport_ImportModule("clingo.propagate"));
+    if (mod.get() == nullptr) {
+        return nullptr;
     }
-
-    [[nodiscard]] auto at(uint32_t index) const -> clingo_literal_t {
-        clingo_literal_t lit = 0;
-        auto offset = rng_[py::int_{index}].cast<uint32_t>();
-        handle_error(clingo_assignment_trail_at(assignment_, offset, &lit));
-        return lit;
+    auto *state = get_state(mod.get());
+    if (state == nullptr) {
+        return nullptr;
     }
-    [[nodiscard]] auto size() const -> uint32_t { return py::len(rng_); }
-
-  private:
-    clingo_assignment_t const *assignment_;
-    py::object rng_;
-};
-
-class Trail {
-  public:
-    using value_type = clingo_literal_t;
-
-    explicit Trail(clingo_assignment_t const *assignment) : assignment_{assignment} {}
-
-    [[nodiscard]] auto slice(py::slice const &slc) const -> Sequence<clingo_literal_t> {
-        return py::cast(TrailView{assignment_, to_rng(size(), slc)});
+    if (state->propagator_type == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "clingo.propagate module is not initialized");
+        return nullptr;
     }
-
-    [[nodiscard]] auto at(uint32_t index) const -> clingo_literal_t {
-        clingo_literal_t lit = 0;
-        handle_error(clingo_assignment_trail_at(assignment_, index, &lit));
-        return lit;
-    }
-
-    [[nodiscard]] auto size() const -> uint32_t {
-        uint32_t size = 0;
-        handle_error(clingo_assignment_trail_size(assignment_, &size));
-        return size;
-    }
-
-    [[nodiscard]] auto begin_level(uint32_t level) const -> uint32_t {
-        uint32_t offset = 0;
-        handle_error(clingo_assignment_trail_begin(assignment_, level, &offset));
-        return offset;
-    }
-
-    [[nodiscard]] auto end_level(uint32_t level) const -> uint32_t {
-        uint32_t offset = 0;
-        handle_error(clingo_assignment_trail_end(assignment_, level, &offset));
-        return offset;
-    }
-
-    [[nodiscard]] auto level(uint32_t level) const -> Sequence<clingo_literal_t> {
-        return slice(py::slice(begin_level(level), end_level(level), 1));
-    }
-
-  private:
-    clingo_assignment_t const *assignment_;
-};
-
-class Assignment {
-  public:
-    using value_type = clingo_literal_t;
-
-    explicit Assignment(clingo_assignment_t const *assignment) : assignment_(assignment) {}
-
-    [[nodiscard]] auto thread_id() const -> clingo_id_t {
-        clingo_id_t id = 0;
-        handle_error(clingo_assignment_thread_id(assignment_, &id));
-        return id;
-    }
-
-    [[nodiscard]] auto size() const -> size_t {
-        size_t size = 0;
-        handle_error(clingo_assignment_size(assignment_, &size));
-        return size;
-    }
-
-    [[nodiscard]] auto at(size_t size) const -> clingo_literal_t {
-        clingo_literal_t lit = 0;
-        handle_error(clingo_assignment_at(assignment_, size, &lit));
-        return lit;
-    }
-
-    [[nodiscard]] auto decision(uint32_t level) const -> clingo_literal_t {
-        clingo_literal_t lit = 0;
-        handle_error(clingo_assignment_decision(assignment_, level, &lit));
-        return lit;
-    }
-
-    [[nodiscard]] auto decision_level() const -> uint32_t {
-        uint32_t level = 0;
-        handle_error(clingo_assignment_decision_level(assignment_, &level));
-        return level;
-    }
-
-    [[nodiscard]] auto has_conflict() const -> bool {
-        auto res = false;
-        handle_error(clingo_assignment_has_conflict(assignment_, &res));
-        return res;
-    }
-
-    [[nodiscard]] auto contains(clingo_literal_t lit) const -> bool {
-        auto res = false;
-        handle_error(clingo_assignment_has_literal(assignment_, lit, &res));
-        return res;
-    }
-
-    [[nodiscard]] auto is_false(clingo_literal_t lit) const -> bool {
-        auto res = false;
-        handle_error(clingo_assignment_is_false(assignment_, lit, &res));
-        return res;
-    }
-
-    [[nodiscard]] auto is_fixed(clingo_literal_t lit) const -> bool {
-        auto res = false;
-        handle_error(clingo_assignment_is_fixed(assignment_, lit, &res));
-        return res;
-    }
-
-    [[nodiscard]] auto is_free(clingo_literal_t lit) const -> bool {
-        clingo_truth_value_t res = 0;
-        handle_error(clingo_assignment_truth_value(assignment_, lit, &res));
-        return res == clingo_truth_value_free;
-    }
-
-    [[nodiscard]] auto is_total() const -> bool {
-        auto res = false;
-        handle_error(clingo_assignment_is_total(assignment_, &res));
-        return res;
-    }
-
-    [[nodiscard]] auto is_true(clingo_literal_t lit) const -> bool {
-        auto res = false;
-        handle_error(clingo_assignment_is_true(assignment_, lit, &res));
-        return res;
-    }
-
-    [[nodiscard]] auto level(clingo_literal_t lit) const -> uint32_t {
-        uint32_t level = 0;
-        handle_error(clingo_assignment_level(assignment_, lit, &level));
-        return level;
-    }
-
-    [[nodiscard]] auto value(clingo_literal_t lit) const -> std::optional<bool> {
-        clingo_truth_value_t res = 0;
-        handle_error(clingo_assignment_truth_value(assignment_, lit, &res));
-        switch (res) {
-            case clingo_truth_value_true: {
-                return true;
-            }
-            case clingo_truth_value_false: {
-                return false;
-            }
-            default: {
-                return std::nullopt;
-            }
-        }
-    }
-
-    [[nodiscard]] auto root_level() const -> uint32_t {
-        uint32_t level = 0;
-        handle_error(clingo_assignment_root_level(assignment_, &level));
-        return level;
-    }
-
-    [[nodiscard]] auto trail() const -> Trail { return Trail{assignment_}; }
-
-  private:
-    clingo_assignment_t const *assignment_;
-};
-
-class PropagateControl {
-  public:
-    explicit PropagateControl(clingo_propagate_control_t *ctl) : ctl_{ctl} {}
-    explicit PropagateControl(clingo_propagate_init_t const *init) : ctl_{nullptr} {
-        handle_error(clingo_propagate_init_control(init, &ctl_));
-    }
-
-    auto add_clause(LitSpan literals, bool tag, bool lock) -> bool {
-        clingo_clause_type_t type = 0;
-        if (tag) {
-            type |= clingo_clause_type_volatile;
-        }
-        if (lock) {
-            type |= clingo_clause_type_static;
-        }
-        auto res = false;
-        handle_error(clingo_propagate_control_add_clause(ctl_, literals.data(), literals.size(), type, &res));
-        return res;
-    }
-
-    auto add_weight_constraint(clingo_literal_t literal, WeightLitSpan literals, clingo_weight_t bound,
-                               clingo_weight_constraint_type_e type) -> bool {
-        auto res = false;
-        handle_error(clingo_propagate_control_add_weight_constraint(ctl_, literal, literals.data(), literals.size(),
-                                                                    bound, type, &res));
-        return res;
-    }
-
-    auto add_literal(bool freeze = true) -> clingo_literal_t {
-        clingo_literal_t lit = 0;
-        handle_error(clingo_propagate_control_add_literal(ctl_, freeze, &lit));
-        return lit;
-    }
-
-    auto add_nogood(LitSpan literals, bool tag, bool lock) -> bool {
-        static thread_local auto lits = LitVec{};
-        lits.clear();
-        lits.reserve(literals.size());
-        std::ranges::transform(literals.begin(), literals.end(), std::back_inserter(lits),
-                               [](auto const &lit) { return -lit; });
-        return add_clause(lits, tag, lock);
-    }
-
-    void add_watch(clingo_literal_t lit) { handle_error(clingo_propagate_control_add_watch(ctl_, lit)); }
-
-    auto has_watch(clingo_literal_t lit) -> bool {
-        auto res = false;
-        handle_error(clingo_propagate_control_has_watch(ctl_, lit, &res));
-        return res;
-    }
-
-    auto propagate() -> bool {
-        auto res = false;
-        handle_error(clingo_propagate_control_propagate(ctl_, &res));
-        return res;
-    }
-
-    void remove_watch(clingo_literal_t lit) { handle_error(clingo_propagate_control_remove_watch(ctl_, lit)); }
-
-  private:
-    clingo_propagate_control_t *ctl_;
-};
-
-class PropagateInit : public PropagateControl {
-  public:
-    explicit PropagateInit(clingo_propagate_init_t *init) : PropagateControl(init), init_{init} {}
-
-    auto library() -> PyLibrary {
-        clingo_lib_t *lib = nullptr;
-        handle_error(clingo_propagate_init_library(init_, &lib));
-        return Library::cast(lib);
-    }
-
-    auto base() -> TypeHint<"clingo.base.Base"> {
-        clingo_base_t const *base = nullptr;
-        handle_error(clingo_propagate_init_base(init_, &base));
-        auto type = steal(py_base_type());
-        if (type.get() == nullptr) {
-            throw py::error_already_set();
-        }
-        return py::reinterpret_steal<TypeHint<"clingo.base.Base">>(py_base_new(py::cast(this).ptr(), type.get(), base));
-    }
-
-    auto get_check_mode() -> clingo_propagator_check_mode_e {
-        clingo_propagator_check_mode_t mode = 0;
-        handle_error(clingo_propagate_init_get_check_mode(init_, &mode));
-        return static_cast<clingo_propagator_check_mode_e>(mode);
-    }
-
-    void set_check_mode(clingo_propagator_check_mode_e mode) {
-        handle_error(clingo_propagate_init_set_check_mode(init_, mode));
-    }
-
-    auto number_of_threads() -> clingo_id_t {
-        clingo_id_t res = 0;
-        handle_error(clingo_propagate_init_number_of_threads(init_, &res));
-        return res;
-    }
-
-    auto get_undo_mode() -> clingo_propagator_undo_mode_e {
-        clingo_propagator_check_mode_t mode = 0;
-        handle_error(clingo_propagate_init_get_undo_mode(init_, &mode));
-        return static_cast<clingo_propagator_undo_mode_e>(mode);
-    }
-
-    void set_undo_mode(clingo_propagator_undo_mode_e mode) {
-        handle_error(clingo_propagate_init_set_undo_mode(init_, mode));
-    }
-
-    void add_minimize(clingo_literal_t literal, clingo_weight_t weight, clingo_weight_t priority) {
-        handle_error(clingo_propagate_init_add_minimize(init_, literal, weight, priority));
-    }
-
-    void freeze_literal(clingo_literal_t lit) { handle_error(clingo_propagate_init_freeze_literal(init_, lit)); }
-
-    auto solver_literal(std::optional<clingo_literal_t> lit) -> clingo_literal_t {
-        clingo_literal_t res = 0;
-        handle_error(clingo_propagate_init_solver_literal(init_, lit.value_or(0), &res));
-        return res;
-    }
-
-  private:
-    clingo_propagate_init_t *init_;
-};
-
-void Propagator::init(Assignment &assignment, PropagateInit &init) {
-    PYBIND11_OVERRIDE_NAME(void, Propagator, "init", no_op, assignment, init);
-}
-void Propagator::attach(Assignment &assignment, PropagateControl &ctl) {
-    PYBIND11_OVERRIDE_NAME(void, Propagator, "attach", no_op, assignment, ctl);
-}
-void Propagator::propagate(Assignment &assignment, PropagateControl &ctl, LitSpan changes) {
-    PYBIND11_OVERRIDE_NAME(void, Propagator, "propagate", no_op, assignment, ctl, changes);
-}
-void Propagator::undo(Assignment &assignment, LitSpan changes) {
-    PYBIND11_OVERRIDE_NAME(void, Propagator, "undo", no_op, assignment, changes);
-}
-void Propagator::check(Assignment &assignment, PropagateControl &ctl) {
-    PYBIND11_OVERRIDE_NAME(void, Propagator, "check", no_op, assignment, ctl);
-}
-auto Propagator::decide(Assignment &assignment, clingo_literal_t lit) -> clingo_literal_t {
-    PYBIND11_OVERRIDE_NAME(clingo_literal_t, Propagator, "decide", decide_, assignment, lit);
+    Py_INCREF(state->propagator_type);
+    return state->propagator_type;
 }
 
-auto Propagator::decide_([[maybe_unused]] Assignment &assignment, [[maybe_unused]] clingo_literal_t lit)
-    -> clingo_literal_t {
-    static_cast<void>(this);
-    return lit;
-}
-
-void register_propagator(clingo_control_t *ctl, Propagator &prop) {
-    // propagator without heuristic
-    static constexpr auto c_prop = clingo_propagator_t{
-        [](clingo_assignment_t const *assignment, clingo_propagate_init_t *init, void *data) -> bool {
-            auto *self = static_cast<Propagator *>(data);
-            CLINGO_TRY {
-                auto py_init = PropagateInit{init};
-                auto py_ass = Assignment{assignment};
-                self->init(py_ass, py_init);
-            }
-            CLINGO_CATCH;
-        },
-        [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control, void *data) -> bool {
-            auto *self = static_cast<Propagator *>(data);
-            CLINGO_TRY {
-                auto py_ass = Assignment{assignment};
-                auto py_ctl = PropagateControl{control};
-                self->attach(py_ass, py_ctl);
-            }
-            CLINGO_CATCH;
-        },
-        [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control, clingo_literal_t const *changes,
-           size_t size, void *data) -> bool {
-            auto *self = static_cast<Propagator *>(data);
-            CLINGO_TRY {
-                auto py_ass = Assignment{assignment};
-                auto py_ctl = PropagateControl{control};
-                self->propagate(py_ass, py_ctl, LitSpan{changes, size});
-            }
-            CLINGO_CATCH;
-        },
-        [](clingo_assignment_t const *assignment, clingo_literal_t const *changes, size_t size, void *data) {
-            try {
-                auto *self = static_cast<Propagator *>(data);
-                auto py_ass = Assignment{assignment};
-                self->undo(py_ass, LitSpan{changes, size});
-            } catch (std::exception const &e) {
-                fprintf(stderr, "panic: %s\n", e.what());
-                std::terminate();
-            }
-        },
-        [](clingo_assignment_t const *assignment, clingo_propagate_control_t *control, void *data) -> bool {
-            auto *self = static_cast<Propagator *>(data);
-            CLINGO_TRY {
-                auto py_ass = Assignment{assignment};
-                auto py_ctl = PropagateControl{control};
-                self->check(py_ass, py_ctl);
-            }
-            CLINGO_CATCH;
-        },
-        nullptr,
-        nullptr,
+auto py_register_propagator(PyObject *type, clingo_control_t *ctl, PyObject *keeper, PyObject *library,
+                            PyObject *propagator) -> bool {
+    auto *state = get_state_from_type(type);
+    if (state == nullptr) {
+        return false;
+    }
+    auto is_prop = PyObject_IsInstance(propagator, state->propagator_type);
+    if (is_prop < 0) {
+        return false;
+    }
+    if (is_prop == 0) {
+        PyErr_SetString(PyExc_TypeError, "propagator must be an instance of clingo.propagate.Propagator");
+        return false;
+    }
+    auto obj = steal(alloc_object(state->handle_type));
+    if (obj.get() == nullptr) {
+        return false;
+    }
+    auto *h = as<PyPropagatorHandleObject>(obj.get());
+    Py_INCREF(propagator);
+    h->propagator = propagator;
+    Py_XINCREF(library);
+    h->library = library;
+    auto overrides = std::array{
+        std::pair{&h->has_init, state->str_init},           std::pair{&h->has_attach, state->str_attach},
+        std::pair{&h->has_propagate, state->str_propagate}, std::pair{&h->has_undo, state->str_undo},
+        std::pair{&h->has_check, state->str_check},         std::pair{&h->has_decide, state->str_decide},
     };
-    // propagator with heuristic
-    static constexpr auto c_heu = clingo_propagator_t{
-        c_prop.init,
-        c_prop.attach,
-        c_prop.propagate,
-        c_prop.undo,
-        c_prop.check,
-        [](clingo_assignment_t const *assignment, clingo_literal_t fallback, void *data,
-           clingo_literal_t *decision) -> bool {
-            auto *self = static_cast<Propagator *>(data);
-            CLINGO_TRY {
-                auto py_assignment = Assignment{assignment};
-                *decision = self->decide(py_assignment, fallback);
-            }
-            CLINGO_CATCH;
-        },
-        nullptr,
-    };
-    auto has_heu = pybind11::get_override(&prop, "decide");
-    handle_error(clingo_control_register_propagator(ctl, has_heu ? &c_heu : &c_prop, static_cast<void *>(&prop)));
+    for (auto [flag, name] : overrides) {
+        if (!is_overridden(state->propagator_type, propagator, name, flag)) {
+            return false;
+        }
+    }
+    // NOTE: keep the handle alive before clingo gets hold of it
+    if (PyList_Append(keeper, obj.get()) < 0) {
+        return false;
+    }
+    if (!clingo_control_register_propagator(ctl, h->has_decide ? &c_heu : &c_prop, static_cast<void *>(obj.get()))) {
+        py_handle_error();
+        return false;
+    }
+    return true;
 }
 
 void register_propagate(pybind11::module &m) {
-    using namespace PyClingo;
-    auto propagate = m.def_submodule("propagate", R"(
-Functions and classes to implement custom propagators.
-
-# Example
-
-```python
->>> from typing import Sequence
->>> from clingo.control import Control
->>> from clingo.core import Library
->>> from clingo.propagate import Assignment, PropagateControl, PropagateInit, Propagator
->>> from clingo.symbol import Function
->>>
->>> LIB = Library()
->>>
->>> class AIFFB(Propagator):
-...     slit_a: int
-...     slit_b: int
-...
-...     def __init__(self) -> None:
-...         super().__init__()
-...         self.slit_a = 0
-...         self.slit_b = 0
-...
-...     # add watches for atoms `a` and `b`
-...     def init(self, assignment: Assignment, init: PropagateInit) -> None:
-...         # get program literals for atoms `a` and `b`
-...         plit_a = init.base[Function(LIB, "a")].literal
-...         plit_b = init.base[Function(LIB, "b")].literal
-...         # get solver literals for program literals `a` and `b`
-...         self.slit_a = init.solver_literal(plit_a)
-...         self.slit_b = init.solver_literal(plit_b)
-...         # add watches for solver literals `a` and `b`
-...         init.add_watch(self.slit_a)
-...         init.add_watch(self.slit_b)
-...
-...     # propagate solver literals `a` and `b`
-...     def propagate(self, assignment: Assignment, control: PropagateControl, changes: Sequence[int]) -> None:
-...         # if `a` is true imply `b`
-...         if self.slit_a in changes:
-...             assert assignment.is_true(self.slit_a)
-...             control.add_clause([-self.slit_a, self.slit_b])
-...         # if `b` is true imply `a`
-...         if self.slit_b in changes:
-...             assert assignment.is_true(self.slit_b)
-...             control.add_clause([-self.slit_b, self.slit_a])
-...
->>> ctl = Control(LIB, ["0"])
->>> ctl.register_propagator(AIFFB())
->>> ctl.parse_string("1 { a; b }.")
->>> ctl.ground()
->>> print(ctl.solve(on_model=print))
-a b
-SAT
-```
-)"_d);
-
-    make_sequence(py::class_<TrailView>(propagate, "_TrailView", R"(
-Provides access to a subrange of literals in the solver's trail.
-
-Implements `Sequence[int]` to access the solver literals in the view.
-)"_d));
-
-    make_sequence(py::class_<Trail>(propagate, "Trail", R"(
-Provides access to literals in the solver's trail.
-
-The trail represents the sequence of literals assigned during the solving
-process. It is structured by decision levels, where each level contains
-literals assigned due to implications from the decision literal at that level.
-
-The literals within each level are ordered by implication, reflecting the
-logical dependencies between them as determined by the solver's propagation and
-learning mechanisms. The decision literal for each level is placed at the
-beginning of its respective sequence.
-
-Implements `Sequence[int]` to access the solver literals in the trail.
-)"_d))
-        .def("level", &Trail::level, py::arg("level"), R"(
-Get the literals assigned at the given decision level.
-
-This sequence includes all literals assigned at this level in implication
-order, with the decision literal at the beginning of the sequence.
-
-Args:
-    level: A decision level.
-Returns:
-    A sequence of literals.
-)"_d)
-        .def("begin", &Trail::begin_level, py::arg("level"), R"(
-Get the index of the first literal on the given level.
-
-This also corresponds to the decision literal for that level.
-
-Args:
-    level: A decision level.
-Returns:
-    The index of the decision literal.
-)"_d)
-        .def("end", &Trail::end_level, py::arg("level"), R"(
-Get the index after the last literal on the given level.
-
-Args:
-    level: A decision level.
-Returns:
-    The index after the last literal.
-)"_d);
-
-    py::native_enum<clingo_weight_constraint_type_e>(propagate, "WeightConstraintType", "enum.IntEnum",
-                                                     "Enumeration of weight constraint types.")
-        .value("Equivalence", clingo_weight_constraint_type_equivalence,
-               R"(The weight constraint is equal to its literal.)")
-        .value("LeftImplication", clingo_weight_constraint_type_implication_left,
-               R"(The weight constraint implies its literal.)")
-        .value("RightImplication", clingo_weight_constraint_type_implication_right,
-               R"(The literal implies the weight constraint.)")
-        .finalize();
-
-    py::native_enum<clingo_propagator_check_mode_e>(propagate, "CheckMode", "enum.IntEnum",
-                                                    "Enumeration of check modes.")
-        .value("Off", clingo_propagator_check_mode_none, R"(Do not call `clingo.propagate.Propagator.check` at all.)")
-        .value("Fixpoint", clingo_propagator_check_mode_fixpoint,
-               R"(Call `clingo.propagate.Propagator.check` on propagation fixpoints.)")
-        .value("Total", clingo_propagator_check_mode_total,
-               R"(Call `clingo.propagate.Propagator.check` on total assignments.)")
-        .value("Both", clingo_propagator_check_mode_both,
-               R"(Call `clingo.propagate.Propagator.check` on propagation fixpoints and total assignments.)")
-        .finalize();
-
-    py::native_enum<clingo_propagator_undo_mode_e>(propagate, "UndoMode", "enum.IntEnum", "Enumeration of undo modes.")
-        .value("Default", clingo_propagator_undo_mode_default,
-               R"(Call `clingo.propagate.Propagator.undo` for decision levels with non-emty changes.)")
-        .value("Always", clingo_propagator_undo_mode_always,
-               R"(Additionally call `clingo.propagate.Propagator.undo` when check has been called.)")
-        .finalize();
-
-    make_sequence(py::class_<Assignment>(propagate, "Assignment", R"(
-Provides information about the current state of literals in the solver.
-
-It provides methods to inspect and query the assignment, which is essential for
-implementing custom propagators.
-
-Key concepts:
-
-- Each literal is either true, false, or unassigned.
-- Each assigned literal has a decision level.
-- There is exactly one decision literal per level.
-- All other literals on the same level are implied by the decision literal and
-  literals from earlier levels.
-- The current decision level is the highest level at which atoms are assigned.
-- The root level is the lowest decision level that can be backtracked to.
-
-Implements `Sequence[int]` to access the solver literals in the assignment.
-)"_d))
-        .def("decision", &Assignment::decision, py::arg("level"), R"(
-Returns the decision literal of the given level.
-
-Each level has exactly one decision literal, which implies other literals on
-the same level.
-
-Args:
-    level: The decision level.
-Returns:
-    The decision literal.
-)"_d)
-        .def("is_false", &Assignment::is_false, py::arg("literal"), R"(
-Check if the given literal is false.
-
-Args:
-    literal: The solver literal.
-Returns:
-    Whether the literal is false.
-)"_d)
-        .def("is_true", &Assignment::is_true, py::arg("literal"), R"(
-Check if the given literal is true.
-
-Args:
-    literal: The solver literal.
-Returns:
-    Whether the literal is true.
-)"_d)
-        .def("is_free", &Assignment::is_free, py::arg("literal"), R"(
-Check if the given literal is free.
-
-Args:
-    literal: The solver literal.
-Returns:
-    Whether the literal is free.
-)"_d)
-        .def("is_fixed", &Assignment::is_fixed, py::arg("literal"), R"(
-Checks if the truth value of the literal is fixed.
-
-Args:
-    literal: The solver literal.
-Returns:
-    Whether the literal is fixed.
-)"_d)
-        .def("level", &Assignment::level, py::arg("literal"), R"(
-Returns the decision level of the given literal.
-
-The decision level indicates when the literal was assigned or implied during
-the solving process.
-
-Args:
-    literal: The solver literal.
-Returns:
-    The decision level of the literal.
-)"_d)
-        .def("value", &Assignment::value, py::arg("literal"), R"(
-Returns the truth value of the literal, or None if unassigned.
-
-Args:
-    literal: The solver literal.
-Returns:
-    The truth value of the literal.
-)"_d)
-        .def_property_readonly("thread_id", &Assignment::thread_id, R"(
-Get the id of the thread to which the assignment belongs.
-
-Thread ids are consecutive numbers starting with zero.
-)"_d)
-        .def_property_readonly("decision_level", &Assignment::decision_level, R"(
-Get the current decision level.
-)"_d)
-        .def_property_readonly("has_conflict", &Assignment::has_conflict, R"(
-Check if the assignment is conflicting.
-)"_d)
-        .def_property_readonly("is_total", &Assignment::is_total, R"(
-Check if all literals in the assigment are assigned.
-)"_d)
-        .def_property_readonly("root_level", &Assignment::root_level, R"(
-Get the current root level.
-
-The root level is the lowest decision level that can be backtracked to.
-Literals on the root level or below can be considered fixed by a propagator.
-They include, for example, assumptions.
-)"_d)
-        .def_property_readonly("trail", &Assignment::trail, R"(
-Get the trail of literals.
-)"_d);
-
-    py::class_<PropagateControl>(propagate, "PropagateControl", R"(
-Class for controlling propagators.
-
-This class provides methods for adding clauses, literals, and nogoods, as well
-as managing watches and performing propagation.
-)"_d)
-        .def("add_clause", &PropagateControl::add_clause, py::arg("literals"), py::arg("tag") = false,
-             py::arg("lock") = false, R"(
-Add a clause to the solver.
-
-Tagged clauses are deleted after the current solve call finishes while locked
-clauses are exempt from the solvers clause deletion strategy.
-
-See `clingo.propagate.PropagateControl.propagate` for how to handle the case
-that the function returns false.
-
-Args:
-    literals:
-        A sequence of solver literals representing the clause.
-    tag:
-        Whether to tag the clause.
-    lock:
-        Whether to lock the clause.
-
-Returns:
-    Whether the clause could be integrated without conflict.
-)"_d)
-        .def("add_weight_constraint", &PropagateControl::add_weight_constraint, py::arg("literal"), py::arg("literals"),
-             py::arg("bound"),
-             py::arg("type") = clingo_weight_constraint_type_e::clingo_weight_constraint_type_equivalence,
-             R"(
-Add a weight constraint to the solver.
-
-See `add_clause` for how to interpret the return value.
-
-Args:
-    literal:
-        The literal associated with the constraint.
-    literals:
-        A sequence of (literal, weight) tuples.
-    bound:
-        The bound of the weight constraint.
-    type:
-        The type of the weight constraint.
-
-Returns:
-    Whether the weight constraint could be added without conflict.
-)"_d)
-        .def("add_literal", &PropagateControl::add_literal, py::arg("freeze") = true, R"(
-Add a literal to the solver.
-
-If the function is called in the context of a particular solver thread, the literal is only added to
-that thread and deleted after the active solve call.
-
-Args:
-    freeze:
-        Whether to freeze the literal.
-
-Returns:
-    A fresh solver literal.
-)"_d)
-        .def("add_nogood", &PropagateControl::add_nogood, py::arg("literals"), py::arg("tag") = false,
-             py::arg("lock") = false, R"(
-A shortcut for `add_clause([-literal for literal in literals], tag, lock)`.
-
-Args:
-    literals:
-        A sequence of solver literals representing the nogood.
-    tag:
-        Whether to tag the nogood.
-    lock:
-        Whether to lock the nogood.
-
-Returns:
-    Whether the nogood could be integrated without conflict.
-)"_d)
-        .def("add_watch", &PropagateControl::add_watch, py::arg("literal"), R"(
-Add a watch for the given solver literal.
-
-Args:
-    literal: The literal to watch.
-)"_d)
-        .def("has_watch", &PropagateControl::has_watch, py::arg("literal"), R"(
-Check if a watch exists for the given solver literal.
-
-Args:
-    literal: The literal to check.
-
-Returns:
-    True if a watch exists for the literal, False otherwise.
-)"_d)
-        .def("propagate", &PropagateControl::propagate, R"(
-Perform propagation in the solver.
-
-If this function returns False, the propagator must add no further
-clauses/literals and immediately return from the corresponding
-`clingo.propagate.Propagator.init`, `clingo.propagate.Propagator.propagate`
-or `clingo.propagate.Propagator.check` call.
-
-Returns:
-    True if propagation was successful, False otherwise.
-)"_d)
-        .def("remove_watch", &PropagateControl::remove_watch, py::arg("literal"), R"(
-Remove the watch for the given literal.
-
-This function has no effect if the literal is not watched.
-
-Args:
-    literal: The literal to remove the watch for.
-)"_d);
-
-    py::class_<PropagateInit, PropagateControl>(propagate, "PropagateInit", R"(
-Class for initializing a propagator.
-
-This class extends PropagateControl and additionally provides methods for freezing and looking up literals, adding
-constraints, and configuring the propagator's behavior.
-)"_d)
-        .def("add_minimize", &PropagateInit::add_minimize, py::arg("literal"), py::arg("weight"),
-             py::arg("priority") = 0,
-             R"(
-Add a weighted literal to minimize to the solver.
-
-Args:
-    literal:
-        The literal to minimize.
-    weight:
-        The weight of the literal.
-    priority:
-        The priority of the literal.
-)"_d)
-        .def("freeze_literal", &PropagateInit::freeze_literal, py::arg("literal"), R"(
-Freeze the given literal.
-
-Frozen literals are exempt from simplification. This is important for literals
-whose truth values a propagator has to track.
-
-Args:
-    literal:
-        The literal to freeze.
-)"_d)
-        .def("solver_literal", &PropagateInit::solver_literal, py::arg("literal"), R"(
-Map the given program literal to a solver literal.
-
-If the literal is `None`, the true solver literal is returned.
-
-Args:
-    literal:
-        The program literal to map.
-
-Returns:
-    The corresponding solver literal.
-)"_d)
-        .def_property_readonly("library", &PropagateInit::library, R"(
-The library object managing symbols.
-)"_d)
-        .def_property_readonly("base", &PropagateInit::base, R"(
-The base object to inspect the grounder's base.
-)"_d)
-        .def_property("check_mode", &PropagateInit::get_check_mode, &PropagateInit::set_check_mode, R"(
-Get/set the check mode for the propagator.
-)"_d)
-        .def_property_readonly("number_of_threads", &PropagateInit::number_of_threads, R"(
-The number of solver threads.
-)"_d)
-        .def_property("undo_mode", &PropagateInit::get_undo_mode, &PropagateInit::set_undo_mode, R"(
-Get/set the undo mode for the propagator.
-)"_d);
-
-    py::class_<Propagator>(propagate, "Propagator", R"(
-Interface for implementing propagators.
-
-This class defines methods that can be implemented to create custom propagators
-for use with the solver. They can be left empty to use their default
-implementation.
-)")
-        .def(py::init<>())
-        .def("init", &Propagator::init, py::arg("assignment"), py::arg("init"), R"(
-Initialize the propagator.
-
-This method is called once before each solving step. It is used to map
-relevant program literals to solver literals, add watches for solver
-literals, and initialize the propagator's internal state.
-
-Args:
-    assignment:
-        The current assignment.
-    init:
-        The propagate init object for initializing the propagator.
-)"_d)
-        .def("attach", &Propagator::attach, py::arg("assignment"), py::arg("control"), R"(
-Initialize solver thread with given id.
-
-This function is called once for each solving thread before solving of the
-current step is started.
-It can be used to add thread-specific watches and literals, or
-initialize thread-specific data structures.
-
-Args:
-    assignment:
-        The current assignment.
-    control:
-        The propagate control object for managing propagation.
-)"_d)
-        .def("propagate", &Propagator::propagate, py::arg("assignment"), py::arg("control"), py::arg("changes"), R"(
-Propagate given set of changes.
-
-This method is called during propagation with a non-empty list of watched literals
-that have been assigned truth values. A propagator should add clauses to
-propagate literals and to implement its constraints.
-
-Typical propagators add unit-resulting or conflicting constraints only.
-
-Args:
-    assignment:
-        The current assignment.
-    control:
-        The propagate control object for managing propagation.
-    changes:
-        A list of literals that have changed.
-)"_d)
-        .def("undo", &Propagator::undo, py::arg("assignment"), py::arg("changes"), R"(
-Undo previous assignments.
-
-This method is called to undo previous assignments.
-
-See also `clingo.propagate.PropagateInit.undo_mode`.
-
-Args:
-    assignment:
-        The current assignment.
-    changes:
-        The literals whose assignment is undone.
-)"_d)
-        .def("check", &Propagator::check, py::arg("assignment"), py::arg("control"), R"(
-Check if the current assignment is valid.
-
-This method is called on propagation fixpoints or total assignments (see
-`clingo.propagate.PropagateInit.check_mode`). A propagator should add clauses
-to implement its constraints here.
-
-Args:
-    assignment:
-        The current assignment.
-    control:
-        The propagate control object for managing propagation.
-)"_d)
-        .def("decide", &Propagator::decide, py::arg("assignment"), py::arg("fallback"), R"(
-Make a decision on the next literal to assign.
-
-This method is called to decide on a literal to be assigned next.
-
-Args:
-    assignment:
-        The current assignment.
-    fallback:
-        The literal choosen by the solver's heuristic.
-
-Returns:
-    The literal to assign or 0 if no decision was made.
-)"_d);
+    auto propagate_mod = PyGuard{nullptr};
+    if (!add_submodule(m.ptr(), &propagate_def, &propagate_mod.get())) {
+        throw py::error_already_set();
+    }
+
+    auto *state = get_state(propagate_mod.get());
+    if (state == nullptr) {
+        throw py::error_already_set();
+    }
+
+    state->base_type = py_base_type();
+    if (state->base_type == nullptr || !intern_names(state)) {
+        throw py::error_already_set();
+    }
+
+    auto *mod = propagate_mod.get();
+    if (!add_int_enum(mod, "WeightConstraintType", weight_constraint_type_members, &state->weight_constraint_type_enum,
+                      {}) ||
+        !add_int_enum(mod, "CheckMode", check_mode_members, &state->check_mode_enum, {}) ||
+        !add_int_enum(mod, "UndoMode", undo_mode_members, &state->undo_mode_enum, {}) ||
+        !add_type(mod, "_TrailView", &py_view_spec, &state->trail_view_type) ||
+        !add_type(mod, "Trail", &py_trail_spec, &state->trail_type) ||
+        !add_type(mod, "Assignment", &py_assignment_spec, &state->assignment_type) ||
+        !add_type(mod, "PropagateControl", &py_control_spec, &state->control_type) ||
+        !add_type(mod, "PropagateInit", &py_init_spec, &state->init_type, state->control_type) ||
+        !add_type(mod, "Propagator", &py_propagator_spec, &state->propagator_type) ||
+        !add_type(mod, "_PropagatorHandle", &py_handle_spec, &state->handle_type) || !register_sequences(state)) {
+        throw py::error_already_set();
+    }
 }
 
 } // namespace PyClingo

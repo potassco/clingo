@@ -15,9 +15,8 @@ from __future__ import annotations
 
 import collections.abc
 import enum
+import types
 import typing
-
-import typing_extensions
 
 __all__: list[str] = [
     "Library",
@@ -107,7 +106,7 @@ class Library:
             message_limit: The maximum number of messages to emit.
         """
 
-    def _capsule(self) -> typing_extensions.CapsuleType:
+    def _capsule(self) -> types.CapsuleType:
         """
         Get a capsule holding the underlying C library object.
         """
