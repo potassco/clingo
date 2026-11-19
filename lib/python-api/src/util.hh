@@ -7,8 +7,10 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <algorithm>
 #include <compare> // IWYU pragma: keep
 #include <concepts>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <ranges>
@@ -668,6 +670,71 @@ template <class T> auto py_cast(PyObject *obj) noexcept -> T * {
         return nullptr;
     }
 }
+
+//! A growable array of trivially copyable values.
+//!
+//! The container does not depend on Python and does not throw: allocation
+//! failures are reported via return values and have to be handled by the
+//! caller.
+template <class T> class TrivialVector {
+    static_assert(std::is_trivially_copyable_v<T>);
+
+  public:
+    TrivialVector() = default;
+    TrivialVector(TrivialVector const &) = delete;
+    auto operator=(TrivialVector const &) -> TrivialVector & = delete;
+    TrivialVector(TrivialVector &&other) noexcept
+        : data_{std::exchange(other.data_, nullptr)}, size_{std::exchange(other.size_, 0)},
+          capacity_{std::exchange(other.capacity_, 0)} {}
+    auto operator=(TrivialVector &&other) noexcept -> TrivialVector & {
+        std::swap(data_, other.data_);
+        std::swap(size_, other.size_);
+        std::swap(capacity_, other.capacity_);
+        return *this;
+    }
+    ~TrivialVector() {
+        std::free(data_); // NOLINT(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+    }
+
+    //! Ensure capacity for at least n values.
+    [[nodiscard]] auto reserve(size_t n) noexcept -> bool {
+        if (n <= capacity_) {
+            return true;
+        }
+        if (n > std::numeric_limits<size_t>::max() / sizeof(T)) {
+            return false;
+        }
+        // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+        auto *data = static_cast<T *>(std::realloc(static_cast<void *>(data_), n * sizeof(T)));
+        if (data == nullptr) {
+            return false;
+        }
+        data_ = data;
+        capacity_ = n;
+        return true;
+    }
+    //! Append a value.
+    [[nodiscard]] auto push_back(T const &value) noexcept -> bool {
+        static constexpr size_t min_capacity = 8;
+        if (size_ == capacity_ && !reserve(std::max(2 * capacity_, min_capacity))) {
+            return false;
+        }
+        data_[size_++] = value;
+        return true;
+    }
+    //! Remove all values keeping the capacity.
+    void clear() noexcept { size_ = 0; }
+
+    [[nodiscard]] auto data() const noexcept -> T * { return data_; }
+    [[nodiscard]] auto size() const noexcept -> size_t { return size_; }
+    [[nodiscard]] auto capacity() const noexcept -> size_t { return capacity_; }
+    [[nodiscard]] auto empty() const noexcept -> bool { return size_ == 0; }
+
+  private:
+    T *data_ = nullptr;
+    size_t size_ = 0;
+    size_t capacity_ = 0;
+};
 
 template <class T> struct PyBuffer {
     PyBuffer() = default;

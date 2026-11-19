@@ -10,12 +10,11 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <new>
 #include <utility>
-#include <vector>
 
 namespace PyClingo {
 
@@ -56,23 +55,27 @@ constexpr auto state_members = std::array{
 };
 
 struct PyAssignmentObject {
-    PyObject_HEAD clingo_assignment_t const *ass;
+    PyObject_HEAD
+    clingo_assignment_t const *ass;
     PyObject *trail;
 };
 
 struct PyTrailObject {
-    PyObject_HEAD PyObject *assignment;
+    PyObject_HEAD
+    PyObject *assignment;
 };
 
 struct PyTrailViewObject {
-    PyObject_HEAD PyObject *assignment;
+    PyObject_HEAD
+    PyObject *assignment;
     Py_ssize_t start;
     Py_ssize_t step;
     Py_ssize_t size;
 };
 
 struct PyPropagateControlObject {
-    PyObject_HEAD clingo_propagate_control_t *ctl;
+    PyObject_HEAD
+    clingo_propagate_control_t *ctl;
 };
 
 struct PyPropagateInitObject {
@@ -82,7 +85,8 @@ struct PyPropagateInitObject {
 };
 
 struct PyPropagatorHandleObject {
-    PyObject_HEAD PyObject *propagator;
+    PyObject_HEAD
+    PyObject *propagator;
     PyObject *library;
     // NOTE: per solver thread wrappers stored as [assignment, control, ...]
     PyObject **cache;
@@ -213,7 +217,7 @@ auto parse_level_arg(char const *fname, PyObject *const *args, Py_ssize_t nargs,
 //! their own one.
 template <class T> class BufferLease {
   public:
-    explicit BufferLease(std::vector<T> &pool) : pool_{pool}, buf_{std::move(pool)} { buf_.clear(); }
+    explicit BufferLease(TrivialVector<T> &pool) : pool_{pool}, buf_{std::move(pool)} { buf_.clear(); }
     BufferLease(BufferLease const &) = delete;
     BufferLease(BufferLease &&) = delete;
     auto operator=(BufferLease const &) -> BufferLease & = delete;
@@ -224,67 +228,67 @@ template <class T> class BufferLease {
         }
     }
 
-    auto get() -> std::vector<T> & { return buf_; }
+    auto get() -> TrivialVector<T> & { return buf_; }
 
   private:
-    std::vector<T> &pool_;
-    std::vector<T> buf_;
+    TrivialVector<T> &pool_;
+    TrivialVector<T> buf_;
 };
 
-thread_local auto lit_pool = LitVec{};
-thread_local auto wlit_pool = WeightLitVec{};
+thread_local auto lit_pool = TrivialVector<clingo_literal_t>{};
+thread_local auto wlit_pool = TrivialVector<clingo_weighted_literal_t>{};
 
 // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
 template <class F> auto for_each_item(PyObject *obj, F &&fun) -> bool {
-    try {
-        if (PyList_Check(obj) != 0) {
-            auto n = PyList_Size(obj);
-            for (Py_ssize_t i = 0; i < n; ++i) {
-                // NOTE: borrow because item conversion may run Python code
-                auto item = borrow(PyList_GetItem(obj, i));
-                if (item.get() == nullptr || !fun(item.get(), n)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        auto seq = steal(PySequence_Tuple(obj));
-        if (seq.get() == nullptr) {
-            return false;
-        }
-        auto n = PyTuple_Size(seq.get());
+    if (PyList_Check(obj) != 0) {
+        auto n = PyList_Size(obj);
         for (Py_ssize_t i = 0; i < n; ++i) {
-            auto *item = PyTuple_GetItem(seq.get(), i);
-            if (item == nullptr || !fun(item, n)) {
+            // NOTE: borrow because item conversion may run Python code
+            auto item = borrow(PyList_GetItem(obj, i));
+            if (item.get() == nullptr || !fun(item.get(), n)) {
                 return false;
             }
         }
         return true;
-    } catch (std::bad_alloc const &) {
-        PyErr_NoMemory();
+    }
+    auto seq = steal(PySequence_Tuple(obj));
+    if (seq.get() == nullptr) {
         return false;
     }
+    auto n = PyTuple_Size(seq.get());
+    for (Py_ssize_t i = 0; i < n; ++i) {
+        auto *item = PyTuple_GetItem(seq.get(), i);
+        if (item == nullptr || !fun(item, n)) {
+            return false;
+        }
+    }
+    return true;
 }
 
-auto parse_literals(PyObject *obj, bool negate, LitVec &out) -> bool {
+auto parse_literals(PyObject *obj, bool negate, TrivialVector<clingo_literal_t> &out) -> bool {
     return for_each_item(obj, [&](PyObject *item, Py_ssize_t n) {
-        if (out.empty()) {
-            out.reserve(static_cast<size_t>(n));
+        if (out.empty() && !out.reserve(static_cast<size_t>(n))) {
+            PyErr_NoMemory();
+            return false;
         }
         clingo_literal_t lit = 0;
         if (!parse_num(item, &lit, "literal")) {
             return false;
         }
-        out.push_back(negate ? -lit : lit);
+        if (!out.push_back(negate ? -lit : lit)) {
+            PyErr_NoMemory();
+            return false;
+        }
         return true;
     });
 }
 
-auto parse_weighted_literals(PyObject *obj, WeightLitVec &out) -> bool {
+auto parse_weighted_literals(PyObject *obj, TrivialVector<clingo_weighted_literal_t> &out) -> bool {
     static constexpr char const *msg = "weighted literal must be a pair (literal, weight)";
     return for_each_item(obj, [&](PyObject *item, Py_ssize_t n) {
-        if (out.empty()) {
-            out.reserve(static_cast<size_t>(n));
+        if (out.empty() && !out.reserve(static_cast<size_t>(n))) {
+            PyErr_NoMemory();
+            return false;
         }
         auto pair = steal(PySequence_Tuple(item));
         if (pair.get() == nullptr) {
@@ -301,7 +305,10 @@ auto parse_weighted_literals(PyObject *obj, WeightLitVec &out) -> bool {
             !parse_num(PyTuple_GetItem(pair.get(), 1), &wlit.weight, "weight")) {
             return false;
         }
-        out.push_back(wlit);
+        if (!out.push_back(wlit)) {
+            PyErr_NoMemory();
+            return false;
+        }
         return true;
     });
 }
@@ -1402,7 +1409,7 @@ auto py_init_get_undo_mode(PyObject *self, [[maybe_unused]] void *closure) -> Py
     if (state == nullptr) {
         return nullptr;
     }
-    clingo_propagator_check_mode_t mode = 0;
+    clingo_propagator_undo_mode_t mode = 0;
     if (!clingo_propagate_init_get_undo_mode(init, &mode)) {
         return py_handle_error();
     }
@@ -1700,20 +1707,23 @@ auto handle_cached(PyPropagatorHandleObject *h, PyObject *type, size_t index) ->
 
 //! Bind a wrapper to a clingo object for the duration of a callback.
 //!
-//! Restoring the previous pointer (instead of clearing it) keeps nested
-//! callbacks of the same thread working.
+//! Callbacks of a propagator are never nested, so the wrapper is unbound when
+//! the callback starts.
 template <class T, class P, P *T::*Member> class Binding {
   public:
-    Binding(PyObject *obj, P *ptr) : obj_{borrow(obj)}, prev_{std::exchange(as<T>(obj)->*Member, ptr)} {}
+    Binding(PyObject *obj, P *ptr) : obj_{borrow(obj)} {
+        auto *&member = as<T>(obj)->*Member;
+        assert(member == nullptr);
+        member = ptr;
+    }
     Binding(Binding const &) = delete;
     Binding(Binding &&) = delete;
     auto operator=(Binding const &) -> Binding & = delete;
     auto operator=(Binding &&) -> Binding & = delete;
-    ~Binding() { as<T>(obj_.get())->*Member = prev_; }
+    ~Binding() { as<T>(obj_.get())->*Member = nullptr; }
 
   private:
     PyGuard obj_;
-    P *prev_;
 };
 
 using AssignmentBinding = Binding<PyAssignmentObject, clingo_assignment_t const, &PyAssignmentObject::ass>;
