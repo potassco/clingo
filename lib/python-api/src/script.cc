@@ -374,11 +374,13 @@ constexpr auto main_script = clingo_script_t{
 
 //! Initialize the interpreter if necessary and create the script handle.
 auto external_init(ExternalScript *ext) -> bool {
-    if (Py_IsInitialized() != 0) {
-        return set_clingo_error("the python interpreter must not be initialized");
+    if (ext->thread == nullptr) {
+        if (Py_IsInitialized() != 0) {
+            return set_clingo_error("the python interpreter must not be initialized");
+        }
+        Py_InitializeEx(0);
+        ext->thread = PyEval_SaveThread();
     }
-    Py_InitializeEx(0);
-    ext->thread = PyEval_SaveThread();
     if (ext->handle != nullptr) {
         return true;
     }
@@ -452,21 +454,14 @@ auto external_main_cb(clingo_lib_t *lib, clingo_control_t *control, void *data) 
 
 void external_free(void *data) {
     auto ext = std::unique_ptr<ExternalScript>{external_cast(data)};
-    if (ext->handle == nullptr || Py_IsInitialized() == 0) {
+    if (ext->thread == nullptr) {
         return;
     }
-    if (ext->thread != nullptr) {
-        PyEval_RestoreThread(ext->thread);
-    }
-    {
-        // NOTE: an attached library object has already been invalidated by
-        // the library's finalizer
-        auto gil = GILGuard{};
-        Py_CLEAR(ext->handle);
-    }
-    if (ext->thread != nullptr) {
-        Py_FinalizeEx();
-    }
+    PyEval_RestoreThread(ext->thread);
+    // NOTE: an attached library object has already been invalidated by the
+    // library's finalizer
+    Py_CLEAR(ext->handle);
+    Py_FinalizeEx();
 }
 
 constexpr auto external_script = clingo_script_t{
