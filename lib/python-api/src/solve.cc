@@ -758,7 +758,7 @@ auto py_control_base(PyObject *self, [[maybe_unused]] void *closure) -> PyObject
     if (!clingo_solve_control_base(ctl, &base)) {
         return py_handle_error();
     }
-    return py_base_new(self, nullptr, state->base_type, base);
+    return py_base_new(self, pointer_slot(&control_cast(self)->ctl), state->base_type, base);
 }
 
 auto control_add(PyObject *self, PyObject *lits, bool negate) -> PyObject * {

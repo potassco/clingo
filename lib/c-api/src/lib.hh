@@ -48,12 +48,12 @@ class Owners {
 
 struct clingo_lib {
     clingo_lib(CppClingo::Logger log, std::unique_ptr<CppClingo::SymbolStore> store, void *data, bool fast_release)
-        : log{std::move(log)}, store{std::move(store)}, data{data}, fast_release{fast_release} {}
+        : store{std::move(store)}, log{std::move(log)}, data{data}, fast_release{fast_release} {}
+    std::unique_ptr<CppClingo::SymbolStore> store;
     CppClingo::Logger log;
     CppClingo::Control::Scripts scripts;
     CppClingo::CAPI::Owners owners;
     std::vector<std::pair<clingo_finalizer_t, void *>> finalizers;
-    std::unique_ptr<CppClingo::SymbolStore> store;
     void *data;
     clingo_lib_t *next_ = nullptr;
     std::atomic<size_t> ref_count = 1;

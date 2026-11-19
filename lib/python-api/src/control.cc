@@ -177,7 +177,7 @@ auto Control::base() -> TypeHint<"clingo.base.Base"> {
     if (type.get() == nullptr) {
         throw py::error_already_set();
     }
-    auto pybase = steal(py_base_new(py::cast(this).ptr(), ptr_ref(), type.get(), base));
+    auto pybase = steal(py_base_new(py::cast(this).ptr(), pointer_slot(ptr_ref()), type.get(), base));
     if (pybase.get() == nullptr) {
         throw py::error_already_set();
     }

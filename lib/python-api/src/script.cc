@@ -325,14 +325,15 @@ auto main_main(PyObject *self, clingo_lib_t *lib, clingo_control_t *control) -> 
     if (library.get() == nullptr) {
         return store_python_error("creating library failed");
     }
-    auto *ctl = py_control_begin(state->control_type, library.get(), control, ControlRef::share);
-    if (ctl == nullptr) {
+    auto ctl = ControlGuard{state->control_type, library.get(), control, ControlRef::share};
+    if (ctl.get() == nullptr) {
         return store_python_error("creating control failed");
     }
-    auto res = steal(PyObject_CallFunctionObjArgs(fun.get(), library.get(), ctl, nullptr));
-    auto ok = res.get() != nullptr || store_python_error("running main failed");
-    py_control_end(ctl, ControlRef::share);
-    return ok;
+    auto res = steal(PyObject_CallFunctionObjArgs(fun.get(), library.get(), ctl.get(), nullptr));
+    if (res.get() == nullptr) {
+        return store_python_error("running main failed");
+    }
+    return true;
 }
 
 void main_name([[maybe_unused]] void *data, clingo_string_t *name) {
@@ -576,14 +577,15 @@ auto custom_main_cb(clingo_lib_t *lib, clingo_control_t *control, void *data) ->
     if (library.get() == nullptr) {
         return store_python_error("creating library failed");
     }
-    auto *ctl = py_control_begin(state->control_type, library.get(), control, ControlRef::share);
-    if (ctl == nullptr) {
+    auto ctl = ControlGuard{state->control_type, library.get(), control, ControlRef::share};
+    if (ctl.get() == nullptr) {
         return store_python_error("creating control failed");
     }
-    auto res = steal(PyObject_CallMethodObjArgs(h->script, state->str_main, library.get(), ctl, nullptr));
-    auto ok = res.get() != nullptr || store_python_error("script main failed");
-    py_control_end(ctl, ControlRef::share);
-    return ok;
+    auto res = steal(PyObject_CallMethodObjArgs(h->script, state->str_main, library.get(), ctl.get(), nullptr));
+    if (res.get() == nullptr) {
+        return store_python_error("script main failed");
+    }
+    return true;
 }
 
 //! Get a string from the script and cache it in the handle.

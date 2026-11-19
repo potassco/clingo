@@ -5,6 +5,7 @@
 #include "symbol.hh"
 #include "util.hh"
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstring>
@@ -26,10 +27,13 @@ constexpr auto theory_term_members = std::array<IntEnumMember, 6>{
 
 using PyBaseObject = struct {
     PyObject_HEAD PyObject *owner;
-    //! Address of the owner's C pointer, which is null once the owner is invalid (nullptr if not tracked).
-    void *const *valid;
+    //! Address of a pointer that is null once the base is no longer valid.
+    void const *valid;
     clingo_base_t const *base;
 };
+
+//! The pointer observed by invalidated base objects.
+void *const invalid_base = nullptr;
 
 using PyAtomBaseObject = struct {
     PyObject_HEAD PyBaseObject *owner;
@@ -94,7 +98,7 @@ using PyTermBaseIter = struct {
     IterType kind;
 };
 
-// validity of the owner of a base object
+// validity of base objects
 
 auto root(PyBaseObject const *obj) -> PyBaseObject const * {
     return obj;
@@ -106,13 +110,14 @@ auto root(T const *obj) -> PyBaseObject const * {
     return root(obj->owner);
 }
 
-//! Call a clingo function if the owner of the given base object is still valid.
+//! Call a clingo function if the base object the given object belongs to is still valid.
 //!
-//! Sets a clingo error and returns false if the owner is no longer valid.
+//! Sets a clingo error and returns false if the base object is no longer valid.
 template <class T, class F, class... Args> auto checked(T const *obj, F fun, Args &&...args) -> bool {
-    if (auto const *base = root(obj); base->valid != nullptr && *base->valid == nullptr) {
+    if (!pointer_valid(root(obj)->valid)) {
         static constexpr std::string_view msg = "base is no longer valid";
-        return clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
+        clingo_set_error(clingo_result_runtime, msg.data(), msg.size());
+        return false;
     }
     return fun(std::forward<Args>(args)...);
 }
@@ -1666,16 +1671,15 @@ auto py_base_iter_spec = PyType_Spec{
 // Base
 
 auto py_base_traverse(PyObject *self, visitproc visit, void *arg) -> int {
-    auto *o = reinterpret_cast<PyBaseObject *>(self);
     Py_VISIT(Py_TYPE(self));
-    Py_VISIT(o->owner);
+    Py_VISIT(reinterpret_cast<PyBaseObject *>(self)->owner);
     return 0;
 }
 
 auto py_base_clear(PyObject *self) -> int {
-    auto *o = reinterpret_cast<PyBaseObject *>(self);
-    Py_CLEAR(o->owner);
-    o->base = nullptr;
+    auto *b = reinterpret_cast<PyBaseObject *>(self);
+    b->valid = pointer_slot(&invalid_base);
+    Py_CLEAR(b->owner);
     return 0;
 }
 
@@ -2141,7 +2145,7 @@ void register_base(py::module &m) {
     }
 }
 
-auto py_base_new(PyObject *owner, void *const *valid, PyObject *type, clingo_base_t const *base) -> PyObject * {
+auto py_base_new(PyObject *owner, void const *valid, PyObject *type, clingo_base_t const *base) -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
     auto *obj = to->tp_alloc(to, 0);
     if (obj == nullptr) {
@@ -2149,10 +2153,14 @@ auto py_base_new(PyObject *owner, void *const *valid, PyObject *type, clingo_bas
     }
     auto *b = reinterpret_cast<PyBaseObject *>(obj);
     b->base = base;
-    b->valid = valid;
+    b->valid = valid != nullptr ? valid : pointer_slot(&b->base);
     b->owner = owner;
-    Py_INCREF(owner);
+    Py_XINCREF(owner);
     return obj;
+}
+
+void py_base_invalidate(PyObject *obj) noexcept {
+    reinterpret_cast<PyBaseObject *>(obj)->valid = pointer_slot(&invalid_base);
 }
 
 auto py_base_type() -> PyObject * {
@@ -2178,7 +2186,7 @@ auto py_base_get(PyObject *type, PyObject *obj) -> clingo_base_t const * {
         return nullptr;
     }
     auto const *b = reinterpret_cast<PyBaseObject *>(obj);
-    if (b->valid != nullptr && *b->valid == nullptr) {
+    if (!pointer_valid(b->valid)) {
         PyErr_SetString(PyExc_RuntimeError, "base is no longer valid");
         return nullptr;
     }
@@ -2253,10 +2261,11 @@ auto convert(TypeHint<"clingo.base.Base"> base, MixedLitSpan const &lits, bool f
 
 auto convert(PyObject *base_type, PyObject *base, PyObject *lits, bool flip, bool disjunctive,
              PyBuffer<clingo_literal_t> &out) -> bool {
-    clingo_base_t const *c_base = py_base_get(base_type, base);
-    if (c_base == nullptr) {
+    // NOTE: checks the type and validity of the base
+    if (py_base_get(base_type, base) == nullptr) {
         return false;
     }
+    auto const *b = reinterpret_cast<PyBaseObject const *>(base);
 
     auto *state = get_state_from_self(base);
     if (state == nullptr) {
@@ -2346,9 +2355,14 @@ auto convert(PyObject *base_type, PyObject *base, PyObject *lits, bool flip, boo
 
         auto csig = clingo_signature_t{name.data, name.size, arity, sym_pos};
 
+        // NOTE: parsing the literal might have run Python code invalidating the base
+        if (!pointer_valid(b->valid)) {
+            PyErr_SetString(PyExc_RuntimeError, "base is no longer valid");
+            return false;
+        }
         clingo_atom_base_t const *dom = nullptr;
         bool found = false;
-        if (!clingo_base_atoms_find(c_base, &csig, &dom, &found)) {
+        if (!clingo_base_atoms_find(b->base, &csig, &dom, &found)) {
             py_handle_error();
             return false;
         }

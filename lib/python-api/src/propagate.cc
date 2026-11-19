@@ -1354,7 +1354,7 @@ auto py_init_base(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * 
     if (!clingo_propagate_init_base(init, &base)) {
         return py_handle_error();
     }
-    return py_base_new(self, nullptr, state->base_type, base);
+    return py_base_new(self, pointer_slot(&as<PyPropagateInitObject>(self)->init), state->base_type, base);
 }
 
 auto py_init_get_check_mode(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {

@@ -181,6 +181,29 @@ auto py_control_begin(PyObject *type, PyObject *library, clingo_control_t *ctl, 
 //! See `py_control_begin` for the reference type semantics.
 void py_control_end(PyObject *obj, ControlRef ref_type) noexcept;
 
+//! Calls py_control_begin() and py_control_end() for a scope.
+class ControlGuard {
+  public:
+    ControlGuard(PyObject *type, PyObject *library, clingo_control_t *ctl, ControlRef ref_type)
+        : obj_{py_control_begin(type, library, ctl, ref_type)}, ref_type_{ref_type} {}
+    ControlGuard(ControlGuard const &) = delete;
+    ControlGuard(ControlGuard &&) = delete;
+    auto operator=(ControlGuard const &) -> ControlGuard & = delete;
+    auto operator=(ControlGuard &&) -> ControlGuard & = delete;
+    ~ControlGuard() {
+        if (obj_ != nullptr) {
+            py_control_end(obj_, ref_type_);
+        }
+    }
+
+    //! The control object (nullptr with a Python error set if begin failed).
+    [[nodiscard]] auto get() const -> PyObject * { return obj_; }
+
+  private:
+    PyObject *obj_;
+    ControlRef ref_type_;
+};
+
 void register_control(pybind11::module &m);
 
 } // namespace PyClingo

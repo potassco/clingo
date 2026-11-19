@@ -35,9 +35,6 @@ struct clingo_control {
     auto operator=(clingo_control const &other) -> clingo_control & = delete;
     auto operator=(clingo_control &&other) noexcept -> clingo_control & = delete;
     //! Destroy the held clasp and clingo objects if the control is owning.
-    //!
-    //! Finalizers are called after the held objects have been destroyed and
-    //! before the library is released.
     ~clingo_control() {
         if (own) {
             delete slv;

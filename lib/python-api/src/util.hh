@@ -9,6 +9,7 @@
 
 #include <compare> // IWYU pragma: keep
 #include <concepts>
+#include <cstring>
 #include <limits>
 #include <ranges>
 #include <stdexcept>
@@ -95,6 +96,21 @@ template <class T> struct value_handle {
   private:
     pointer ptr_ = nullptr;
 };
+
+//! Check whether the pointer stored at the given address is not null.
+//!
+//! The pointer can be of any pointer type; it is read via memcpy to not
+//! violate aliasing rules.
+inline auto pointer_valid(void const *slot) noexcept -> bool {
+    void *ptr = nullptr;
+    std::memcpy(static_cast<void *>(&ptr), slot, sizeof(ptr));
+    return ptr != nullptr;
+}
+
+//! Get the address of a pointer as a slot for pointer_valid().
+template <class P> auto pointer_slot(P *const *slot) noexcept -> void const * {
+    return static_cast<void const *>(slot);
+}
 
 //! A handle to a reference counted C object.
 //!
