@@ -959,6 +959,7 @@ auto assignment_new(PropagateModuleState *state) -> PyObject * {
 //! Set the assignment of an assignment wrapper and its trail.
 void assignment_set(PyObject *obj, clingo_assignment_t const *ass) {
     auto *a = as<PyAssignmentObject>(obj);
+    assert(ass == nullptr || a->ass == nullptr);
     a->ass = ass;
     as<PyTrailObject>(a->trail)->ass = ass;
 }
@@ -1626,7 +1627,6 @@ auto handle_reserve(PyPropagatorHandleObject *h, clingo_propagate_init_t const *
     return true;
 }
 
-//! Get the cached object at the given index creating it if necessary (borrowed).
 auto handle_cached(PyPropagatorHandleObject *h, PropagateModuleState *state, size_t index,
                    PyObject *(*make)(PropagateModuleState *)) -> PyObject * {
     assert(index < h->cache_size);
@@ -1639,46 +1639,34 @@ auto handle_cached(PyPropagatorHandleObject *h, PropagateModuleState *state, siz
 
 // callbacks
 
+//! Set a pointer member of a wrapper object.
+template <class T, class P, P *T::*Member> void set_member(PyObject *obj, P *ptr) {
+    auto *&member = as<T>(obj)->*Member;
+    assert(ptr == nullptr || member == nullptr);
+    member = ptr;
+}
+
 //! Bind a wrapper to a clingo object for the duration of a callback.
 //!
 //! Callbacks of a propagator are never nested, so the wrapper is unbound when
 //! the callback starts.
-template <class T, class P, P *T::*Member> class Binding {
+template <auto Set> class Binding {
   public:
-    Binding(PyObject *obj, P *ptr) : obj_{borrow(obj)} {
-        auto *&member = as<T>(obj)->*Member;
-        assert(member == nullptr);
-        member = ptr;
-    }
+    template <class P> Binding(PyObject *obj, P *ptr) : obj_{borrow(obj)} { Set(obj, ptr); }
     Binding(Binding const &) = delete;
     Binding(Binding &&) = delete;
     auto operator=(Binding const &) -> Binding & = delete;
     auto operator=(Binding &&) -> Binding & = delete;
-    ~Binding() { as<T>(obj_.get())->*Member = nullptr; }
+    ~Binding() { Set(obj_.get(), nullptr); }
 
   private:
     PyGuard obj_;
 };
 
-//! Bind an assignment wrapper and its trail for the duration of a callback.
-class AssignmentBinding {
-  public:
-    AssignmentBinding(PyObject *obj, clingo_assignment_t const *ass) : obj_{borrow(obj)} {
-        assert(as<PyAssignmentObject>(obj)->ass == nullptr);
-        assignment_set(obj, ass);
-    }
-    AssignmentBinding(AssignmentBinding const &) = delete;
-    AssignmentBinding(AssignmentBinding &&) = delete;
-    auto operator=(AssignmentBinding const &) -> AssignmentBinding & = delete;
-    auto operator=(AssignmentBinding &&) -> AssignmentBinding & = delete;
-    ~AssignmentBinding() { assignment_set(obj_.get(), nullptr); }
-
-  private:
-    PyGuard obj_;
-};
-
-using ControlBinding = Binding<PyPropagateControlObject, clingo_propagate_control_t, &PyPropagateControlObject::ctl>;
-using InitBinding = Binding<PyPropagateInitObject, clingo_propagate_init_t, &PyPropagateInitObject::init>;
+using AssignmentBinding = Binding<assignment_set>;
+using ControlBinding =
+    Binding<set_member<PyPropagateControlObject, clingo_propagate_control_t, &PyPropagateControlObject::ctl>>;
+using InitBinding = Binding<set_member<PyPropagateInitObject, clingo_propagate_init_t, &PyPropagateInitObject::init>>;
 
 struct Call {
     PyPropagatorHandleObject *handle{nullptr};
@@ -1686,7 +1674,6 @@ struct Call {
     PyGuard propagator{nullptr};
 };
 
-//! Acquire the propagator and module state; must be called with the GIL held.
 auto call_begin(void *data, Call &call) -> bool {
     auto *self = static_cast<PyObject *>(data);
     call.handle = handle_cast(data);
@@ -1699,7 +1686,6 @@ auto call_begin(void *data, Call &call) -> bool {
     return call.state != nullptr;
 }
 
-//! Get the cached assignment and (optionally) control wrappers of the thread (borrowed).
 auto thread_objects(Call &call, clingo_assignment_t const *ass, PyObject **ass_obj, PyObject **ctl_obj) -> bool {
     clingo_id_t id = 0;
     if (!clingo_assignment_thread_id(ass, &id)) {
