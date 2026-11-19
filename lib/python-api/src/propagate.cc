@@ -63,12 +63,12 @@ struct PyAssignmentObject {
 
 struct PyTrailObject {
     PyObject_HEAD
-    PyObject *assignment;
+    clingo_assignment_t const *ass;
 };
 
 struct PyTrailViewObject {
     PyObject_HEAD
-    PyObject *assignment;
+    PyObject *trail;
     Py_ssize_t start;
     Py_ssize_t step;
     Py_ssize_t size;
@@ -193,37 +193,24 @@ thread_local auto wlit_pool = TrivialVector<clingo_weighted_literal_t>{};
 
 // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
 template <class F> auto for_each_item(PyObject *obj, F &&fun) -> bool {
-    if (PyList_Check(obj) != 0) {
-        auto n = PyList_Size(obj);
-        for (Py_ssize_t i = 0; i < n; ++i) {
-            // NOTE: borrow because item conversion may run Python code
-            auto item = borrow(PyList_GetItem(obj, i));
-            if (item.get() == nullptr || !fun(item.get(), n)) {
-                return false;
-            }
-        }
-        return true;
-    }
-    auto seq = steal(PySequence_Tuple(obj));
-    if (seq.get() == nullptr) {
+    auto it = steal(PyObject_GetIter(obj));
+    if (it.get() == nullptr) {
         return false;
     }
-    auto n = PyTuple_Size(seq.get());
-    for (Py_ssize_t i = 0; i < n; ++i) {
-        auto *item = PyTuple_GetItem(seq.get(), i);
-        if (item == nullptr || !fun(item, n)) {
+    for (;;) {
+        auto item = steal(PyIter_Next(it.get()));
+        if (item.get() == nullptr) {
+            break;
+        }
+        if (!fun(item.get())) {
             return false;
         }
     }
-    return true;
+    return PyErr_Occurred() == nullptr;
 }
 
 auto parse_literals(PyObject *obj, bool negate, TrivialVector<clingo_literal_t> &out) -> bool {
-    return for_each_item(obj, [&](PyObject *item, Py_ssize_t n) {
-        if (out.empty() && !out.reserve(static_cast<size_t>(n))) {
-            PyErr_NoMemory();
-            return false;
-        }
+    return for_each_item(obj, [&](PyObject *item) {
         clingo_literal_t lit = 0;
         if (!parse_num(item, &lit, "literal")) {
             return false;
@@ -238,15 +225,9 @@ auto parse_literals(PyObject *obj, bool negate, TrivialVector<clingo_literal_t> 
 
 auto parse_weighted_literals(PyObject *obj, TrivialVector<clingo_weighted_literal_t> &out) -> bool {
     static constexpr char const *msg = "weighted literal must be a pair (literal, weight)";
-    return for_each_item(obj, [&](PyObject *item, Py_ssize_t n) {
-        if (out.empty() && !out.reserve(static_cast<size_t>(n))) {
-            PyErr_NoMemory();
-            return false;
-        }
+    return for_each_item(obj, [&](PyObject *item) {
         auto pair = steal(PySequence_Tuple(item));
         if (pair.get() == nullptr) {
-            PyErr_Clear();
-            PyErr_SetString(PyExc_TypeError, msg);
             return false;
         }
         if (PyTuple_Size(pair.get()) != 2) {
@@ -523,22 +504,9 @@ auto py_assignment_trail(PyObject *self, [[maybe_unused]] void *closure) -> PyOb
     if (assignment_get(self) == nullptr) {
         return nullptr;
     }
-    auto *a = as<PyAssignmentObject>(self);
-    if (a->trail == nullptr) {
-        auto *state = state_of(self);
-        if (state == nullptr) {
-            return nullptr;
-        }
-        auto *trail = alloc_object(state->trail_type);
-        if (trail == nullptr) {
-            return nullptr;
-        }
-        Py_INCREF(self);
-        as<PyTrailObject>(trail)->assignment = self;
-        a->trail = trail;
-    }
-    Py_INCREF(a->trail);
-    return a->trail;
+    auto *trail = as<PyAssignmentObject>(self)->trail;
+    Py_INCREF(trail);
+    return trail;
 }
 
 auto py_assignment_len(PyObject *self) -> Py_ssize_t {
@@ -623,15 +591,9 @@ auto py_assignment_contains(PyObject *self, PyObject *value) -> int {
     return res ? 1 : 0;
 }
 
-auto py_assignment_traverse(PyObject *self, visitproc visit, void *arg) -> int {
-    Py_VISIT(Py_TYPE(self));
-    Py_VISIT(as<PyAssignmentObject>(self)->trail);
-    return 0;
-}
-
-auto py_assignment_clear(PyObject *self) -> int {
+void py_assignment_dealloc(PyObject *self) {
     Py_CLEAR(as<PyAssignmentObject>(self)->trail);
-    return 0;
+    free_object(self);
 }
 
 auto py_assignment_methods = std::array{
@@ -716,9 +678,7 @@ auto py_assignment_getset = std::array{
 
 auto py_assignment_slots = std::array{
     PyType_Slot{Py_tp_doc, const_cast<char *>("The state of the literals in the solver.")}, // NOLINT
-    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
-    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_assignment_traverse)},
-    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_assignment_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_assignment_dealloc)},
     PyType_Slot{Py_tp_methods, py_assignment_methods.data()},
     PyType_Slot{Py_tp_getset, py_assignment_getset.data()},
     PyType_Slot{Py_sq_length, reinterpret_cast<void *>(py_assignment_len)},
@@ -733,21 +693,21 @@ auto py_assignment_spec = PyType_Spec{
     "clingo.propagate.Assignment",
     sizeof(PyAssignmentObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
     py_assignment_slots.data(),
 };
 
 // Trail and _TrailView
 
-auto view_new(PropagateModuleState *state, PyObject *assignment, Py_ssize_t start, Py_ssize_t step, Py_ssize_t size)
+auto view_new(PropagateModuleState *state, PyObject *trail, Py_ssize_t start, Py_ssize_t step, Py_ssize_t size)
     -> PyObject * {
     auto *obj = alloc_object(state->trail_view_type);
     if (obj == nullptr) {
         return nullptr;
     }
     auto *v = as<PyTrailViewObject>(obj);
-    Py_INCREF(assignment);
-    v->assignment = assignment;
+    Py_INCREF(trail);
+    v->trail = trail;
     v->start = start;
     v->step = step;
     v->size = size;
@@ -772,7 +732,11 @@ auto trail_at(clingo_assignment_t const *ass, Py_ssize_t offset) -> PyObject * {
 }
 
 auto trail_get(PyObject *self) -> clingo_assignment_t const * {
-    return assignment_get(as<PyTrailObject>(self)->assignment);
+    auto const *ass = as<PyTrailObject>(self)->ass;
+    if (ass == nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "trail is no longer valid");
+    }
+    return ass;
 }
 
 auto py_trail_len(PyObject *self) -> Py_ssize_t {
@@ -815,7 +779,7 @@ auto py_trail_subscript(PyObject *self, PyObject *key) -> PyObject * {
         if (!unpack_slice(key, size, &start, &step, &len)) {
             return nullptr;
         }
-        return view_new(state, as<PyTrailObject>(self)->assignment, start, step, len);
+        return view_new(state, self, start, step, len);
     }
     if (PyIndex_Check(key) == 0) {
         return invalid_key();
@@ -856,7 +820,7 @@ auto py_trail_level(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyO
         return nullptr;
     }
     auto size = end > begin ? static_cast<Py_ssize_t>(end - begin) : 0;
-    return view_new(state, as<PyTrailObject>(self)->assignment, static_cast<Py_ssize_t>(begin), 1, size);
+    return view_new(state, self, static_cast<Py_ssize_t>(begin), 1, size);
 }
 
 auto py_trail_begin(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
@@ -873,17 +837,6 @@ auto py_trail_end(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObj
         return nullptr;
     }
     return PyLong_FromUnsignedLong(end);
-}
-
-auto py_trail_traverse(PyObject *self, visitproc visit, void *arg) -> int {
-    Py_VISIT(Py_TYPE(self));
-    Py_VISIT(as<PyTrailObject>(self)->assignment);
-    return 0;
-}
-
-auto py_trail_clear(PyObject *self) -> int {
-    Py_CLEAR(as<PyTrailObject>(self)->assignment);
-    return 0;
 }
 
 auto py_trail_methods = std::array{
@@ -911,8 +864,6 @@ auto py_trail_methods = std::array{
 auto py_trail_slots = std::array{
     PyType_Slot{Py_tp_doc, const_cast<char *>("The sequence of literals assigned by the solver.")}, // NOLINT
     PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
-    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_trail_traverse)},
-    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_trail_clear)},
     PyType_Slot{Py_tp_methods, py_trail_methods.data()},
     PyType_Slot{Py_sq_length, reinterpret_cast<void *>(py_trail_len)},
     PyType_Slot{Py_sq_item, reinterpret_cast<void *>(py_trail_item)},
@@ -922,15 +873,12 @@ auto py_trail_slots = std::array{
 };
 
 auto py_trail_spec = PyType_Spec{
-    "clingo.propagate.Trail",
-    sizeof(PyTrailObject),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
+    "clingo.propagate.Trail", sizeof(PyTrailObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
     py_trail_slots.data(),
 };
 
 auto view_get(PyObject *self) -> clingo_assignment_t const * {
-    return assignment_get(as<PyTrailViewObject>(self)->assignment);
+    return trail_get(as<PyTrailViewObject>(self)->trail);
 }
 
 auto view_at(PyObject *self, clingo_assignment_t const *ass, Py_ssize_t index) -> PyObject * {
@@ -970,7 +918,7 @@ auto py_view_subscript(PyObject *self, PyObject *key) -> PyObject * {
         if (!unpack_slice(key, v->size, &start, &step, &len)) {
             return nullptr;
         }
-        return view_new(state, v->assignment, v->start + (start * v->step), v->step * step, len);
+        return view_new(state, v->trail, v->start + (start * v->step), v->step * step, len);
     }
     if (PyIndex_Check(key) == 0) {
         return invalid_key();
@@ -982,22 +930,14 @@ auto py_view_subscript(PyObject *self, PyObject *key) -> PyObject * {
     return view_at(self, ass, index);
 }
 
-auto py_view_traverse(PyObject *self, visitproc visit, void *arg) -> int {
-    Py_VISIT(Py_TYPE(self));
-    Py_VISIT(as<PyTrailViewObject>(self)->assignment);
-    return 0;
-}
-
-auto py_view_clear(PyObject *self) -> int {
-    Py_CLEAR(as<PyTrailViewObject>(self)->assignment);
-    return 0;
+void py_view_dealloc(PyObject *self) {
+    Py_CLEAR(as<PyTrailViewObject>(self)->trail);
+    free_object(self);
 }
 
 auto py_view_slots = std::array{
     PyType_Slot{Py_tp_doc, const_cast<char *>("A view on a subrange of the solver's trail.")}, // NOLINT
-    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
-    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_view_traverse)},
-    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_view_clear)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_view_dealloc)},
     PyType_Slot{Py_sq_length, reinterpret_cast<void *>(py_view_len)},
     PyType_Slot{Py_sq_item, reinterpret_cast<void *>(py_view_item)},
     PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_view_len)},
@@ -1006,12 +946,29 @@ auto py_view_slots = std::array{
 };
 
 auto py_view_spec = PyType_Spec{
-    "clingo.propagate._TrailView",
-    sizeof(PyTrailViewObject),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
+    "clingo.propagate._TrailView", sizeof(PyTrailViewObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
     py_view_slots.data(),
 };
+
+//! Create an unbound assignment together with its trail.
+auto assignment_new(PropagateModuleState *state) -> PyObject * {
+    auto trail = steal(alloc_object(state->trail_type));
+    if (trail.get() == nullptr) {
+        return nullptr;
+    }
+    auto *obj = alloc_object(state->assignment_type);
+    if (obj != nullptr) {
+        as<PyAssignmentObject>(obj)->trail = trail.release();
+    }
+    return obj;
+}
+
+//! Set the assignment of an assignment wrapper and its trail.
+void assignment_set(PyObject *obj, clingo_assignment_t const *ass) {
+    auto *a = as<PyAssignmentObject>(obj);
+    a->ass = ass;
+    as<PyTrailObject>(a->trail)->ass = ass;
+}
 
 // PropagateControl
 
@@ -1080,7 +1037,7 @@ auto py_control_add_weight_constraint(PyObject *self, PyObject *const *args, Py_
     }
     clingo_literal_t lit = 0;
     clingo_weight_t bound = 0;
-    int type = clingo_weight_constraint_type_equivalence;
+    clingo_weight_constraint_type_t type = clingo_weight_constraint_type_equivalence;
     if (!parse_num(lit_obj, &lit, "literal") || !parse_num(bound_obj, &bound, "bound") ||
         !parse_num(type_obj, &type, "type")) {
         return nullptr;
@@ -1092,9 +1049,7 @@ auto py_control_add_weight_constraint(PyObject *self, PyObject *const *args, Py_
     }
     auto res = false;
     return bool_result(
-        clingo_propagate_control_add_weight_constraint(ctl, lit, wlits.data(), wlits.size(), bound,
-                                                       static_cast<clingo_weight_constraint_type_e>(type), &res),
-        res);
+        clingo_propagate_control_add_weight_constraint(ctl, lit, wlits.data(), wlits.size(), bound, type, &res), res);
 }
 
 auto py_control_add_literal(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
@@ -1223,7 +1178,6 @@ auto py_control_slots = std::array{
     PyType_Slot{0, nullptr},
 };
 
-// NOTE: BASETYPE is required to derive PropagateInit from PropagateControl
 auto py_control_spec = PyType_Spec{
     "clingo.propagate.PropagateControl",
     sizeof(PyPropagateControlObject),
@@ -1346,11 +1300,11 @@ auto py_init_set_check_mode(PyObject *self, PyObject *value, [[maybe_unused]] vo
     if (init == nullptr) {
         return -1;
     }
-    int mode = 0;
+    clingo_propagator_check_mode_t mode = 0;
     if (!parse_num(value, &mode, "check_mode")) {
         return -1;
     }
-    if (!clingo_propagate_init_set_check_mode(init, static_cast<clingo_propagator_check_mode_e>(mode))) {
+    if (!clingo_propagate_init_set_check_mode(init, mode)) {
         py_handle_error();
         return -1;
     }
@@ -1382,11 +1336,11 @@ auto py_init_set_undo_mode(PyObject *self, PyObject *value, [[maybe_unused]] voi
     if (init == nullptr) {
         return -1;
     }
-    int mode = 0;
+    clingo_propagator_undo_mode_t mode = 0;
     if (!parse_num(value, &mode, "undo_mode")) {
         return -1;
     }
-    if (!clingo_propagate_init_set_undo_mode(init, static_cast<clingo_propagator_undo_mode_e>(mode))) {
+    if (!clingo_propagate_init_set_undo_mode(init, mode)) {
         py_handle_error();
         return -1;
     }
@@ -1652,22 +1606,40 @@ auto py_handle_spec = PyType_Spec{
     py_handle_slots.data(),
 };
 
-//! Get the cached object at the given index creating it if necessary (borrowed).
-auto handle_cached(PyPropagatorHandleObject *h, PyObject *type, size_t index) -> PyObject * {
-    if (index >= h->cache_size) {
-        auto size = std::max(index + 1, 2 * h->cache_size);
-        auto *cache = static_cast<PyObject **>(PyMem_Realloc(static_cast<void *>(h->cache), size * sizeof(PyObject *)));
-        if (cache == nullptr) {
-            PyErr_NoMemory();
-            return nullptr;
-        }
-        std::fill(cache + h->cache_size, cache + size, nullptr);
-        h->cache = cache;
-        h->cache_size = size;
+//! Create an unbound propagate control.
+auto control_new(PropagateModuleState *state) -> PyObject * {
+    return alloc_object(state->control_type);
+}
+
+//! Make room for the per thread wrappers of all solver threads.
+auto handle_reserve(PyPropagatorHandleObject *h, clingo_propagate_init_t const *init) -> bool {
+    clingo_id_t threads = 0;
+    if (!clingo_propagate_init_number_of_threads(init, &threads)) {
+        py_handle_error();
+        return false;
     }
+    auto size = 2 * static_cast<size_t>(threads);
+    if (size <= h->cache_size) {
+        return true;
+    }
+    auto *cache = static_cast<PyObject **>(PyMem_Realloc(static_cast<void *>(h->cache), size * sizeof(PyObject *)));
+    if (cache == nullptr) {
+        PyErr_NoMemory();
+        return false;
+    }
+    std::fill(cache + h->cache_size, cache + size, nullptr);
+    h->cache = cache;
+    h->cache_size = size;
+    return true;
+}
+
+//! Get the cached object at the given index creating it if necessary (borrowed).
+auto handle_cached(PyPropagatorHandleObject *h, PropagateModuleState *state, size_t index,
+                   PyObject *(*make)(PropagateModuleState *)) -> PyObject * {
+    assert(index < h->cache_size);
     auto *&slot = h->cache[index];
     if (slot == nullptr) {
-        slot = alloc_object(type);
+        slot = make(state);
     }
     return slot;
 }
@@ -1695,7 +1667,23 @@ template <class T, class P, P *T::*Member> class Binding {
     PyGuard obj_;
 };
 
-using AssignmentBinding = Binding<PyAssignmentObject, clingo_assignment_t const, &PyAssignmentObject::ass>;
+//! Bind an assignment wrapper and its trail for the duration of a callback.
+class AssignmentBinding {
+  public:
+    AssignmentBinding(PyObject *obj, clingo_assignment_t const *ass) : obj_{borrow(obj)} {
+        assert(as<PyAssignmentObject>(obj)->ass == nullptr);
+        assignment_set(obj, ass);
+    }
+    AssignmentBinding(AssignmentBinding const &) = delete;
+    AssignmentBinding(AssignmentBinding &&) = delete;
+    auto operator=(AssignmentBinding const &) -> AssignmentBinding & = delete;
+    auto operator=(AssignmentBinding &&) -> AssignmentBinding & = delete;
+    ~AssignmentBinding() { assignment_set(obj_.get(), nullptr); }
+
+  private:
+    PyGuard obj_;
+};
+
 using ControlBinding = Binding<PyPropagateControlObject, clingo_propagate_control_t, &PyPropagateControlObject::ctl>;
 using InitBinding = Binding<PyPropagateInitObject, clingo_propagate_init_t, &PyPropagateInitObject::init>;
 
@@ -1726,12 +1714,12 @@ auto thread_objects(Call &call, clingo_assignment_t const *ass, PyObject **ass_o
         return false;
     }
     auto index = 2 * static_cast<size_t>(id);
-    *ass_obj = handle_cached(call.handle, call.state->assignment_type, index);
+    *ass_obj = handle_cached(call.handle, call.state, index, assignment_new);
     if (*ass_obj == nullptr) {
         return false;
     }
     if (ctl_obj != nullptr) {
-        *ctl_obj = handle_cached(call.handle, call.state->control_type, index + 1);
+        *ctl_obj = handle_cached(call.handle, call.state, index + 1, control_new);
         if (*ctl_obj == nullptr) {
             return false;
         }
@@ -1740,10 +1728,14 @@ auto thread_objects(Call &call, clingo_assignment_t const *ass, PyObject **ass_o
 }
 
 auto init_cb(clingo_assignment_t const *ass, clingo_propagate_init_t *init, void *data) -> bool {
-    if (!handle_cast(data)->has_init) {
+    auto gil = GILGuard{};
+    auto *h = handle_cast(data);
+    if (!handle_reserve(h, init)) {
+        return store_python_error("propagator init failed");
+    }
+    if (!h->has_init) {
         return true;
     }
-    auto gil = GILGuard{};
     auto call = Call{};
     if (!call_begin(data, call)) {
         return store_python_error("propagator init failed");
@@ -1752,7 +1744,7 @@ auto init_cb(clingo_assignment_t const *ass, clingo_propagate_init_t *init, void
     if (!clingo_propagate_init_control(init, &ctl)) {
         return false;
     }
-    auto ass_obj = steal(alloc_object(call.state->assignment_type));
+    auto ass_obj = steal(assignment_new(call.state));
     auto init_obj = steal(alloc_object(call.state->init_type));
     if (ass_obj.get() == nullptr || init_obj.get() == nullptr) {
         return store_python_error("propagator init failed");
