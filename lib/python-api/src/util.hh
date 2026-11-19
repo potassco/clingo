@@ -112,6 +112,14 @@ template <class P> auto pointer_slot(P *const *slot) noexcept -> void const * {
     return static_cast<void const *>(slot);
 }
 
+//! The pointer observed via invalid_slot().
+inline void *const invalid_pointer = nullptr;
+
+//! Get a slot for pointer_valid() that is never valid.
+inline auto invalid_slot() noexcept -> void const * {
+    return pointer_slot(&invalid_pointer);
+}
+
 //! A handle to a reference counted C object.
 //!
 //! The handle either owns a reference to the object or borrows it. A borrowed

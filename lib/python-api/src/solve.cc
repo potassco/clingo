@@ -47,6 +47,8 @@ struct PyControlObject {
 
 struct PyHandleObject {
     PyObject_HEAD clingo_solve_handle_t *hnd;
+    //! The statistics passed to on_statistics (null outside of the callback).
+    clingo_stats_t *stats;
     PyObject *owner;
     PyObject *on_model;
     PyObject *on_unsat;
@@ -881,6 +883,21 @@ auto on_unsat_cb(int64_t const *values, size_t size, void *data) -> bool {
     return true;
 }
 
+//! Sets the statistics of a solve handle for the duration of a scope.
+class StatsBinding {
+  public:
+    StatsBinding(PyHandleObject *h, clingo_stats_t *stats) : h_{h}, prev_{std::exchange(h->stats, stats)} {}
+    StatsBinding(StatsBinding const &) = delete;
+    StatsBinding(StatsBinding &&) = delete;
+    auto operator=(StatsBinding const &) -> StatsBinding & = delete;
+    auto operator=(StatsBinding &&) -> StatsBinding & = delete;
+    ~StatsBinding() { h_->stats = prev_; }
+
+  private:
+    PyHandleObject *h_;
+    clingo_stats_t *prev_;
+};
+
 auto on_stats_cb(clingo_stats_t *stats, void *data) -> bool {
     auto gil = GILGuard{};
     auto *h = handle_cast(static_cast<PyObject *>(data));
@@ -902,11 +919,14 @@ auto on_stats_cb(clingo_stats_t *stats, void *data) -> bool {
                                      clingo_stats_type_map, &accu)) {
         return false;
     }
-    auto step_stats = steal(py_stats_new(h->owner, nullptr, state->stats_type, stats, step));
+    // NOTE: the statistics are only valid during the callback
+    auto bind = StatsBinding{h, stats};
+    auto *self = static_cast<PyObject *>(data);
+    auto step_stats = steal(py_stats_new(self, pointer_slot(&h->stats), state->stats_type, stats, step));
     if (step_stats.get() == nullptr) {
         return store_python_error("creating step statistics failed");
     }
-    auto accu_stats = steal(py_stats_new(h->owner, nullptr, state->stats_type, stats, accu));
+    auto accu_stats = steal(py_stats_new(self, pointer_slot(&h->stats), state->stats_type, stats, accu));
     if (accu_stats.get() == nullptr) {
         return store_python_error("creating accumulated statistics failed");
     }

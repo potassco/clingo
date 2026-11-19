@@ -212,7 +212,8 @@ auto Control::config() -> TypeHint<"clingo.config.Config"> {
     if (type.get() == nullptr) {
         throw py::error_already_set();
     }
-    auto cfg = steal(py_config_new(py::cast(this).ptr(), ptr_ref(), keeper_ref(), type.get(), config, key));
+    auto cfg =
+        steal(py_config_new(py::cast(this).ptr(), pointer_slot(ptr_ref()), keeper_ref(), type.get(), config, key));
     if (cfg.get() == nullptr) {
         throw py::error_already_set();
     }
@@ -229,8 +230,8 @@ auto Control::stats() -> StatsView {
         throw py::error_already_set();
     }
 
-    auto res =
-        steal(py_stats_new(py::cast(this).ptr(), ptr_ref(), type.get(), const_cast<clingo_stats_t *>(stats), key));
+    auto res = steal(py_stats_new(py::cast(this).ptr(), pointer_slot(ptr_ref()), type.get(),
+                                  const_cast<clingo_stats_t *>(stats), key));
     if (res.get() == nullptr) {
         throw py::error_already_set();
     }

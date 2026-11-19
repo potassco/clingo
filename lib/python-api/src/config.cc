@@ -14,8 +14,8 @@ namespace {
 using PyConfigObject = struct {
     PyObject_HEAD clingo_config_t *config;
     PyObject *owner;
-    //! Address of the owner's C pointer, which is null once the owner is invalid (nullptr if not tracked).
-    void *const *valid;
+    //! Address of a pointer of the owner that is null once the owner is invalid (nullptr if not tracked).
+    void const *valid;
     PyObject *keeper;
     clingo_id_t key;
 };
@@ -46,7 +46,7 @@ auto py_config_cast(PyObject *obj) -> PyConfigObject * {
 
 //! Check whether the owner of a config object is still valid (sets a Python error otherwise).
 auto config_valid(PyConfigObject const *o) -> bool {
-    if (o->valid != nullptr && *o->valid == nullptr) {
+    if (o->valid != nullptr && !pointer_valid(o->valid)) {
         PyErr_SetString(PyExc_RuntimeError, "config is no longer valid");
         return false;
     }
@@ -59,7 +59,7 @@ auto py_config_checked(PyObject *obj) -> PyConfigObject * {
     return config_valid(o) ? o : nullptr;
 }
 
-auto py_config_alloc(PyObject *owner, void *const *valid, PyObject *keeper, PyObject *type, clingo_config_t *config,
+auto py_config_alloc(PyObject *owner, void const *valid, PyObject *keeper, PyObject *type, clingo_config_t *config,
                      clingo_id_t key) -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
     auto *obj = to->tp_alloc(to, 0);
@@ -87,6 +87,7 @@ auto py_config_traverse(PyObject *self, visitproc visit, void *arg) -> int {
 
 auto py_config_clear(PyObject *self) -> int {
     auto *o = py_config_cast(self);
+    o->valid = invalid_slot();
     Py_CLEAR(o->owner);
     Py_CLEAR(o->keeper);
     o->config = nullptr;
@@ -770,7 +771,7 @@ auto py_config_type() -> PyObject * {
     return state->config_type;
 }
 
-auto py_config_new(PyObject *owner, void *const *valid, PyObject *keeper, PyObject *type, clingo_config_t *config,
+auto py_config_new(PyObject *owner, void const *valid, PyObject *keeper, PyObject *type, clingo_config_t *config,
                    clingo_id_t key) -> PyObject * {
     if (type == nullptr) {
         PyErr_SetString(PyExc_RuntimeError, "config type is unavailable");

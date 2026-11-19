@@ -32,9 +32,6 @@ using PyBaseObject = struct {
     clingo_base_t const *base;
 };
 
-//! The pointer observed by invalidated base objects.
-void *const invalid_base = nullptr;
-
 using PyAtomBaseObject = struct {
     PyObject_HEAD PyBaseObject *owner;
     clingo_atom_base_t const *base;
@@ -1678,7 +1675,7 @@ auto py_base_traverse(PyObject *self, visitproc visit, void *arg) -> int {
 
 auto py_base_clear(PyObject *self) -> int {
     auto *b = reinterpret_cast<PyBaseObject *>(self);
-    b->valid = pointer_slot(&invalid_base);
+    b->valid = invalid_slot();
     Py_CLEAR(b->owner);
     return 0;
 }
@@ -2160,7 +2157,7 @@ auto py_base_new(PyObject *owner, void const *valid, PyObject *type, clingo_base
 }
 
 void py_base_invalidate(PyObject *obj) noexcept {
-    reinterpret_cast<PyBaseObject *>(obj)->valid = pointer_slot(&invalid_base);
+    reinterpret_cast<PyBaseObject *>(obj)->valid = invalid_slot();
 }
 
 auto py_base_type() -> PyObject * {

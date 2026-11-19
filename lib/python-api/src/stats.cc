@@ -19,8 +19,8 @@ constexpr auto stats_type_members = std::array<IntEnumMember, 3>{
 
 using PyStatsObject = struct {
     PyObject_HEAD PyObject *owner;
-    //! Address of the owner's C pointer, which is null once the owner is invalid (nullptr if not tracked).
-    void *const *valid;
+    //! Address of a pointer of the owner that is null once the owner is invalid (nullptr if not tracked).
+    void const *valid;
     clingo_stats_t *stats;
     uint64_t key;
 };
@@ -37,7 +37,7 @@ enum class IterKind : uint8_t {
 
 using PyStatsIterObject = struct {
     PyObject_HEAD PyObject *owner;
-    void *const *valid;
+    void const *valid;
     clingo_stats_t *stats;
     uint64_t key;
     size_t index;
@@ -80,8 +80,8 @@ auto py_stats_cast(PyObject *obj) -> PyStatsObject * {
 }
 
 //! Check whether the owner of a stats object is still valid (sets a Python error otherwise).
-auto stats_valid(void *const *valid) -> bool {
-    if (valid != nullptr && *valid == nullptr) {
+auto stats_valid(void const *valid) -> bool {
+    if (valid != nullptr && !pointer_valid(valid)) {
         PyErr_SetString(PyExc_RuntimeError, "stats are no longer valid");
         return false;
     }
@@ -94,7 +94,7 @@ auto py_stats_checked(PyObject *obj) -> PyStatsObject * {
     return stats_valid(o->valid) ? o : nullptr;
 }
 
-auto py_stats_alloc(PyObject *owner, void *const *valid, PyObject *type, clingo_stats_t *stats, uint64_t key)
+auto py_stats_alloc(PyObject *owner, void const *valid, PyObject *type, clingo_stats_t *stats, uint64_t key)
     -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
     auto *obj = to->tp_alloc(to, 0);
@@ -119,6 +119,7 @@ auto py_stats_traverse(PyObject *self, visitproc visit, void *arg) -> int {
 
 auto py_stats_clear(PyObject *self) -> int {
     auto *o = reinterpret_cast<PyStatsObject *>(self);
+    o->valid = invalid_slot();
     Py_CLEAR(o->owner);
     return 0;
 }
@@ -840,6 +841,7 @@ auto py_stats_iter_traverse(PyObject *self, visitproc visit, void *arg) -> int {
 
 auto py_stats_iter_clear(PyObject *self) -> int {
     auto *it = reinterpret_cast<PyStatsIterObject *>(self);
+    it->valid = invalid_slot();
     Py_CLEAR(it->owner);
     return 0;
 }
@@ -1630,7 +1632,7 @@ void register_stats(pybind11::module &m) {
     }
 }
 
-auto py_stats_new(PyObject *owner, void *const *valid, PyObject *type, clingo_stats_t *stats, uint64_t key)
+auto py_stats_new(PyObject *owner, void const *valid, PyObject *type, clingo_stats_t *stats, uint64_t key)
     -> PyObject * {
     return py_stats_alloc(owner, valid, type, stats, key);
 }
