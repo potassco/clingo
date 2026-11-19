@@ -13,10 +13,8 @@
 #include <cstring>
 #include <memory>
 #include <new>
-#include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 namespace PyClingo {
 
@@ -141,22 +139,18 @@ auto return_symbols(ScriptModuleState *state, PyObject *res, clingo_symbol_callb
         return store_python_error("converting call result failed");
     }
     auto n = PyTuple_Size(seq.get());
-    auto syms = std::vector<clingo_symbol_t>{};
-    try {
-        syms.reserve(static_cast<size_t>(n));
-    } catch (std::bad_alloc const &) {
-        PyErr_NoMemory();
+    auto syms = PyBuffer<clingo_symbol_t>{};
+    if (!syms.alloc(static_cast<size_t>(n))) {
         return store_python_error("converting call result failed");
     }
     for (Py_ssize_t i = 0; i < n; ++i) {
-        check = py_symbol_check(state->symbol_type, PyTuple_GetItem(seq.get(), i), &sym);
+        check = py_symbol_check(state->symbol_type, PyTuple_GetItem(seq.get(), i), &syms.data()[i]);
         if (check <= 0) {
             if (check == 0) {
                 PyErr_SetString(PyExc_TypeError, msg);
             }
             return store_python_error("converting call result failed");
         }
-        syms.push_back(sym);
     }
     return cb(syms.data(), syms.size(), cb_data);
 }
@@ -227,19 +221,17 @@ auto main_execute(PyObject *self, char const *code, size_t size) -> bool {
     if (!handle_check(h, true)) {
         return store_python_error("executing python code failed");
     }
-    try {
-        // NOTE: Py_CompileString requires a null-terminated string
-        auto src = std::string{code, size};
-        auto compiled = steal(Py_CompileString(src.c_str(), "<string>", Py_file_input));
-        if (compiled.get() == nullptr) {
-            return store_python_error("compiling python code failed");
-        }
-        auto res = steal(PyEval_EvalCode(compiled.get(), h->scope, h->scope));
-        if (res.get() == nullptr) {
-            return store_python_error("executing python code failed");
-        }
-    } catch (std::bad_alloc const &) {
-        PyErr_NoMemory();
+    // NOTE: bytes objects are null-terminated as required by Py_CompileString
+    auto src = steal(PyBytes_FromStringAndSize(code, static_cast<Py_ssize_t>(size)));
+    if (src.get() == nullptr) {
+        return store_python_error("executing python code failed");
+    }
+    auto compiled = steal(Py_CompileString(PyBytes_AsString(src.get()), "<string>", Py_file_input));
+    if (compiled.get() == nullptr) {
+        return store_python_error("compiling python code failed");
+    }
+    auto res = steal(PyEval_EvalCode(compiled.get(), h->scope, h->scope));
+    if (res.get() == nullptr) {
         return store_python_error("executing python code failed");
     }
     return true;
@@ -287,7 +279,6 @@ auto main_call(PyObject *self, clingo_lib_t *lib, char const *name, size_t name_
     if (args.get() == nullptr) {
         return store_python_error("calling python function failed");
     }
-    // NOTE: steals the reference to the library
     auto *library = py_library_attach(state->lib_type, lib);
     if (library == nullptr || PyTuple_SetItem(args.get(), 0, library) < 0) {
         return store_python_error("calling python function failed");
@@ -484,7 +475,7 @@ constexpr auto external_script = clingo_script_t{
     main_name,           main_version,     external_free,
 };
 
-// custom scripts (all functions require the GIL)
+// custom scripts
 
 auto custom_get(PyObject *self, ScriptModuleState **state) -> PyScriptHandleObject * {
     auto *h = handle_cast(self);
@@ -838,14 +829,7 @@ auto intern_names(ScriptModuleState *state) -> bool {
         std::pair{&state->str_callable, "callable"}, std::pair{&state->str_main, "main"},
         std::pair{&state->str_name, "name"},         std::pair{&state->str_version, "version"},
     };
-    // NOLINTNEXTLINE
-    for (auto [store, name] : names) {
-        *store = PyUnicode_InternFromString(name);
-        if (*store == nullptr) {
-            return false;
-        }
-    }
-    return true;
+    return std::ranges::all_of(names, [](auto const &pair) { return pair.first != nullptr; });
 }
 
 } // namespace
