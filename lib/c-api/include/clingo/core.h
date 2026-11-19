@@ -246,9 +246,6 @@ CLINGO_VISIBILITY_DEFAULT void clingo_lib_release(clingo_lib_t *lib);
 //! (by passing NULL) before it becomes invalid. Each binding should use its
 //! own tag, e.g., the address of a static variable.
 //!
-//! The function must not be called concurrently with other functions
-//! modifying the library.
-//!
 //! @param[in] lib the target library
 //! @param[in] tag the tag identifying the binding
 //! @param[in] owner the owner or NULL to remove it
@@ -272,9 +269,6 @@ typedef void (*clingo_finalizer_t)(void *data);
 //! count of the library drops to zero, before its logger and scripts are
 //! released. Language bindings can use this to tie the lifetime of objects to
 //! the lifetime of the library.
-//!
-//! The function must not be called concurrently with other functions
-//! modifying the library.
 //!
 //! @param[in] lib the target library
 //! @param[in] finalizer the function to call

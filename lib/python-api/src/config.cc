@@ -796,6 +796,7 @@ auto py_config_get(PyObject *type, PyObject *obj, clingo_config_t **config, clin
     *key = o->key;
     return true;
 }
+
 void register_config(pybind11::module &m) {
     auto config_mod = PyGuard{nullptr};
     if (!add_submodule(m.ptr(), &config_def, &config_mod.get())) {
