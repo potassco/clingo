@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <initializer_list>
 #include <utility>
 
 namespace PyClingo {
@@ -139,52 +140,6 @@ auto fast_cast(PyCFunctionFastKw fun) noexcept -> PyCFunction {
     return reinterpret_cast<PyCFunction>(reinterpret_cast<void *>(fun)); // NOLINT
 }
 
-//! Parse arguments passed with the METH_FASTCALL | METH_KEYWORDS convention.
-template <size_t N>
-auto parse_args(char const *fname, std::array<char const *, N> const &names, size_t required, PyObject *const *args,
-                Py_ssize_t nargs, PyObject *kwnames, std::array<PyObject *, N> &out) -> bool {
-    out.fill(nullptr);
-    if (std::cmp_greater(nargs, N)) {
-        PyErr_Format(PyExc_TypeError, "%s() takes at most %zu arguments (%zd given)", fname, N, nargs);
-        return false;
-    }
-    for (Py_ssize_t i = 0; i < nargs; ++i) {
-        out[static_cast<size_t>(i)] = args[i];
-    }
-    if (kwnames != nullptr) {
-        auto nkw = PyTuple_Size(kwnames);
-        if (nkw < 0) {
-            return false;
-        }
-        for (Py_ssize_t k = 0; k < nkw; ++k) {
-            auto *key = PyTuple_GetItem(kwnames, k);
-            if (key == nullptr) {
-                return false;
-            }
-            size_t j = 0;
-            while (j < N && PyUnicode_CompareWithASCIIString(key, names[j]) != 0) {
-                ++j;
-            }
-            if (j == N) {
-                PyErr_Format(PyExc_TypeError, "%s() got an unexpected keyword argument '%U'", fname, key);
-                return false;
-            }
-            if (out[j] != nullptr) {
-                PyErr_Format(PyExc_TypeError, "%s() got multiple values for argument '%s'", fname, names[j]);
-                return false;
-            }
-            out[j] = args[nargs + k];
-        }
-    }
-    for (size_t j = 0; j < required; ++j) {
-        if (out[j] == nullptr) {
-            PyErr_Format(PyExc_TypeError, "%s() missing required argument '%s'", fname, names[j]);
-            return false;
-        }
-    }
-    return true;
-}
-
 auto parse_bool(PyObject *obj, bool *out) -> bool {
     if (obj == nullptr) {
         return true;
@@ -199,16 +154,14 @@ auto parse_bool(PyObject *obj, bool *out) -> bool {
 
 auto parse_literal_arg(char const *fname, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames,
                        clingo_literal_t *lit) -> bool {
-    static constexpr auto names = std::array<char const *, 1>{"literal"};
-    auto out = std::array<PyObject *, 1>{};
-    return parse_args(fname, names, 1, args, nargs, kwnames, out) && parse_num(out[0], lit, "literal");
+    PyObject *lit_obj{};
+    return parse_args(fname, {"literal"}, {}, args, nargs, kwnames, {&lit_obj}) && parse_num(lit_obj, lit, "literal");
 }
 
 auto parse_level_arg(char const *fname, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, uint32_t *level)
     -> bool {
-    static constexpr auto names = std::array<char const *, 1>{"level"};
-    auto out = std::array<PyObject *, 1>{};
-    return parse_args(fname, names, 1, args, nargs, kwnames, out) && parse_num(out[0], level, "level");
+    PyObject *level_obj{};
+    return parse_args(fname, {"level"}, {}, args, nargs, kwnames, {&level_obj}) && parse_num(level_obj, level, "level");
 }
 
 //! Temporarily take a thread local buffer.
@@ -1072,9 +1025,10 @@ auto control_get(PyObject *self) -> clingo_propagate_control_t * {
 
 auto control_add_clause(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, char const *fname,
                         bool negate) -> PyObject * {
-    static constexpr auto names = std::array<char const *, 3>{"literals", "tag", "lock"};
-    auto out = std::array<PyObject *, 3>{};
-    if (!parse_args(fname, names, 1, args, nargs, kwnames, out)) {
+    PyObject *lits_obj = Py_None;
+    PyObject *tag_obj{};
+    PyObject *lock_obj{};
+    if (!parse_args(fname, {"literals"}, {"tag", "lock"}, args, nargs, kwnames, {&lits_obj, &tag_obj, &lock_obj})) {
         return nullptr;
     }
     auto *ctl = control_get(self);
@@ -1083,12 +1037,12 @@ auto control_add_clause(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
     }
     auto tag = false;
     auto lock = false;
-    if (!parse_bool(out[1], &tag) || !parse_bool(out[2], &lock)) {
+    if (!parse_bool(tag_obj, &tag) || !parse_bool(lock_obj, &lock)) {
         return nullptr;
     }
     auto lease = BufferLease{lit_pool};
     auto &lits = lease.get();
-    if (!parse_literals(out[0], negate, lits)) {
+    if (!parse_literals(lits_obj, negate, lits)) {
         return nullptr;
     }
     clingo_clause_type_t type = 0;
@@ -1112,9 +1066,12 @@ auto py_control_add_nogood(PyObject *self, PyObject *const *args, Py_ssize_t nar
 
 auto py_control_add_weight_constraint(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
     -> PyObject * {
-    static constexpr auto names = std::array<char const *, 4>{"literal", "literals", "bound", "type"};
-    auto out = std::array<PyObject *, 4>{};
-    if (!parse_args("add_weight_constraint", names, 3, args, nargs, kwnames, out)) {
+    PyObject *lit_obj{};
+    PyObject *wlits_obj = Py_None; // overwritten by parse_args (non-null for clang-analyzer)
+    PyObject *bound_obj{};
+    PyObject *type_obj{};
+    if (!parse_args("add_weight_constraint", {"literal", "literals", "bound"}, {"type"}, args, nargs, kwnames,
+                    {&lit_obj, &wlits_obj, &bound_obj, &type_obj})) {
         return nullptr;
     }
     auto *ctl = control_get(self);
@@ -1124,13 +1081,13 @@ auto py_control_add_weight_constraint(PyObject *self, PyObject *const *args, Py_
     clingo_literal_t lit = 0;
     clingo_weight_t bound = 0;
     int type = clingo_weight_constraint_type_equivalence;
-    if (!parse_num(out[0], &lit, "literal") || !parse_num(out[2], &bound, "bound") ||
-        !parse_num(out[3], &type, "type")) {
+    if (!parse_num(lit_obj, &lit, "literal") || !parse_num(bound_obj, &bound, "bound") ||
+        !parse_num(type_obj, &type, "type")) {
         return nullptr;
     }
     auto lease = BufferLease{wlit_pool};
     auto &wlits = lease.get();
-    if (!parse_weighted_literals(out[1], wlits)) {
+    if (!parse_weighted_literals(wlits_obj, wlits)) {
         return nullptr;
     }
     auto res = false;
@@ -1141,9 +1098,8 @@ auto py_control_add_weight_constraint(PyObject *self, PyObject *const *args, Py_
 }
 
 auto py_control_add_literal(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
-    static constexpr auto names = std::array<char const *, 1>{"freeze"};
-    auto out = std::array<PyObject *, 1>{};
-    if (!parse_args("add_literal", names, 0, args, nargs, kwnames, out)) {
+    PyObject *freeze_obj{};
+    if (!parse_args("add_literal", {}, {"freeze"}, args, nargs, kwnames, {&freeze_obj})) {
         return nullptr;
     }
     auto *ctl = control_get(self);
@@ -1151,7 +1107,7 @@ auto py_control_add_literal(PyObject *self, PyObject *const *args, Py_ssize_t na
         return nullptr;
     }
     auto freeze = true;
-    if (!parse_bool(out[0], &freeze)) {
+    if (!parse_bool(freeze_obj, &freeze)) {
         return nullptr;
     }
     clingo_literal_t lit = 0;
@@ -1287,9 +1243,11 @@ auto init_get(PyObject *self) -> clingo_propagate_init_t * {
 }
 
 auto py_init_add_minimize(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
-    static constexpr auto names = std::array<char const *, 3>{"literal", "weight", "priority"};
-    auto out = std::array<PyObject *, 3>{};
-    if (!parse_args("add_minimize", names, 2, args, nargs, kwnames, out)) {
+    PyObject *lit_obj{};
+    PyObject *weight_obj{};
+    PyObject *priority_obj{};
+    if (!parse_args("add_minimize", {"literal", "weight"}, {"priority"}, args, nargs, kwnames,
+                    {&lit_obj, &weight_obj, &priority_obj})) {
         return nullptr;
     }
     auto *init = init_get(self);
@@ -1299,8 +1257,8 @@ auto py_init_add_minimize(PyObject *self, PyObject *const *args, Py_ssize_t narg
     clingo_literal_t lit = 0;
     clingo_weight_t weight = 0;
     clingo_weight_t priority = 0;
-    if (!parse_num(out[0], &lit, "literal") || !parse_num(out[1], &weight, "weight") ||
-        !parse_num(out[2], &priority, "priority")) {
+    if (!parse_num(lit_obj, &lit, "literal") || !parse_num(weight_obj, &weight, "weight") ||
+        !parse_num(priority_obj, &priority, "priority")) {
         return nullptr;
     }
     return none_result(clingo_propagate_init_add_minimize(init, lit, weight, priority));
@@ -1319,9 +1277,8 @@ auto py_init_freeze_literal(PyObject *self, PyObject *const *args, Py_ssize_t na
 }
 
 auto py_init_solver_literal(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
-    static constexpr auto names = std::array<char const *, 1>{"literal"};
-    auto out = std::array<PyObject *, 1>{};
-    if (!parse_args("solver_literal", names, 1, args, nargs, kwnames, out)) {
+    PyObject *lit_obj{};
+    if (!parse_args("solver_literal", {"literal"}, {}, args, nargs, kwnames, {&lit_obj})) {
         return nullptr;
     }
     auto *init = init_get(self);
@@ -1329,7 +1286,7 @@ auto py_init_solver_literal(PyObject *self, PyObject *const *args, Py_ssize_t na
         return nullptr;
     }
     clingo_literal_t lit = 0;
-    if (out[0] != Py_None && !parse_num(out[0], &lit, "literal")) {
+    if (lit_obj != Py_None && !parse_num(lit_obj, &lit, "literal")) {
         return nullptr;
     }
     clingo_literal_t res = 0;
@@ -1528,55 +1485,67 @@ auto py_init_spec = PyType_Spec{
 
 // Propagator
 
-template <size_t N>
-auto propagator_default(char const *fname, std::array<char const *, N> const &names, PyObject *const *args,
-                        Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
-    auto out = std::array<PyObject *, N>{};
-    if (!parse_args(fname, names, N, args, nargs, kwnames, out)) {
+auto py_propagator_init([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *ass_obj{};
+    PyObject *init_obj{};
+    if (!parse_args("init", {"assignment", "init"}, {}, args, nargs, kwnames, {&ass_obj, &init_obj})) {
         return nullptr;
     }
     Py_RETURN_NONE;
 }
 
-auto py_propagator_init([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
-    -> PyObject * {
-    static constexpr auto names = std::array<char const *, 2>{"assignment", "init"};
-    return propagator_default("init", names, args, nargs, kwnames);
-}
-
 auto py_propagator_attach([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
     -> PyObject * {
-    static constexpr auto names = std::array<char const *, 2>{"assignment", "control"};
-    return propagator_default("attach", names, args, nargs, kwnames);
+    PyObject *ass_obj{};
+    PyObject *ctl_obj{};
+    if (!parse_args("attach", {"assignment", "control"}, {}, args, nargs, kwnames, {&ass_obj, &ctl_obj})) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
 }
 
 auto py_propagator_propagate([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs,
                              PyObject *kwnames) -> PyObject * {
-    static constexpr auto names = std::array<char const *, 3>{"assignment", "control", "changes"};
-    return propagator_default("propagate", names, args, nargs, kwnames);
+    PyObject *ass_obj{};
+    PyObject *ctl_obj{};
+    PyObject *changes_obj{};
+    if (!parse_args("propagate", {"assignment", "control", "changes"}, {}, args, nargs, kwnames,
+                    {&ass_obj, &ctl_obj, &changes_obj})) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
 }
 
 auto py_propagator_undo([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
     -> PyObject * {
-    static constexpr auto names = std::array<char const *, 2>{"assignment", "changes"};
-    return propagator_default("undo", names, args, nargs, kwnames);
+    PyObject *ass_obj{};
+    PyObject *changes_obj{};
+    if (!parse_args("undo", {"assignment", "changes"}, {}, args, nargs, kwnames, {&ass_obj, &changes_obj})) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
 }
 
 auto py_propagator_check([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
     -> PyObject * {
-    static constexpr auto names = std::array<char const *, 2>{"assignment", "control"};
-    return propagator_default("check", names, args, nargs, kwnames);
+    PyObject *ass_obj{};
+    PyObject *ctl_obj{};
+    if (!parse_args("check", {"assignment", "control"}, {}, args, nargs, kwnames, {&ass_obj, &ctl_obj})) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
 }
 
 auto py_propagator_decide([[maybe_unused]] PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
     -> PyObject * {
-    static constexpr auto names = std::array<char const *, 2>{"assignment", "fallback"};
-    auto out = std::array<PyObject *, 2>{};
-    if (!parse_args("decide", names, 2, args, nargs, kwnames, out)) {
+    PyObject *ass_obj{};
+    PyObject *fallback_obj{};
+    if (!parse_args("decide", {"assignment", "fallback"}, {}, args, nargs, kwnames, {&ass_obj, &fallback_obj})) {
         return nullptr;
     }
-    Py_INCREF(out[1]);
-    return out[1];
+    Py_INCREF(fallback_obj);
+    return fallback_obj;
 }
 
 auto py_propagator_methods = std::array{

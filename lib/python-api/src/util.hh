@@ -839,4 +839,56 @@ inline auto parse_string_sequence(PyObject *obj, PyGuard &seq, PyBuffer<clingo_s
     return true;
 }
 
+//! Parse required and optional arguments passed with the METH_FASTCALL | METH_KEYWORDS convention.
+inline auto parse_args(char const *fname, std::initializer_list<char const *> req,
+                       std::initializer_list<char const *> opt, PyObject *const *args, Py_ssize_t nargs,
+                       PyObject *kwnames, std::initializer_list<PyObject **> out) -> bool {
+    assert(req.size() + opt.size() == out.size());
+    auto n = out.size();
+    auto const *outs = out.begin();
+    auto name = [&](size_t j) { return j < req.size() ? req.begin()[j] : opt.begin()[j - req.size()]; };
+    for (auto *x : out) {
+        *x = nullptr;
+    }
+    if (std::cmp_greater(nargs, n)) {
+        PyErr_Format(PyExc_TypeError, "%s() takes at most %zu arguments (%zd given)", fname, n, nargs);
+        return false;
+    }
+    for (Py_ssize_t i = 0; i < nargs; ++i) {
+        *outs[i] = args[i];
+    }
+    if (kwnames != nullptr) {
+        auto nkw = PyTuple_Size(kwnames);
+        if (nkw < 0) {
+            return false;
+        }
+        for (Py_ssize_t k = 0; k < nkw; ++k) {
+            auto *key = PyTuple_GetItem(kwnames, k);
+            if (key == nullptr) {
+                return false;
+            }
+            size_t j = 0;
+            while (j < n && PyUnicode_CompareWithASCIIString(key, name(j)) != 0) {
+                ++j;
+            }
+            if (j == n) {
+                PyErr_Format(PyExc_TypeError, "%s() got an unexpected keyword argument '%U'", fname, key);
+                return false;
+            }
+            if (*outs[j] != nullptr) {
+                PyErr_Format(PyExc_TypeError, "%s() got multiple values for argument '%s'", fname, name(j));
+                return false;
+            }
+            *outs[j] = args[nargs + k];
+        }
+    }
+    for (size_t j = 0; j < req.size(); ++j) {
+        if (*outs[j] == nullptr) {
+            PyErr_Format(PyExc_TypeError, "%s() missing required argument '%s'", fname, name(j));
+            return false;
+        }
+    }
+    return true;
+}
+
 } // namespace PyClingo
