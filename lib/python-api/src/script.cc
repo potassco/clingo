@@ -61,8 +61,8 @@ constexpr auto state_members = std::array{
 
 struct PyScriptHandleObject {
     PyObject_HEAD
-        //! The custom script or nullptr for the main python script.
-        PyObject *script;
+    //! The custom script or nullptr for the main python script.
+    PyObject *script;
     //! The global scope of the main python script.
     PyObject *scope;
     //! Cached name of a custom script.

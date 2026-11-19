@@ -3,3 +3,6 @@ IndentWidth: 4
 ColumnLimit: 120
 IndentCaseLabels: true
 AllowShortFunctionsOnASingleLine: InlineOnly
+StatementMacros:
+  - PyObject_HEAD
+  - PyObject_VAR_HEAD
