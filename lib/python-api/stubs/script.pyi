@@ -24,6 +24,8 @@ from the main context (just like the embedded one in the standalone clingo).
 ...         __main__.main(lib, control)
 ...     def name(self):
 ...         return "python"
+...     def name(self):
+...         return "1.0.0"
 ...
 >>> def f(lib, x):
 ...     return Number(lib, x.number * 3)
@@ -55,17 +57,16 @@ q(8).
 ```
 """
 
-from __future__ import annotations
+from abc import abstractmethod
+from collections.abc import Sequence
 
-import typing
-
-import clingo.control
-import clingo.core
-import clingo.symbol
+from clingo.control import Control
+from clingo.core import Library
+from clingo.symbol import Symbol
 
 __all__: list[str] = ["Script", "enable_python", "register"]
 
-def enable_python(lib: clingo.core.Library) -> None:
+def enable_python(lib: Library) -> None:
     """
     Enable embedded python scripts.
 
@@ -74,7 +75,7 @@ def enable_python(lib: clingo.core.Library) -> None:
             The library to register the script with.
     """
 
-def register(lib: clingo.core.Library, script: Script) -> None:
+def register(lib: Library, script: Script) -> None:
     """
     Registers a script language which can then be embedded into a logic program.
 
@@ -84,9 +85,6 @@ def register(lib: clingo.core.Library, script: Script) -> None:
         script:
             The script to register.
     """
-
-class _MainScript:
-    pass
 
 class Script:
     """
@@ -100,10 +98,10 @@ class Script:
 
     def call(
         self,
-        lib: clingo.core.Library,
+        lib: Library,
         name: str,
-        arguments: typing.Sequence[clingo.symbol.Symbol],
-    ) -> typing.Sequence[clingo.symbol.Symbol]:
+        arguments: Sequence[Symbol],
+    ) -> Symbol | Sequence[Symbol]:
         """
         Call the function with the given name and arguments.
 
@@ -116,7 +114,7 @@ class Script:
                 The arguments of the function.
 
         Returns:
-            A list of symbols.
+            A single symbol or a list of symbols.
         """
 
     def callable(self, name: str, arguments: int) -> bool:
@@ -142,17 +140,18 @@ class Script:
                 The code to execute.
         """
 
-    def main(self, lib: clingo.core.Library, control: clingo.control.Control) -> None:
+    def main(self, lib: Library, control: Control) -> None:
         """
-        Run the main function.
+        Run the main function for a control object and associated library.
 
         Args:
             lib:
-                The (main) library object.
+                The library of the control object.
             control:
-                The (main) control object.
+                The control object.
         """
 
+    @abstractmethod
     def name(self) -> str:
         """
         Get the name of the script.

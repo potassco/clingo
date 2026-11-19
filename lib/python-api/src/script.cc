@@ -63,10 +63,10 @@ struct PyScriptHandleObject {
     PyObject *script;
     //! The global scope of the main python script.
     PyObject *scope;
-    //! Cached name of a custom script.
-    PyObject *name;
-    //! Cached version of a custom script.
-    PyObject *version;
+    //! The name of a custom script (owned copy).
+    clingo_string_t name;
+    //! The version of a custom script (owned copy).
+    clingo_string_t version;
 };
 
 //! The main python script registered from C.
@@ -175,8 +175,6 @@ auto py_handle_traverse(PyObject *self, visitproc visit, void *arg) -> int {
     Py_VISIT(Py_TYPE(self));
     Py_VISIT(h->script);
     Py_VISIT(h->scope);
-    Py_VISIT(h->name);
-    Py_VISIT(h->version);
     return 0;
 }
 
@@ -184,14 +182,20 @@ auto py_handle_clear(PyObject *self) -> int {
     auto *h = handle_cast(self);
     Py_CLEAR(h->script);
     Py_CLEAR(h->scope);
-    Py_CLEAR(h->name);
-    Py_CLEAR(h->version);
     return 0;
+}
+
+void py_handle_dealloc(PyObject *self) {
+    auto *h = handle_cast(self);
+    // NOTE: the strings might still be requested by clingo after the handle has been cleared
+    PyMem_Free(const_cast<char *>(h->name.data));
+    PyMem_Free(const_cast<char *>(h->version.data));
+    free_object(self);
 }
 
 auto py_handle_slots = std::array{
     PyType_Slot{Py_tp_doc, const_cast<char *>("Internal object connecting a script to a library.")}, // NOLINT
-    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_handle_dealloc)},
     PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_handle_traverse)},
     PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_handle_clear)},
     PyType_Slot{0, nullptr},
@@ -370,16 +374,11 @@ constexpr auto main_script = clingo_script_t{
 
 //! Initialize the interpreter if necessary and create the script handle.
 auto external_init(ExternalScript *ext) -> bool {
-    if (Py_IsInitialized() == 0) {
-#ifdef CLINGO_PYTHON_EMBED
-        // NOTE: the interpreter is finalized when the script is freed, which
-        // happens when the (main) library is released
-        Py_InitializeEx(0);
-        ext->thread = PyEval_SaveThread();
-#else
-        return set_clingo_error("the python interpreter is not initialized");
-#endif
+    if (Py_IsInitialized() != 0) {
+        return set_clingo_error("the python interpreter must not be initialized");
     }
+    Py_InitializeEx(0);
+    ext->thread = PyEval_SaveThread();
     if (ext->handle != nullptr) {
         return true;
     }
@@ -579,39 +578,12 @@ auto custom_main_cb(clingo_lib_t *lib, clingo_control_t *control, void *data) ->
     return true;
 }
 
-//! Get a string from the script and cache it in the handle.
-//!
-//! The string stays valid as long as the handle is alive.
-void custom_string(void *data, PyObject *PyScriptHandleObject::*slot, PyObject *ScriptModuleState::*method,
-                   clingo_string_t *out) {
-    static constexpr std::string_view error = "<error>";
-    auto gil = GILGuard{};
-    ScriptModuleState *state = nullptr;
-    auto *h = custom_get(static_cast<PyObject *>(data), &state);
-    if (h != nullptr && h->*slot == nullptr) {
-        auto res = steal(PyObject_CallMethodObjArgs(h->script, state->*method, nullptr));
-        if (res.get() != nullptr && PyUnicode_Check(res.get()) == 0) {
-            PyErr_SetString(PyExc_TypeError, "script name and version must be strings");
-            res = steal(nullptr);
-        }
-        h->*slot = res.release();
-    }
-    Py_ssize_t size = 0;
-    auto const *str = h != nullptr && h->*slot != nullptr ? PyUnicode_AsUTF8AndSize(h->*slot, &size) : nullptr;
-    if (str == nullptr) {
-        PyErr_Clear();
-        *out = clingo_string_t{error.data(), error.size()};
-        return;
-    }
-    *out = clingo_string_t{str, static_cast<size_t>(size)};
-}
-
 void custom_name_cb(void *data, clingo_string_t *name) {
-    custom_string(data, &PyScriptHandleObject::name, &ScriptModuleState::str_name, name);
+    *name = handle_cast(static_cast<PyObject *>(data))->name;
 }
 
 void custom_version_cb(void *data, clingo_string_t *version) {
-    custom_string(data, &PyScriptHandleObject::version, &ScriptModuleState::str_version, version);
+    *version = handle_cast(static_cast<PyObject *>(data))->version;
 }
 
 constexpr auto custom_script = clingo_script_t{
@@ -637,9 +609,9 @@ auto py_script_call(PyObject *self, [[maybe_unused]] PyObject *args, [[maybe_unu
     return not_implemented(self, "call");
 }
 
-auto py_script_callable(PyObject *self, [[maybe_unused]] PyObject *args, [[maybe_unused]] PyObject *kwargs)
-    -> PyObject * {
-    return not_implemented(self, "callable");
+auto py_script_callable([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
+                        [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+    Py_RETURN_FALSE;
 }
 
 auto py_script_main(PyObject *self, [[maybe_unused]] PyObject *args, [[maybe_unused]] PyObject *kwargs) -> PyObject * {
@@ -650,8 +622,8 @@ auto py_script_name(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject 
     return not_implemented(self, "name");
 }
 
-auto py_script_version(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
-    return not_implemented(self, "version");
+auto py_script_version([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    return PyUnicode_FromString("0.0.0");
 }
 
 auto py_script_methods = std::array{
@@ -665,7 +637,7 @@ auto py_script_methods = std::array{
         "call",
         py_c_function_cast(py_script_call),
         METH_VARARGS | METH_KEYWORDS,
-        PyDoc_STR("Call the function with the given name and arguments and return a list of symbols."),
+        PyDoc_STR("Call the function with the given name and arguments and return a symbol or list of symbols."),
     },
     PyMethodDef{
         "callable",
@@ -722,6 +694,31 @@ auto register_handle(PyObject *type, PyObject *lib, PyObject *handle, clingo_scr
     Py_RETURN_NONE;
 }
 
+//! Call a method of a script returning a string and store a copy of the result.
+auto fetch_string(PyObject *script, PyObject *method, clingo_string_t &out) -> bool {
+    auto res = steal(PyObject_CallMethodObjArgs(script, method, nullptr));
+    if (res.get() == nullptr) {
+        return false;
+    }
+    if (PyUnicode_Check(res.get()) == 0) {
+        PyErr_SetString(PyExc_TypeError, "script name and version must be strings");
+        return false;
+    }
+    Py_ssize_t size = 0;
+    auto const *str = PyUnicode_AsUTF8AndSize(res.get(), &size);
+    if (str == nullptr) {
+        return false;
+    }
+    auto *data = static_cast<char *>(PyMem_Malloc(static_cast<size_t>(size)));
+    if (data == nullptr) {
+        PyErr_NoMemory();
+        return false;
+    }
+    std::memcpy(data, str, static_cast<size_t>(size));
+    out = clingo_string_t{data, static_cast<size_t>(size)};
+    return true;
+}
+
 auto py_register(PyObject *module, PyObject *args, PyObject *kwargs) -> PyObject * {
     static constexpr auto kwlist = std::array<char const *, 3>{"lib", "script", nullptr};
     PyObject *lib = nullptr;
@@ -743,6 +740,10 @@ auto py_register(PyObject *module, PyObject *args, PyObject *kwargs) -> PyObject
     }
     auto handle = steal(handle_new(state, script, nullptr));
     if (handle.get() == nullptr) {
+        return nullptr;
+    }
+    auto *h = handle_cast(handle.get());
+    if (!fetch_string(script, state->str_name, h->name) || !fetch_string(script, state->str_version, h->version)) {
         return nullptr;
     }
     return register_handle(state->lib_type, lib, handle.get(), &custom_script);
@@ -829,12 +830,20 @@ auto intern_names(ScriptModuleState *state) -> bool {
         std::pair{&state->str_callable, "callable"}, std::pair{&state->str_main, "main"},
         std::pair{&state->str_name, "name"},         std::pair{&state->str_version, "version"},
     };
-    return std::ranges::all_of(names, [](auto const &pair) { return pair.first != nullptr; });
+    return std::ranges::all_of(names, [](auto const &pair) {
+        *pair.first = PyUnicode_InternFromString(pair.second);
+        return *pair.first != nullptr;
+    });
 }
 
 } // namespace
 
 auto register_python(clingo_lib_t *lib) -> bool {
+    static auto registered = false;
+    if (std::exchange(registered, true)) {
+        fprintf(stderr, "panic: register_python must be called at most once\n");
+        std::abort();
+    }
     auto ext = std::unique_ptr<ExternalScript>{new (std::nothrow) ExternalScript{}};
     if (ext == nullptr) {
         return set_clingo_error("out of memory");

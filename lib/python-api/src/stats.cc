@@ -18,7 +18,8 @@ constexpr auto stats_type_members = std::array<IntEnumMember, 3>{
 };
 
 using PyStatsObject = struct {
-    PyObject_HEAD PyObject *owner;
+    PyObject_HEAD
+    PyObject *owner;
     //! Address of a pointer of the owner that is null once the owner is invalid (nullptr if not tracked).
     void const *valid;
     clingo_stats_t *stats;
@@ -36,7 +37,8 @@ enum class IterKind : uint8_t {
 };
 
 using PyStatsIterObject = struct {
-    PyObject_HEAD PyObject *owner;
+    PyObject_HEAD
+    PyObject *owner;
     void const *valid;
     clingo_stats_t *stats;
     uint64_t key;
@@ -739,11 +741,10 @@ auto py_stats_view_len(PyObject *self) -> Py_ssize_t {
     }
 
     size_t n = 0;
-    if (ty == clingo_stats_type_array) {
-        if (!stats_array_len(o->stats, o->key, &n)) {
-            return -1;
-        }
-    } else if ((ty == clingo_stats_type_map) && (!stats_map_len(o->stats, o->key, &n))) {
+    if (ty == clingo_stats_type_array && !stats_array_len(o->stats, o->key, &n)) {
+        return -1;
+    }
+    if (ty == clingo_stats_type_map && !stats_map_len(o->stats, o->key, &n)) {
         return -1;
     }
 

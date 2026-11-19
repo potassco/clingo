@@ -32,21 +32,25 @@ struct SolveModuleState {
 };
 
 struct PyResultObject {
-    PyObject_HEAD clingo_solve_result_bitset_t res;
+    PyObject_HEAD
+    clingo_solve_result_bitset_t res;
 };
 
 struct PyModelObject {
-    PyObject_HEAD clingo_model_t *mdl;
+    PyObject_HEAD
+    clingo_model_t *mdl;
     PyObject *control;
     bool is_mutable;
 };
 
 struct PyControlObject {
-    PyObject_HEAD clingo_solve_control_t *ctl;
+    PyObject_HEAD
+    clingo_solve_control_t *ctl;
 };
 
 struct PyHandleObject {
-    PyObject_HEAD clingo_solve_handle_t *hnd;
+    PyObject_HEAD
+    clingo_solve_handle_t *hnd;
     //! The statistics passed to on_statistics (null outside of the callback).
     clingo_stats_t *stats;
     PyObject *owner;
@@ -883,21 +887,6 @@ auto on_unsat_cb(int64_t const *values, size_t size, void *data) -> bool {
     return true;
 }
 
-//! Sets the statistics of a solve handle for the duration of a scope.
-class StatsBinding {
-  public:
-    StatsBinding(PyHandleObject *h, clingo_stats_t *stats) : h_{h}, prev_{std::exchange(h->stats, stats)} {}
-    StatsBinding(StatsBinding const &) = delete;
-    StatsBinding(StatsBinding &&) = delete;
-    auto operator=(StatsBinding const &) -> StatsBinding & = delete;
-    auto operator=(StatsBinding &&) -> StatsBinding & = delete;
-    ~StatsBinding() { h_->stats = prev_; }
-
-  private:
-    PyHandleObject *h_;
-    clingo_stats_t *prev_;
-};
-
 auto on_stats_cb(clingo_stats_t *stats, void *data) -> bool {
     auto gil = GILGuard{};
     auto *h = handle_cast(static_cast<PyObject *>(data));
@@ -919,22 +908,26 @@ auto on_stats_cb(clingo_stats_t *stats, void *data) -> bool {
                                      clingo_stats_type_map, &accu)) {
         return false;
     }
-    // NOTE: the statistics are only valid during the callback
-    auto bind = StatsBinding{h, stats};
-    auto *self = static_cast<PyObject *>(data);
-    auto step_stats = steal(py_stats_new(self, pointer_slot(&h->stats), state->stats_type, stats, step));
-    if (step_stats.get() == nullptr) {
-        return store_python_error("creating step statistics failed");
-    }
-    auto accu_stats = steal(py_stats_new(self, pointer_slot(&h->stats), state->stats_type, stats, accu));
-    if (accu_stats.get() == nullptr) {
-        return store_python_error("creating accumulated statistics failed");
-    }
-    auto res = steal(PyObject_CallFunctionObjArgs(h->on_stats, step_stats.get(), accu_stats.get(), nullptr));
-    if (res.get() == nullptr) {
-        return store_python_error("on_stats failed");
-    }
-    return true;
+    assert(h->stats == nullptr);
+    h->stats = stats;
+    auto ok = [&] {
+        auto *self = static_cast<PyObject *>(data);
+        auto step_stats = steal(py_stats_new(self, pointer_slot(&h->stats), state->stats_type, stats, step));
+        if (step_stats.get() == nullptr) {
+            return store_python_error("creating step statistics failed");
+        }
+        auto accu_stats = steal(py_stats_new(self, pointer_slot(&h->stats), state->stats_type, stats, accu));
+        if (accu_stats.get() == nullptr) {
+            return store_python_error("creating accumulated statistics failed");
+        }
+        auto res = steal(PyObject_CallFunctionObjArgs(h->on_stats, step_stats.get(), accu_stats.get(), nullptr));
+        if (res.get() == nullptr) {
+            return store_python_error("on_stats failed");
+        }
+        return true;
+    }();
+    h->stats = nullptr;
+    return ok;
 }
 
 void on_finish_cb(clingo_solve_result_bitset_t result, void *data) {
