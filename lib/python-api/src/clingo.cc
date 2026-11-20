@@ -19,8 +19,7 @@
 namespace PyClingo {
 
 void register_clingo(pybind11::module &m) {
-    m.doc() = R"doc(
-Module providing functions and classes to control the grounding and solving
+    m.doc() = R"doc(Module providing functions and classes to control the grounding and solving
 process of Answer Set Programming (ASP).
 
 # Introduction
@@ -124,10 +123,10 @@ information.
 ...     ctl.ground(context=Context(lib))
 ...     ctl.solve(on_model=print)
 ```
-)doc"_d;
+)doc";
     PyClingo::register_core(m);
     PyClingo::register_symbol(m);
-    PyClingo::AST::register_ast(m);
+    PyClingo::register_ast(m);
     PyClingo::register_base(m);
     PyClingo::register_backend(m);
     PyClingo::register_ground(m);

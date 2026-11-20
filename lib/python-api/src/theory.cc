@@ -18,17 +18,20 @@ namespace PyClingo {
 namespace {
 
 using PyTheoryObject = struct {
-    PyObject_HEAD clingo_theory_t theory;
+    PyObject_HEAD
+    clingo_theory_t theory;
     bool initialized;
 };
 
 using PyTheoryAssignmentObject = struct {
-    PyObject_HEAD PyObject *owner;
+    PyObject_HEAD
+    PyObject *owner;
     uint32_t thread_id;
 };
 
 using PyTheoryAssignmentIterObject = struct {
-    PyObject_HEAD PyObject *owner;
+    PyObject_HEAD
+    PyObject *owner;
     size_t index;
     uint32_t thread_id;
     bool init;
@@ -36,6 +39,8 @@ using PyTheoryAssignmentIterObject = struct {
 };
 
 struct TheoryModuleState {
+    PyObject *lib_type{nullptr};
+    PyObject *ast_type{nullptr};
     PyObject *symbol_type{nullptr};
     PyObject *stats_type{nullptr};
     PyObject *model_type{nullptr};
@@ -43,6 +48,7 @@ struct TheoryModuleState {
     PyObject *theory_type{nullptr};
     PyObject *assignment_type{nullptr};
     PyObject *assignment_iter_type{nullptr};
+    PyObject *control_type{nullptr};
 };
 
 // NOTE: this is fine because the default constructed symbol does not need to be released.
@@ -98,6 +104,24 @@ auto get_state_from_self(PyObject *self) -> TheoryModuleState * {
         return nullptr;
     }
     return get_state(mod);
+}
+
+//! Get the clingo control object of a `clingo.control.Control` argument.
+auto control_arg(PyObject *self, PyObject *obj) -> clingo_control_t * {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    return py_control_get(state->control_type, obj);
+}
+
+//! Get the clingo library of a `clingo.core.Library` argument.
+auto library_arg(PyObject *self, PyObject *obj) -> clingo_lib_t * {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    return py_library_get(state->lib_type, obj);
 }
 
 auto py_theory_cast(PyObject *obj) -> PyTheoryObject * {
@@ -450,11 +474,11 @@ auto py_theory_init(PyObject *self, PyObject *args, PyObject *kwargs) -> int {
         return -1;
     }
 
-    auto *lib = py_cast<Library>(lib_obj);
+    auto *lib = library_arg(self, lib_obj);
     if (lib == nullptr) {
         return -1;
     }
-    if (!create(*lib, &o->theory)) {
+    if (!create(lib, &o->theory)) {
         py_handle_error();
         return -1;
     }
@@ -482,33 +506,36 @@ auto py_theory_register(PyObject *self, PyObject *arg) -> PyObject * {
     if (o == nullptr) {
         return nullptr;
     }
-    auto *ctl = py_cast<Control>(arg);
+    auto *ctl = control_arg(self, arg);
     if (ctl == nullptr) {
         return nullptr;
     }
     if (o->theory.register_theory == nullptr) {
         Py_RETURN_NONE;
     }
-    if (!o->theory.register_theory(o->theory.self, ctl->c_ptr())) {
+    if (!o->theory.register_theory(o->theory.self, ctl)) {
         return py_handle_error();
     }
 
     Py_RETURN_NONE;
 }
 
+struct RewriteData {
+    PyObject *ast_type;
+    PyObject *callback;
+};
+
 auto rewrite_ast_cb(clingo_ast_t *ast, void *data) -> bool {
-    auto *callback = static_cast<PyObject *>(data);
-    py::object stm;
-    try {
-        stm = AST::convert_stm(ast);
-    } catch (py::error_already_set &e) {
-        e.restore();
-        return store_python_error("converting AST to Python object failed");
-    } catch (std::exception const &e) {
-        PyErr_SetString(PyExc_TypeError, e.what());
+    auto *d = static_cast<RewriteData *>(data);
+    clingo_ast_t *copy = nullptr;
+    if (!clingo_ast_copy(ast, &copy)) {
         return false;
     }
-    auto ret = steal(PyObject_CallFunctionObjArgs(callback, stm.ptr(), nullptr));
+    auto stm = steal(py_ast_new(d->ast_type, copy));
+    if (stm.get() == nullptr) {
+        return store_python_error("converting AST to Python object failed");
+    }
+    auto ret = steal(PyObject_CallFunctionObjArgs(d->callback, stm.get(), nullptr));
     if (ret.get() == nullptr) {
         return store_python_error("rewrite callback failed");
     }
@@ -539,17 +566,13 @@ auto py_theory_rewrite(PyObject *self, PyObject *args) -> PyObject * {
         Py_RETURN_NONE;
     }
 
-    clingo_ast_t *stm = nullptr;
-    try {
-        stm = AST::convert_stm(stm_obj);
-    } catch (py::error_already_set &e) {
-        e.restore();
-        return nullptr;
-    } catch (std::exception const &e) {
-        PyErr_SetString(PyExc_TypeError, e.what());
+    auto *state = get_state_from_self(self);
+    auto *stm = state != nullptr ? py_ast_get(state->ast_type, stm_obj) : nullptr;
+    if (stm == nullptr) {
         return nullptr;
     }
-    if (!o->theory.rewrite_ast(o->theory.self, stm, rewrite_ast_cb, callback)) {
+    auto data = RewriteData{state->ast_type, callback};
+    if (!o->theory.rewrite_ast(o->theory.self, stm, rewrite_ast_cb, &data)) {
         return py_handle_error();
     }
 
@@ -588,26 +611,26 @@ auto py_theory_rewrite_string(PyObject *self, PyObject *args) -> PyObject * {
         return nullptr;
     }
 
-    auto *lib = py_cast<Library>(lib_obj);
+    auto *lib = library_arg(self, lib_obj);
     if (lib == nullptr) {
         return nullptr;
     }
-    auto *ctl = py_cast<Control>(ctl_obj);
+    auto *ctl = control_arg(self, ctl_obj);
     if (ctl == nullptr) {
         return nullptr;
     }
 
     clingo_program_t *prg = nullptr;
-    if (!clingo_program_new(*lib, &prg)) {
+    if (!clingo_program_new(lib, &prg)) {
         return py_handle_error();
     }
     auto guard = Guard<clingo_program_t *, clingo_program_free>(prg);
 
     ParseData data{prg, &o->theory};
-    if (!clingo_ast_parse_string(*lib, text, static_cast<size_t>(n), ctl->c_ptr(), parse_rewrite_cb, &data)) {
+    if (!clingo_ast_parse_string(lib, text, static_cast<size_t>(n), ctl, parse_rewrite_cb, &data)) {
         return py_handle_error();
     }
-    if (!clingo_control_join(ctl->c_ptr(), prg)) {
+    if (!clingo_control_join(ctl, prg)) {
         return py_handle_error();
     }
 
@@ -633,26 +656,26 @@ auto py_theory_rewrite_files(PyObject *self, PyObject *args) -> PyObject * {
         return nullptr;
     }
 
-    auto *lib = py_cast<Library>(lib_obj);
+    auto *lib = library_arg(self, lib_obj);
     if (lib == nullptr) {
         return nullptr;
     }
-    auto *ctl = py_cast<Control>(ctl_obj);
+    auto *ctl = control_arg(self, ctl_obj);
     if (ctl == nullptr) {
         return nullptr;
     }
 
     clingo_program_t *prg = nullptr;
-    if (!clingo_program_new(*lib, &prg)) {
+    if (!clingo_program_new(lib, &prg)) {
         return py_handle_error();
     }
     auto guard = Guard<clingo_program_t *, clingo_program_free>(prg);
 
     ParseData data{prg, &o->theory};
-    if (!clingo_ast_parse_files(*lib, files.data(), files.size(), ctl->c_ptr(), parse_rewrite_cb, &data)) {
+    if (!clingo_ast_parse_files(lib, files.data(), files.size(), ctl, parse_rewrite_cb, &data)) {
         return py_handle_error();
     }
-    if (!clingo_control_join(ctl->c_ptr(), prg)) {
+    if (!clingo_control_join(ctl, prg)) {
         return py_handle_error();
     }
 
@@ -686,11 +709,10 @@ auto py_theory_validate_options(PyObject *self, [[maybe_unused]] PyObject *args)
     if (o == nullptr) {
         return nullptr;
     }
-    if (o->theory.validate_options != nullptr) {
-        if (!o->theory.validate_options(o->theory.self)) {
-            return py_handle_error();
-        }
+    if ((o->theory.validate_options != nullptr) && (!o->theory.validate_options(o->theory.self))) {
+        return py_handle_error();
     }
+
     Py_RETURN_NONE;
 }
 
@@ -699,14 +721,14 @@ auto py_theory_prepare(PyObject *self, PyObject *arg) -> PyObject * {
     if (o == nullptr) {
         return nullptr;
     }
-    auto *ctl = py_cast<Control>(arg);
+    auto *ctl = control_arg(self, arg);
     if (ctl == nullptr) {
         return nullptr;
     }
     if (o->theory.prepare == nullptr) {
         Py_RETURN_NONE;
     }
-    if (!o->theory.prepare(o->theory.self, ctl->c_ptr())) {
+    if (!o->theory.prepare(o->theory.self, ctl)) {
         return py_handle_error();
     }
 
@@ -994,6 +1016,9 @@ auto theory_module_traverse(PyObject *module, visitproc visit, void *arg) -> int
     Py_VISIT(state->theory_type);
     Py_VISIT(state->assignment_type);
     Py_VISIT(state->assignment_iter_type);
+    Py_VISIT(state->control_type);
+    Py_VISIT(state->lib_type);
+    Py_VISIT(state->ast_type);
     return 0;
 }
 
@@ -1009,6 +1034,9 @@ auto theory_module_clear(PyObject *module) -> int {
     Py_CLEAR(state->theory_type);
     Py_CLEAR(state->assignment_type);
     Py_CLEAR(state->assignment_iter_type);
+    Py_CLEAR(state->control_type);
+    Py_CLEAR(state->lib_type);
+    Py_CLEAR(state->ast_type);
     return 0;
 }
 
@@ -1041,6 +1069,16 @@ void register_theory(pybind11::module &m) {
         throw py::error_already_set();
     }
 
+    state->lib_type = py_library_type();
+    if (state->lib_type == nullptr) {
+        throw py::error_already_set();
+    }
+
+    state->ast_type = py_ast_type();
+    if (state->ast_type == nullptr) {
+        throw py::error_already_set();
+    }
+
     state->symbol_type = py_symbol_type();
     if (state->symbol_type == nullptr) {
         throw py::error_already_set();
@@ -1058,6 +1096,11 @@ void register_theory(pybind11::module &m) {
 
     state->app_options_type = py_app_options_type();
     if (state->app_options_type == nullptr) {
+        throw py::error_already_set();
+    }
+
+    state->control_type = py_control_type();
+    if (state->control_type == nullptr) {
         throw py::error_already_set();
     }
 

@@ -121,7 +121,15 @@ nav:
   - clingo:
       - index.md
       - app: clingo/app.md
-      - ast: clingo/ast.md
+      - ast:
+          - clingo/ast/index.md
+          - terms: clingo/ast/terms.md
+          - literals: clingo/ast/literals.md
+          - aggregates: clingo/ast/aggregates.md
+          - head: clingo/ast/head.md
+          - body: clingo/ast/body.md
+          - theory: clingo/ast/theory.md
+          - statements: clingo/ast/statements.md
       - backend: clingo/backend.md
       - base: clingo/base.md
       - config: clingo/config.md

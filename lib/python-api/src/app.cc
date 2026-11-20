@@ -229,7 +229,7 @@ auto options_parser_cb(char const *value, size_t size, void *data) -> bool {
     if (str.get() == nullptr) {
         return store_python_error("decoding option value failed");
     }
-    auto ret = steal(PyObject_CallOneArg(static_cast<PyObject *>(data), str.get()));
+    auto ret = steal(PyObject_CallFunctionObjArgs(static_cast<PyObject *>(data), str.get(), nullptr));
     if (ret.get() == nullptr) {
         return store_python_error("option parser failed");
     }
@@ -791,7 +791,7 @@ auto py_pyclingo(PyObject *module, [[maybe_unused]] PyObject *arg) -> PyObject *
     if (lib.get() == nullptr) {
         return nullptr;
     }
-    auto ret = steal(PyObject_CallOneArg(enable_python.get(), lib.get()));
+    auto ret = steal(PyObject_CallFunctionObjArgs(enable_python.get(), lib.get(), nullptr));
     if (ret.get() == nullptr) {
         return nullptr;
     }

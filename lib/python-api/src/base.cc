@@ -196,7 +196,7 @@ auto py_atom_clear(PyObject *self) -> int {
 
 auto py_atom_hash(PyObject *self) -> Py_hash_t {
     auto *a = reinterpret_cast<PyAtomObject *>(self);
-    return static_cast<Py_hash_t>(hash_combine(a->index, std::hash<void const *>{}(a->owner->base)));
+    return py_hash(hash_combine(a->index, std::hash<void const *>{}(a->owner->base)));
 }
 
 auto py_atom_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
@@ -585,7 +585,7 @@ auto py_term_clear(PyObject *self) -> int {
 
 auto py_term_hash(PyObject *self) -> Py_hash_t {
     auto *t = reinterpret_cast<PyTermObject *>(self);
-    return static_cast<Py_hash_t>(hash_combine(t->index, std::hash<void const *>{}(t->owner->base)));
+    return py_hash(hash_combine(t->index, std::hash<void const *>{}(t->owner->base)));
 }
 
 auto py_term_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
@@ -994,7 +994,7 @@ auto py_theory_term_clear(PyObject *self) -> int {
 
 auto py_theory_term_hash(PyObject *self) -> Py_hash_t {
     auto *t = reinterpret_cast<PyTheoryTermObject *>(self);
-    return static_cast<Py_hash_t>(hash_combine(t->index, std::hash<void const *>{}(t->owner->base)));
+    return py_hash(hash_combine(t->index, std::hash<void const *>{}(t->owner->base)));
 }
 
 auto py_theory_term_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
@@ -1149,7 +1149,7 @@ auto py_theory_element_clear(PyObject *self) -> int {
 
 auto py_theory_element_hash(PyObject *self) -> Py_hash_t {
     auto *t = reinterpret_cast<PyTheoryElementObject *>(self);
-    return static_cast<Py_hash_t>(hash_combine(t->index, std::hash<void const *>{}(t->owner->base)));
+    return py_hash(hash_combine(t->index, std::hash<void const *>{}(t->owner->base)));
 }
 
 auto py_theory_element_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
@@ -1310,7 +1310,7 @@ auto py_theory_atom_clear(PyObject *self) -> int {
 
 auto py_theory_atom_hash(PyObject *self) -> Py_hash_t {
     auto *t = reinterpret_cast<PyTheoryAtomObject *>(self);
-    return static_cast<Py_hash_t>(hash_combine(t->index, std::hash<void const *>{}(t->owner->base)));
+    return py_hash(hash_combine(t->index, std::hash<void const *>{}(t->owner->base)));
 }
 
 auto py_theory_atom_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
@@ -2200,72 +2200,6 @@ auto py_base_get(PyObject *type, PyObject *obj) -> clingo_base_t const * {
         return nullptr;
     }
     return b->base;
-}
-
-auto convert(TypeHint<"clingo.base.Base"> base, MixedLitSpan const &lits, bool flip, bool disjunctive) -> LitVec {
-    auto base_type = steal(py_base_type());
-    if (base_type.get() == nullptr) {
-        throw py::error_already_set{};
-    }
-    clingo_base_t const *c_base = py_base_get(base_type.get(), base.ptr());
-    if (c_base == nullptr) {
-        throw py::error_already_set{};
-    }
-
-    auto res = LitVec{};
-    res.reserve(lits.size());
-    for (auto &&x : lits) {
-        std::visit(
-            [&]<typename T>(T const &x) {
-                if constexpr (std::is_same_v<T, Lit_t>) {
-                    res.emplace_back(flip ? -x : x);
-                } else {
-                    auto const &[sym, positive] = x;
-                    auto pos = positive != flip;
-
-                    auto const [name, arity, sign] = sym.signature().value();
-                    auto csig = clingo_signature_t{name.data(), name.size(), arity, sign};
-
-                    clingo_atom_base_t const *dom = nullptr;
-                    bool found = false;
-                    if (!clingo_base_atoms_find(c_base, &csig, &dom, &found)) {
-                        py_handle_error();
-                        throw py::error_already_set();
-                    }
-
-                    if (found && dom != nullptr) {
-                        size_t index = 0;
-                        if (!clingo_atom_base_find(dom, *c_cast(&sym), &index)) {
-                            py_handle_error();
-                            throw py::error_already_set();
-                        }
-
-                        size_t size = 0;
-                        if (!clingo_atom_base_size(dom, &size)) {
-                            py_handle_error();
-                            throw py::error_already_set();
-                        }
-
-                        if (index < size) {
-                            clingo_literal_t lit = 0;
-                            if (!clingo_atom_base_literal(dom, index, &lit)) {
-                                py_handle_error();
-                                throw py::error_already_set();
-                            }
-                            res.emplace_back(pos ? lit : -lit);
-                            return;
-                        }
-                    }
-
-                    if (pos != disjunctive) {
-                        res.emplace_back(1);
-                        res.emplace_back(-1);
-                    }
-                }
-            },
-            x);
-    }
-    return res;
 }
 
 auto convert(PyObject *base_type, PyObject *base, PyObject *lits, bool flip, bool disjunctive,

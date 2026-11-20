@@ -53,7 +53,6 @@ struct Arg {
     Type type;
 };
 
-// NOTE: a tuple of arrays would have been the better choice
 constexpr auto cons_format_field_literal =
     std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_value, Arg::string}};
 constexpr auto cons_format_field_expression = std::array{
@@ -67,10 +66,10 @@ constexpr auto cons_term_variable = std::array{
     Arg{clingo_ast_attribute_name, Arg::string},
     Arg{clingo_ast_attribute_anonymous, Arg::integer},
 };
-constexpr auto cons_term_format_string =
-    std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_elements, Arg::node_array}};
 constexpr auto cons_term_symbolic =
     std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_symbol, Arg::symbol}};
+constexpr auto cons_term_format_string =
+    std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_elements, Arg::node_array}};
 constexpr auto cons_term_absolute =
     std::array{Arg{clingo_ast_attribute_location, Arg::location}, Arg{clingo_ast_attribute_pool, Arg::node_array}};
 constexpr auto cons_term_unary_operation = std::array{
@@ -157,11 +156,6 @@ constexpr auto cons_body_aggregate = std::array{
     Arg{clingo_ast_attribute_left, Arg::optional_node},  Arg{clingo_ast_attribute_function, Arg::integer},
     Arg{clingo_ast_attribute_elements, Arg::node_array}, Arg{clingo_ast_attribute_right, Arg::optional_node},
 };
-constexpr auto cons_body_sort = std::array{
-    Arg{clingo_ast_attribute_location, Arg::location},
-    Arg{clingo_ast_attribute_left, Arg::node},
-    Arg{clingo_ast_attribute_elements, Arg::node_array},
-};
 constexpr auto cons_body_set_aggregate = std::array{
     Arg{clingo_ast_attribute_location, Arg::location},   Arg{clingo_ast_attribute_sign, Arg::integer},
     Arg{clingo_ast_attribute_left, Arg::optional_node},  Arg{clingo_ast_attribute_elements, Arg::node_array},
@@ -176,6 +170,11 @@ constexpr auto cons_body_conditional_literal = std::array{
     Arg{clingo_ast_attribute_location, Arg::location},
     Arg{clingo_ast_attribute_literal, Arg::node},
     Arg{clingo_ast_attribute_condition, Arg::node_array},
+};
+constexpr auto cons_body_sort = std::array{
+    Arg{clingo_ast_attribute_location, Arg::location},
+    Arg{clingo_ast_attribute_left, Arg::node},
+    Arg{clingo_ast_attribute_elements, Arg::node_array},
 };
 constexpr auto cons_head_simple_literal = std::array{Arg{clingo_ast_attribute_literal, Arg::node}};
 constexpr auto cons_head_aggregate_element = std::array{
@@ -332,7 +331,6 @@ constexpr auto cons_statement_comment = std::array{
     Arg{clingo_ast_attribute_value, Arg::string},
     Arg{clingo_ast_attribute_comment_type, Arg::integer},
 };
-
 constexpr auto cons = std::array{
     std::span{cons_format_field_literal.data(), cons_format_field_literal.size()},
     std::span{cons_format_field_expression.data(), cons_format_field_expression.size()},

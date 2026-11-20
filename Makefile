@@ -51,7 +51,7 @@ doc-c:
 	cd doc/c-api && rm -rf html && doxygen
 
 doc-py: stubs venv
-	cd doc/python-api && python3 stubs.py ../../lib/python-api/stubs stubs/clingo/
+	python scripts/stubs.py doc
 	cd doc/python-api && zensical build
 
 doc: doc-c doc-py
@@ -139,6 +139,6 @@ format_yaml:
 	source .venv/bin/activate && PYTHONPATH=build/debug/bin/python python scripts/format_yaml.py
 
 stubs: debug
-	source .venv/bin/activate && python scripts/stubs.py
+	source .venv/bin/activate && python scripts/stubs.py ast
 
 .PHONY: all doc doc-c doc-py test compdb stubs pdoc venv debug gen format_yaml debug release release_lto release_clang release_clang_lto web

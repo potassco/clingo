@@ -21,6 +21,9 @@
 #include <forward_list>
 #include <fstream>
 #include <span>
+#include <stdexcept>
+#include <type_traits>
+#include <utility>
 
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 
@@ -576,6 +579,9 @@ auto convert(clingo_ast_t const *ast) -> T {
         case clingo_ast_type_term_binary_operation: {
             return ast->cast<CppClingo::Input::TermBinary>();
         }
+        case clingo_ast_type_term_format_string: {
+            return ast->cast<CppClingo::Input::TermFormatString>();
+        }
         default: {
             throw std::runtime_error("term expected");
         }
@@ -722,7 +728,7 @@ auto convert(clingo_ast_t const *ast) -> T {
     if (ast->get_type() == clingo_ast_type_head_aggregate_element) {
         return ast->cast<CppClingo::Input::HdLitAggregateElement>();
     }
-    throw std::runtime_error("body aggregate element expected");
+    throw std::runtime_error("head aggregate element expected");
 }
 
 template <typename T>
@@ -731,7 +737,7 @@ auto convert(clingo_ast_t const *ast) -> T {
     if (ast->get_type() == clingo_ast_type_head_conditional_literal) {
         return ast->cast<CppClingo::Input::CondLit>();
     }
-    return ast->cast<CppClingo::Input::Lit>();
+    return convert<CppClingo::Input::Lit>(ast);
 }
 
 template <typename T>
@@ -1330,6 +1336,8 @@ auto clingo_ast::get_number(clingo_ast_attribute_t attr) const -> std::optional<
 auto clingo_ast::get_string(clingo_ast_attribute_t attr) const -> std::optional<std::string_view>{
     // clang-format off
     SWITCH(
+        TYPE(format_field_literal, FormatFieldLiteral,
+            ATTR(value, value()))
         TYPE(format_field_expression, FormatFieldExpression,
             ATTR_STR(right, rhs_str()))
         TYPE(term_variable, TermVariable,
@@ -1654,868 +1662,849 @@ auto clingo_ast::compare(clingo_ast_t const &other) const -> std::strong_orderin
     return visit([&other](auto const &x) { return x <=> other.cast<std::decay_t<decltype(x)>>(); });
 }
 
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
-extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
+namespace CppClingo::CAPI {
+namespace {
+
+//! Read the arguments of clingo_ast_construct() from a variable argument list.
+class VaArgs {
+  public:
+    explicit VaArgs(std::va_list *args) : args_{args} {}
+
+    template <class T> auto get() -> T {
+        // NOLINTNEXTLINE
+        return va_arg(*args_, T);
+    }
+
+  private:
+    std::va_list *args_;
+};
+
+//! Read the arguments of clingo_ast_construct() from an array of values.
+//!
+//! The values have to be checked against the record description beforehand.
+//! Pointers to arrays and strings are followed by a read of their size.
+class ValueArgs {
+  public:
+    explicit ValueArgs(clingo_ast_value_t const *values) : it_{values} {}
+
+    template <class T> auto get() -> T {
+        // NOLINTBEGIN
+        auto const &val = *it_;
+        // NOTE: size_t and clingo_symbol_t might be the same type
+        if constexpr (std::is_same_v<T, size_t> || std::is_same_v<T, clingo_symbol_t>) {
+            ++it_;
+            if (std::exchange(pending_, false)) {
+                return static_cast<T>(size_);
+            }
+            if constexpr (std::is_same_v<T, clingo_symbol_t>) {
+                return val.symbol;
+            } else {
+                throw std::logic_error("unexpected size argument");
+            }
+        } else if constexpr (std::is_same_v<T, int>) {
+            ++it_;
+            return val.number;
+        } else if constexpr (std::is_same_v<T, clingo_location_t const *>) {
+            ++it_;
+            return val.location;
+        } else if constexpr (std::is_same_v<T, clingo_ast_t const *> || std::is_same_v<T, clingo_ast_t *>) {
+            ++it_;
+            return const_cast<T>(val.ast);
+        } else if constexpr (std::is_same_v<T, char const *>) {
+            size_ = val.string.size;
+            pending_ = true;
+            return val.string.data;
+        } else if constexpr (std::is_same_v<T, clingo_string_t const *>) {
+            size_ = val.string_array.size;
+            pending_ = true;
+            return val.string_array.data;
+        } else if constexpr (std::is_same_v<T, clingo_symbol_t const *>) {
+            size_ = val.symbol_array.size;
+            pending_ = true;
+            return val.symbol_array.data;
+        } else if constexpr (std::is_same_v<T, clingo_ast_t const **>) {
+            size_ = val.ast_array.size;
+            pending_ = true;
+            return const_cast<T>(val.ast_array.data);
+        } else {
+            static_assert(sizeof(T) == 0, "unexpected argument type");
+        }
+        // NOLINTEND
+    }
+
+  private:
+    clingo_ast_value_t const *it_;
+    size_t size_ = 0;
+    //! Whether the next size_t read returns the size of the last string or array.
+    bool pending_ = false;
+};
+
+template <class Args> void construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, Args &args) {
+    // NOLINTBEGIN
     using namespace CppClingo::Input;
+    switch (static_cast<clingo_ast_type_e>(type)) {
+        case clingo_ast_type_format_field_literal: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *str = args.template get<char const *>();
+            auto size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::FormatFieldLiteral>(type, convert(loc),
+                                                                       lib->store->string({str, size}));
+            break;
+        }
+        case clingo_ast_type_format_field_expression: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *expr = args.template get<clingo_ast_t const *>();
+            auto const *str = args.template get<char const *>();
+            auto size = args.template get<size_t>();
+            auto spec = CppClingo::FormatSpec::build(*lib->store, {str, size});
+            if (!spec) {
+                throw std::invalid_argument{"invalid format specification"};
+            }
+            *ast = construct_ast<CppClingo::Input::FormatFieldExpression>(
+                type, convert(loc), convert<CppClingo::Util::immutable_value<CppClingo::Input::Term>>(expr), *spec);
+            break;
+        }
+        case clingo_ast_type_projection: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            *ast = construct_ast<CppClingo::Input::Projection>(type, convert(loc));
+            break;
+        }
+        case clingo_ast_type_term_variable: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto size = args.template get<size_t>();
+            auto anonymous = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::TermVariable>(type, convert(loc), *lib->store->string({name, size}),
+                                                                 anonymous != 0);
+            break;
+        }
+        case clingo_ast_type_term_format_string: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const **elems = args.template get<clingo_ast_t const **>();
+            auto elems_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::TermFormatString>(
+                type, convert(loc), convert<CppClingo::Input::FormatField>(elems, elems_size));
+            break;
+        }
+        case clingo_ast_type_term_symbolic: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto sym = args.template get<clingo_symbol_t>();
+            *ast = construct_ast<CppClingo::Input::TermSymbol>(type, convert(loc), CppClingo::Symbol::from_rep(sym));
+            break;
+        }
+        case clingo_ast_type_term_tuple: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const **pool = args.template get<clingo_ast_t const **>();
+            auto size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::TermTuple>(type, convert(loc),
+                                                              convert<CppClingo::Input::TupleElement>(pool, size));
+            break;
+        }
+        case clingo_ast_type_term_function: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            auto const **pool = args.template get<clingo_ast_t const **>();
+            auto pool_size = args.template get<size_t>();
+            auto sign = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::TermFunction>(
+                type, convert(loc), *lib->store->string({name, name_size}),
+                convert<CppClingo::Input::ArgumentTuple>(pool, pool_size), sign != 0);
+            break;
+        }
+        case clingo_ast_type_term_absolute: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const **pool = args.template get<clingo_ast_t const **>();
+            auto size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::TermAbs>(type, convert(loc),
+                                                            convert<CppClingo::Input::Term>(pool, size));
+            break;
+        }
+        case clingo_ast_type_term_unary_operation: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto op = args.template get<int>();
+            auto const *rhs = args.template get<clingo_ast_t *>();
+            *ast = construct_ast<CppClingo::Input::TermUnary>(
+                type, convert(loc), static_cast<CppClingo::Input::UnaryOperator>(op),
+                convert<CppClingo::Util::immutable_value<CppClingo::Input::Term>>(rhs));
+            break;
+        }
+        case clingo_ast_type_term_binary_operation: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *lhs = args.template get<clingo_ast_t *>();
+            auto op = args.template get<int>();
+            auto const *rhs = args.template get<clingo_ast_t *>();
+            *ast = construct_ast<CppClingo::Input::TermBinary>(
+                type, convert(loc), convert<CppClingo::Util::immutable_value<CppClingo::Input::Term>>(lhs),
+                static_cast<CppClingo::Input::BinaryOperator>(op),
+                convert<CppClingo::Util::immutable_value<CppClingo::Input::Term>>(rhs));
+            break;
+        }
+        case clingo_ast_type_argument_tuple: {
+            auto const **tuple = args.template get<clingo_ast_t const **>();
+            auto size = args.template get<size_t>();
+            *ast =
+                construct_ast<CppClingo::Input::ArgumentTuple>(type, convert<CppClingo::Input::Argument>(tuple, size));
+            break;
+        }
+        case clingo_ast_type_left_guard: {
+            auto const *left = args.template get<clingo_ast_t const *>();
+            auto right = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::LGuard::value_type>(type, convert<CppClingo::Input::Term>(left),
+                                                                       static_cast<CppClingo::Relation>(right));
+            break;
+        }
+        case clingo_ast_type_right_guard: {
+            auto left = args.template get<int>();
+            auto const *right = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::RGuard::value_type>(type, static_cast<CppClingo::Relation>(left),
+                                                                       convert<CppClingo::Input::Term>(right));
+            break;
+        }
+        case clingo_ast_type_literal_boolean: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto sign = args.template get<int>();
+            auto value = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::LitBool>(type, convert(loc), static_cast<CppClingo::Sign>(sign),
+                                                            value != 0);
+            break;
+        }
+        case clingo_ast_type_literal_symbolic: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto sign = args.template get<int>();
+            auto const *atom = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::LitSymbolic>(type, convert(loc), static_cast<CppClingo::Sign>(sign),
+                                                                convert<CppClingo::Input::Term>(atom));
+            break;
+        }
+        case clingo_ast_type_literal_comparison: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto sign = args.template get<int>();
+            auto const *left = args.template get<clingo_ast_t const *>();
+            auto const **right = args.template get<clingo_ast_t const **>();
+            auto size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::LitComparison>(
+                type, convert(loc), static_cast<CppClingo::Sign>(sign), convert<CppClingo::Input::Term>(left),
+                convert<CppClingo::Input::Guard>(right, size));
+            break;
+        }
+        case clingo_ast_type_unparsed_element: {
+            auto const *ops = args.template get<clingo_string_t const *>();
+            auto size = args.template get<size_t>();
+            auto const *term = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::UnparsedElement>(type, convert(lib, ops, size),
+                                                                    convert<CppClingo::Input::TheoryTerm>(term));
+            break;
+        }
+        case clingo_ast_type_theory_term_variable: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            auto anonymous = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::TheoryTermVariable>(
+                type, convert(loc), *lib->store->string({name, name_size}), anonymous != 0);
+            break;
+        }
+        case clingo_ast_type_theory_term_symbolic: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto sym = args.template get<clingo_symbol_t>();
+            *ast =
+                construct_ast<CppClingo::Input::TheoryTermSymbol>(type, convert(loc), CppClingo::Symbol::from_rep(sym));
+            break;
+        }
+        case clingo_ast_type_theory_term_tuple: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto tuple_type = args.template get<int>();
+            auto const **arguments = args.template get<clingo_ast_t const **>();
+            auto size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::TheoryTermTuple>(
+                type, convert(loc), static_cast<CppClingo::TheoryTermTupleType>(tuple_type),
+                convert<CppClingo::Input::TheoryTerm>(arguments, size));
+            break;
+        }
+        case clingo_ast_type_theory_term_function: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            auto const **arguments = args.template get<clingo_ast_t const **>();
+            auto size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::TheoryTermFunction>(
+                type, convert(loc), *lib->store->string({name, name_size}),
+                convert<CppClingo::Input::TheoryTerm>(arguments, size));
+            break;
+        }
+        case clingo_ast_type_theory_term_unparsed: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const **elems = args.template get<clingo_ast_t const **>();
+            auto size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::TheoryTermUnparsed>(
+                type, convert(loc), convert<CppClingo::Input::UnparsedElement>(elems, size));
+            break;
+        }
+        case clingo_ast_type_set_aggregate_element: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *lit = args.template get<clingo_ast_t const *>();
+            auto const **cond = args.template get<clingo_ast_t const **>();
+            auto size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::SetAggregateElement>(type, convert(loc), convert<Lit>(lit),
+                                                                        convert<CppClingo::Input::Lit>(cond, size));
+            break;
+        }
+        case clingo_ast_type_theory_atom_element: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const **tuple = args.template get<clingo_ast_t const **>();
+            auto tuple_size = args.template get<size_t>();
+            auto const **cond = args.template get<clingo_ast_t const **>();
+            auto cond_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::TheoryElement>(
+                type, convert(loc), convert<CppClingo::Input::TheoryTerm>(tuple, tuple_size),
+                convert<CppClingo::Input::Lit>(cond, cond_size));
+            break;
+        }
+        case clingo_ast_type_theory_right_guard: {
+            auto const *op = args.template get<char const *>();
+            auto op_size = args.template get<size_t>();
+            auto const *term = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::TheoryRGuard>(type, *lib->store->string({op, op_size}),
+                                                                 convert<CppClingo::Input::TheoryTerm>(term));
+            break;
+        }
+        case clingo_ast_type_body_simple_literal: {
+            auto const *lit = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::BdLitSimple>(type, convert<CppClingo::Input::Lit>(lit));
+            break;
+        }
+        case clingo_ast_type_body_aggregate_element: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const **tuple = args.template get<clingo_ast_t const **>();
+            auto tuple_size = args.template get<size_t>();
+            auto const **cond = args.template get<clingo_ast_t const **>();
+            auto cond_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::BdLitAggregateElement>(
+                type, convert(loc), convert<CppClingo::Input::Term>(tuple, tuple_size),
+                convert<CppClingo::Input::Lit>(cond, cond_size));
+            break;
+        }
+        case clingo_ast_type_body_aggregate: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto sign = args.template get<int>();
+            auto const *lhs = args.template get<clingo_ast_t const *>();
+            auto fun = args.template get<int>();
+            auto const **elems = args.template get<clingo_ast_t const **>();
+            auto elems_size = args.template get<size_t>();
+            auto const *rhs = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::BdLitAggregate>(
+                type, convert(loc), static_cast<CppClingo::Sign>(sign), convert<CppClingo::Input::LGuard>(lhs),
+                static_cast<CppClingo::AggregateFunction>(fun),
+                convert<CppClingo::Input::BdLitAggregateElement>(elems, elems_size),
+                convert<CppClingo::Input::RGuard>(rhs));
+            break;
+        }
+        case clingo_ast_type_body_sort: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *lhs = args.template get<clingo_ast_t const *>();
+            auto const **elems = args.template get<clingo_ast_t const **>();
+            auto elems_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::BdLitSort>(
+                type, convert(loc), convert<CppClingo::Input::Term>(lhs),
+                convert<CppClingo::Input::BdLitAggregateElement>(elems, elems_size));
+            break;
+        }
+        case clingo_ast_type_body_set_aggregate: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto sign = args.template get<int>();
+            auto const *lhs = args.template get<clingo_ast_t const *>();
+            auto const **elems = args.template get<clingo_ast_t const **>();
+            auto elems_size = args.template get<size_t>();
+            auto const *rhs = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::BdLitSetAggregate>(
+                type, convert(loc), static_cast<CppClingo::Sign>(sign), convert<CppClingo::Input::LGuard>(lhs),
+                convert<CppClingo::Input::SetAggregateElement>(elems, elems_size),
+                convert<CppClingo::Input::RGuard>(rhs));
+            break;
+        }
+        case clingo_ast_type_body_theory_atom: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto sign = args.template get<int>();
+            auto const *term = args.template get<clingo_ast_t const *>();
+            auto const **elems = args.template get<clingo_ast_t const **>();
+            auto elems_size = args.template get<size_t>();
+            auto const *rhs = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::BdLitTheoryAtom>(
+                type, convert(loc), static_cast<CppClingo::Sign>(sign), convert<CppClingo::Input::Term>(term),
+                convert<CppClingo::Input::TheoryElement>(elems, elems_size),
+                convert<std::optional<CppClingo::Input::TheoryRGuard>>(rhs));
+            break;
+        }
+        case clingo_ast_type_body_conditional_literal: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *lit = args.template get<clingo_ast_t const *>();
+            auto const **cond = args.template get<clingo_ast_t const **>();
+            auto cond_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::BdLitConjunction>(
+                type, CppClingo::Input::CondLit{
+                          convert(loc),
+                          convert<CppClingo::Input::Lit>(lit),
+                          convert<CppClingo::Input::Lit>(cond, cond_size),
+                      });
+            break;
+        }
+        case clingo_ast_type_head_simple_literal: {
+            auto const *lit = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::HdLitSimple>(type, convert<CppClingo::Input::Lit>(lit));
+            break;
+        }
+        case clingo_ast_type_head_aggregate_element: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const **tuple = args.template get<clingo_ast_t const **>();
+            auto tuple_size = args.template get<size_t>();
+            auto const *lit = args.template get<clingo_ast_t const *>();
+            auto const **cond = args.template get<clingo_ast_t const **>();
+            auto cond_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::HdLitAggregateElement>(
+                type, convert(loc), convert<CppClingo::Input::Term>(tuple, tuple_size), convert<Lit>(lit),
+                convert<CppClingo::Input::Lit>(cond, cond_size));
+            break;
+        }
+        case clingo_ast_type_head_aggregate: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *lhs = args.template get<clingo_ast_t const *>();
+            auto fun = args.template get<int>();
+            auto const **elems = args.template get<clingo_ast_t const **>();
+            auto elems_size = args.template get<size_t>();
+            auto const *rhs = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::HdLitAggregate>(
+                type, convert(loc), convert<CppClingo::Input::LGuard>(lhs),
+                static_cast<CppClingo::AggregateFunction>(fun),
+                convert<CppClingo::Input::HdLitAggregateElement>(elems, elems_size),
+                convert<CppClingo::Input::RGuard>(rhs));
+            break;
+        }
+        case clingo_ast_type_head_set_aggregate: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *lhs = args.template get<clingo_ast_t const *>();
+            auto const **elems = args.template get<clingo_ast_t const **>();
+            auto elems_size = args.template get<size_t>();
+            auto const *rhs = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::HdLitSetAggregate>(
+                type, convert(loc), convert<CppClingo::Input::LGuard>(lhs),
+                convert<CppClingo::Input::SetAggregateElement>(elems, elems_size),
+                convert<CppClingo::Input::RGuard>(rhs));
+            break;
+        }
+        case clingo_ast_type_head_theory_atom: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *term = args.template get<clingo_ast_t const *>();
+            auto const **elems = args.template get<clingo_ast_t const **>();
+            auto elems_size = args.template get<size_t>();
+            auto const *rhs = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::HdLitTheoryAtom>(
+                type, convert(loc), convert<CppClingo::Input::Term>(term),
+                convert<CppClingo::Input::TheoryElement>(elems, elems_size),
+                convert<std::optional<CppClingo::Input::TheoryRGuard>>(rhs));
+            break;
+        }
+        case clingo_ast_type_head_conditional_literal: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *lit = args.template get<clingo_ast_t const *>();
+            auto const **cond = args.template get<clingo_ast_t const **>();
+            auto cond_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::CondLit>(type, CppClingo::Input::CondLit{
+                                                                      convert(loc),
+                                                                      convert<CppClingo::Input::Lit>(lit),
+                                                                      convert<CppClingo::Input::Lit>(cond, cond_size),
+                                                                  });
+            break;
+        }
+        case clingo_ast_type_head_disjunction: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const **elems = args.template get<clingo_ast_t const **>();
+            auto elems_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::HdLitDisjunction>(
+                type, convert(loc), convert<CppClingo::Input::HdLitDisjunctionElement>(elems, elems_size));
+            break;
+        }
+        case clingo_ast_type_statement_rule: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *head = args.template get<clingo_ast_t const *>();
+            auto const **body = args.template get<clingo_ast_t const **>();
+            auto body_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::StmRule>(type, convert(loc), convert<HdLit>(head),
+                                                            convert<BdLit>(body, body_size));
+            break;
+        }
+        case clingo_ast_type_theory_operator_definition: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            auto priority = args.template get<int>();
+            auto op_type = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::TheoryOpDefinition>(type, convert(loc),
+                                                                       *lib->store->string({name, name_size}), priority,
+                                                                       static_cast<TheoryOpType>(op_type));
+            break;
+        }
+        case clingo_ast_type_theory_term_definition: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            auto const **ops = args.template get<clingo_ast_t const **>();
+            auto ops_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::TheoryTermDefinition>(
+                type, convert(loc), *lib->store->string({name, name_size}), convert<TheoryOpDefinition>(ops, ops_size));
+            break;
+        }
+        case clingo_ast_type_theory_guard_definition: {
+            auto const *ops = args.template get<clingo_string_t const *>();
+            auto ops_size = args.template get<size_t>();
+            auto const *term = args.template get<char const *>();
+            auto term_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::TheoryRGuardDefinition>(type, convert(lib, ops, ops_size),
+                                                                           *lib->store->string({term, term_size}));
+            break;
+        }
+        case clingo_ast_type_theory_atom_definition: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            auto arity = args.template get<int>();
+            auto const *term = args.template get<char const *>();
+            auto term_size = args.template get<size_t>();
+            auto const *guard = args.template get<clingo_ast_t const *>();
+            auto atom_type = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::TheoryAtomDefinition>(
+                type, convert(loc), *lib->store->string({name, name_size}), arity,
+                *lib->store->string({term, term_size}), convert<std::optional<TheoryRGuardDefinition>>(guard),
+                static_cast<TheoryAtomType>(atom_type));
+            break;
+        }
+        case clingo_ast_type_statement_theory: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            auto const **terms = args.template get<clingo_ast_t const **>();
+            auto terms_size = args.template get<size_t>();
+            auto const **atoms = args.template get<clingo_ast_t const **>();
+            auto atoms_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::StmTheory>(
+                type, convert(loc), *lib->store->string({name, name_size}),
+                convert<TheoryTermDefinition>(terms, terms_size), convert<TheoryAtomDefinition>(atoms, atoms_size));
+            break;
+        }
+        case clingo_ast_type_optimize_tuple: {
+            auto const *weight = args.template get<clingo_ast_t const *>();
+            auto const *prio = args.template get<clingo_ast_t const *>();
+            auto const **terms = args.template get<clingo_ast_t const **>();
+            auto terms_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::OptimizeTuple>(
+                type, convert<Term>(weight), convert<std::optional<Term>>(prio), convert<Term>(terms, terms_size));
+            break;
+        }
+        case clingo_ast_type_optimize_element: {
+            auto const *tuple = args.template get<clingo_ast_t const *>();
+            auto const **cond = args.template get<clingo_ast_t const **>();
+            auto cond_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::OptimizeElement>(type, convert<OptimizeTuple>(tuple),
+                                                                    convert<Lit>(cond, cond_size));
+            break;
+        }
+        case clingo_ast_type_statement_optimize: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const **elems = args.template get<clingo_ast_t const **>();
+            auto elems_size = args.template get<size_t>();
+            auto optimize_type = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::StmOptimize>(type, convert(loc),
+                                                                static_cast<OptimizeType>(optimize_type),
+                                                                convert<OptimizeElement>(elems, elems_size));
+            break;
+        }
+        case clingo_ast_type_statement_weak_constraint: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const **body = args.template get<clingo_ast_t const **>();
+            auto body_size = args.template get<size_t>();
+            auto const *tuple = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::StmWeakConstraint>(
+                type, convert(loc), convert<BdLit>(body, body_size), convert<OptimizeTuple>(tuple));
+            break;
+        }
+        case clingo_ast_type_program_part: {
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            const auto *syms = args.template get<clingo_symbol_t const *>();
+            auto size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::ProgramParam>(type, *lib->store->string({name, name_size}),
+                                                                 convert(syms, size));
+            break;
+        }
+        case clingo_ast_type_edge: {
+            auto const *u = args.template get<clingo_ast_t const *>();
+            auto const *v = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::Edge>(type, convert<Term>(u), convert<Term>(v));
+            break;
+        }
+        case clingo_ast_type_statement_show: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *term = args.template get<clingo_ast_t const *>();
+            auto const **body = args.template get<clingo_ast_t const **>();
+            auto body_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::StmShow>(type, convert(loc), convert<Term>(term),
+                                                            convert<BdLit>(body, body_size));
+            break;
+        }
+        case clingo_ast_type_statement_show_nothing: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            *ast = construct_ast<CppClingo::Input::StmShowNothing>(type, convert(loc));
+            break;
+        }
+        case clingo_ast_type_statement_show_signature: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            auto arity = args.template get<int>();
+            auto sign = args.template get<int>();
+            auto value = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::StmShowSig>(
+                type, convert(loc), sign != 0, *lib->store->string({name, name_size}), arity, value != 0);
+            break;
+        }
+        case clingo_ast_type_statement_project: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *atom = args.template get<clingo_ast_t const *>();
+            auto const **body = args.template get<clingo_ast_t const **>();
+            auto body_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::StmProject>(type, convert(loc), convert<Term>(atom),
+                                                               convert<BdLit>(body, body_size));
+            break;
+        }
+        case clingo_ast_type_statement_project_signature: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            auto arity = args.template get<int>();
+            auto sign = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::StmProjectSig>(type, convert(loc), sign != 0,
+                                                                  *lib->store->string({name, name_size}), arity);
+            break;
+        }
+        case clingo_ast_type_statement_defined: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            auto arity = args.template get<int>();
+            auto sign = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::StmDefined>(type, convert(loc), sign != 0,
+                                                               *lib->store->string({name, name_size}), arity);
+            break;
+        }
+        case clingo_ast_type_statement_external: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *atom = args.template get<clingo_ast_t const *>();
+            auto const **body = args.template get<clingo_ast_t const **>();
+            auto body_size = args.template get<size_t>();
+            auto const *external_type = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::StmExternal>(type, convert(loc), convert<Term>(atom),
+                                                                convert<BdLit>(body, body_size),
+                                                                convert<std::optional<Term>>(external_type));
+            break;
+        }
+        case clingo_ast_type_statement_edge: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const **edges = args.template get<clingo_ast_t const **>();
+            auto edges_size = args.template get<size_t>();
+            auto const **body = args.template get<clingo_ast_t const **>();
+            auto body_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::StmEdge>(type, convert(loc), convert<Edge>(edges, edges_size),
+                                                            convert<BdLit>(body, body_size));
+            break;
+        }
+        case clingo_ast_type_statement_heuristic: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *atom = args.template get<clingo_ast_t const *>();
+            auto const **body = args.template get<clingo_ast_t const **>();
+            auto body_size = args.template get<size_t>();
+            auto const *weight = args.template get<clingo_ast_t const *>();
+            auto const *modifier = args.template get<clingo_ast_t const *>();
+            auto const *priority = args.template get<clingo_ast_t const *>();
+            *ast = construct_ast<CppClingo::Input::StmHeuristic>(
+                type, convert(loc), convert<Term>(atom), convert<BdLit>(body, body_size), convert<Term>(weight),
+                convert<std::optional<Term>>(priority), convert<Term>(modifier));
+            break;
+        }
+        case clingo_ast_type_statement_include: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *value = args.template get<char const *>();
+            auto value_size = args.template get<size_t>();
+            auto include_type = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::StmInclude>(
+                type, convert(loc), static_cast<IncludeType>(include_type), *lib->store->string({value, value_size}));
+            break;
+        }
+        case clingo_ast_type_statement_program: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            auto const *arguments = args.template get<clingo_string_t const *>();
+            auto arguments_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::StmProgram>(
+                type, convert(loc), *lib->store->string({name, name_size}), convert(lib, arguments, arguments_size));
+            break;
+        }
+        case clingo_ast_type_statement_script: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *value = args.template get<char const *>();
+            auto value_size = args.template get<size_t>();
+            auto const *script_type = args.template get<char const *>();
+            auto script_size = args.template get<size_t>();
+            *ast = construct_ast<CppClingo::Input::StmScript>(type, convert(loc),
+                                                              *lib->store->string({script_type, script_size}),
+                                                              *lib->store->string({value, value_size}));
+            break;
+        }
+        case clingo_ast_type_statement_const: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *name = args.template get<char const *>();
+            auto name_size = args.template get<size_t>();
+            auto const *term = args.template get<clingo_ast_t const *>();
+            auto prec = args.template get<int>();
+            *ast =
+                construct_ast<CppClingo::Input::StmConst>(type, convert(loc), static_cast<Precedence>(prec),
+                                                          *lib->store->string({name, name_size}), convert<Term>(term));
+            break;
+        }
+        case clingo_ast_type_statement_parts: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const **elems = args.template get<clingo_ast_t const **>();
+            auto size = args.template get<size_t>();
+            // auto elems = CppClingo::Input::ProgramParamVec{};
+            auto prec = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::StmParts>(type, convert(loc), static_cast<Precedence>(prec),
+                                                             convert<CppClingo::Input::ProgramParam>(elems, size));
+            break;
+        }
+        case clingo_ast_type_statement_comment: {
+            auto const *loc = args.template get<clingo_location_t const *>();
+            auto const *value = args.template get<char const *>();
+            auto value_size = args.template get<size_t>();
+            auto comment_type = args.template get<int>();
+            *ast = construct_ast<CppClingo::Input::StmComment>(
+                type, convert(loc), static_cast<CommentType>(comment_type), *lib->store->string({value, value_size}));
+            break;
+        }
+        default: {
+            throw std::invalid_argument("invalid AST type");
+        }
+    }
+    // NOLINTEND
+}
+
+//! Check whether the given values match the arguments of the record.
+auto check_values(clingo_ast_record_info_t const &record, clingo_ast_info_t const &info,
+                  clingo_ast_value_t const *values, size_t size) -> bool {
+    // NOLINTBEGIN
+    if (size != record.size || (values == nullptr && size > 0)) {
+        return fail_with(clingo_result_invalid, "invalid number of AST arguments");
+    }
+    for (size_t i = 0; i < size; ++i) {
+        auto const &arg = record.arguments[i];
+        auto const &val = values[i];
+        if (val.type != arg.type) {
+            return fail_with(clingo_result_invalid, "invalid AST argument type");
+        }
+        auto valid = true;
+        switch (val.type) {
+            case clingo_ast_value_type_bool: {
+                valid = val.number == 0 || val.number == 1;
+                break;
+            }
+            case clingo_ast_value_type_enum: {
+                auto const &enm = info.enums[arg.ref.index];
+                valid = std::any_of(enm.values, enm.values + enm.size,
+                                    [&val](auto const &x) { return x.value == val.number; });
+                break;
+            }
+            case clingo_ast_value_type_location: {
+                valid = val.location != nullptr;
+                break;
+            }
+            case clingo_ast_value_type_string: {
+                valid = val.string.data != nullptr || val.string.size == 0;
+                break;
+            }
+            case clingo_ast_value_type_string_array: {
+                valid = val.string_array.data != nullptr || val.string_array.size == 0;
+                break;
+            }
+            case clingo_ast_value_type_symbol_array: {
+                valid = val.symbol_array.data != nullptr || val.symbol_array.size == 0;
+                break;
+            }
+            case clingo_ast_value_type_ast: {
+                valid = val.ast != nullptr;
+                break;
+            }
+            case clingo_ast_value_type_ast_array: {
+                auto const *data = val.ast_array.data;
+                valid = (data != nullptr || val.ast_array.size == 0) &&
+                        std::none_of(data, data + val.ast_array.size, [](auto const *x) { return x == nullptr; });
+                break;
+            }
+            default: {
+                break;
+            }
+        }
+        if (!valid) {
+            return fail_with(clingo_result_invalid, "invalid AST argument value");
+        }
+    }
+    return true;
+    // NOLINTEND
+}
+
+} // namespace
+} // namespace CppClingo::CAPI
+
+extern "C" auto clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...) -> bool {
+    // NOLINTBEGIN
     CLINGO_TRY {
         if (lib == nullptr || ast == nullptr) {
             return fail_arguments();
         }
         *ast = nullptr;
-        switch (static_cast<clingo_ast_type_e>(type)) {
-            case clingo_ast_type_format_field_literal: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *str = va_arg(args, char const *);
-                auto size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::FormatFieldLiteral>(type, convert(loc),
-                                                                           lib->store->string({str, size}));
-                break;
-            }
-            case clingo_ast_type_format_field_expression: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *expr = va_arg(args, clingo_ast_t const *);
-                auto const *str = va_arg(args, char const *);
-                auto size = va_arg(args, size_t);
-                va_end(args);
-                auto spec = CppClingo::FormatSpec::build(*lib->store, {str, size});
-                if (!spec) {
-                    throw std::invalid_argument{"invalid format specification"};
-                }
-                *ast = construct_ast<CppClingo::Input::FormatFieldExpression>(
-                    type, convert(loc), convert<CppClingo::Util::immutable_value<CppClingo::Input::Term>>(expr), *spec);
-                break;
-            }
-            case clingo_ast_type_projection: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::Projection>(type, convert(loc));
-                break;
-            }
-            case clingo_ast_type_term_variable: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                size_t size = va_arg(args, size_t);
-                auto anonymous = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TermVariable>(type, convert(loc),
-                                                                     *lib->store->string({name, size}), anonymous != 0);
-                break;
-            }
-            case clingo_ast_type_term_format_string: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const **elems = va_arg(args, clingo_ast_t const **);
-                auto elems_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TermFormatString>(
-                    type, convert(loc), convert<CppClingo::Input::FormatField>(elems, elems_size));
-                break;
-            }
-            case clingo_ast_type_term_symbolic: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto sym = va_arg(args, clingo_symbol_t);
-                va_end(args);
-                *ast =
-                    construct_ast<CppClingo::Input::TermSymbol>(type, convert(loc), CppClingo::Symbol::from_rep(sym));
-                break;
-            }
-            case clingo_ast_type_term_tuple: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const **pool = va_arg(args, clingo_ast_t const **);
-                auto size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TermTuple>(type, convert(loc),
-                                                                  convert<CppClingo::Input::TupleElement>(pool, size));
-                break;
-            }
-            case clingo_ast_type_term_function: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                size_t name_size = va_arg(args, size_t);
-                auto const **pool = va_arg(args, clingo_ast_t const **);
-                auto pool_size = va_arg(args, size_t);
-                auto sign = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TermFunction>(
-                    type, convert(loc), *lib->store->string({name, name_size}),
-                    convert<CppClingo::Input::ArgumentTuple>(pool, pool_size), sign != 0);
-                break;
-            }
-            case clingo_ast_type_term_absolute: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const **pool = va_arg(args, clingo_ast_t const **);
-                auto size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TermAbs>(type, convert(loc),
-                                                                convert<CppClingo::Input::Term>(pool, size));
-                break;
-            }
-            case clingo_ast_type_term_unary_operation: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto op = va_arg(args, int);
-                auto const *rhs = va_arg(args, clingo_ast_t *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TermUnary>(
-                    type, convert(loc), static_cast<CppClingo::Input::UnaryOperator>(op),
-                    convert<CppClingo::Util::immutable_value<CppClingo::Input::Term>>(rhs));
-                break;
-            }
-            case clingo_ast_type_term_binary_operation: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *lhs = va_arg(args, clingo_ast_t *);
-                auto op = va_arg(args, int);
-                auto const *rhs = va_arg(args, clingo_ast_t *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TermBinary>(
-                    type, convert(loc), convert<CppClingo::Util::immutable_value<CppClingo::Input::Term>>(lhs),
-                    static_cast<CppClingo::Input::BinaryOperator>(op),
-                    convert<CppClingo::Util::immutable_value<CppClingo::Input::Term>>(rhs));
-                break;
-            }
-            case clingo_ast_type_argument_tuple: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const **tuple = va_arg(args, clingo_ast_t const **);
-                auto size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::ArgumentTuple>(type,
-                                                                      convert<CppClingo::Input::Argument>(tuple, size));
-                break;
-            }
-            case clingo_ast_type_left_guard: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *left = va_arg(args, clingo_ast_t const *);
-                auto right = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::LGuard::value_type>(type, convert<CppClingo::Input::Term>(left),
-                                                                           static_cast<CppClingo::Relation>(right));
-                break;
-            }
-            case clingo_ast_type_right_guard: {
-                std::va_list args;
-                va_start(args, ast);
-                auto left = va_arg(args, int);
-                auto const *right = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::RGuard::value_type>(type, static_cast<CppClingo::Relation>(left),
-                                                                           convert<CppClingo::Input::Term>(right));
-                break;
-            }
-            case clingo_ast_type_literal_boolean: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto sign = va_arg(args, int);
-                auto value = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::LitBool>(type, convert(loc), static_cast<CppClingo::Sign>(sign),
-                                                                value != 0);
-                break;
-            }
-            case clingo_ast_type_literal_symbolic: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto sign = va_arg(args, int);
-                auto const *atom = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::LitSymbolic>(
-                    type, convert(loc), static_cast<CppClingo::Sign>(sign), convert<CppClingo::Input::Term>(atom));
-                break;
-            }
-            case clingo_ast_type_literal_comparison: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto sign = va_arg(args, int);
-                auto const *left = va_arg(args, clingo_ast_t const *);
-                auto const **right = va_arg(args, clingo_ast_t const **);
-                auto size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::LitComparison>(
-                    type, convert(loc), static_cast<CppClingo::Sign>(sign), convert<CppClingo::Input::Term>(left),
-                    convert<CppClingo::Input::Guard>(right, size));
-                break;
-            }
-            case clingo_ast_type_unparsed_element: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *ops = va_arg(args, clingo_string_t const *);
-                auto size = va_arg(args, size_t);
-                auto const *term = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::UnparsedElement>(type, convert(lib, ops, size),
-                                                                        convert<CppClingo::Input::TheoryTerm>(term));
-                break;
-            }
-            case clingo_ast_type_theory_term_variable: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                auto name_size = va_arg(args, size_t);
-                auto anonymous = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TheoryTermVariable>(
-                    type, convert(loc), *lib->store->string({name, name_size}), anonymous != 0);
-                break;
-            }
-            case clingo_ast_type_theory_term_symbolic: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto sym = va_arg(args, clingo_symbol_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TheoryTermSymbol>(type, convert(loc),
-                                                                         CppClingo::Symbol::from_rep(sym));
-                break;
-            }
-            case clingo_ast_type_theory_term_tuple: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto tuple_type = va_arg(args, int);
-                auto const **arguments = va_arg(args, clingo_ast_t const **);
-                auto size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TheoryTermTuple>(
-                    type, convert(loc), static_cast<CppClingo::TheoryTermTupleType>(tuple_type),
-                    convert<CppClingo::Input::TheoryTerm>(arguments, size));
-                break;
-            }
-            case clingo_ast_type_theory_term_function: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                auto name_size = va_arg(args, size_t);
-                auto const **arguments = va_arg(args, clingo_ast_t const **);
-                auto size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TheoryTermFunction>(
-                    type, convert(loc), *lib->store->string({name, name_size}),
-                    convert<CppClingo::Input::TheoryTerm>(arguments, size));
-                break;
-            }
-            case clingo_ast_type_theory_term_unparsed: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const **elems = va_arg(args, clingo_ast_t const **);
-                auto size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TheoryTermUnparsed>(
-                    type, convert(loc), convert<CppClingo::Input::UnparsedElement>(elems, size));
-                break;
-            }
-            case clingo_ast_type_set_aggregate_element: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *lit = va_arg(args, clingo_ast_t const *);
-                auto const **cond = va_arg(args, clingo_ast_t const **);
-                auto size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::SetAggregateElement>(type, convert(loc), convert<Lit>(lit),
-                                                                            convert<CppClingo::Input::Lit>(cond, size));
-                break;
-            }
-            case clingo_ast_type_theory_atom_element: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const **tuple = va_arg(args, clingo_ast_t const **);
-                auto tuple_size = va_arg(args, size_t);
-                auto const **cond = va_arg(args, clingo_ast_t const **);
-                auto cond_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TheoryElement>(
-                    type, convert(loc), convert<CppClingo::Input::TheoryTerm>(tuple, tuple_size),
-                    convert<CppClingo::Input::Lit>(cond, cond_size));
-                break;
-            }
-            case clingo_ast_type_theory_right_guard: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *op = va_arg(args, char const *);
-                auto op_size = va_arg(args, size_t);
-                auto const *term = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TheoryRGuard>(type, *lib->store->string({op, op_size}),
-                                                                     convert<CppClingo::Input::TheoryTerm>(term));
-                break;
-            }
-            case clingo_ast_type_body_simple_literal: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *lit = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::BdLitSimple>(type, convert<CppClingo::Input::Lit>(lit));
-                break;
-            }
-            case clingo_ast_type_body_aggregate_element: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const **tuple = va_arg(args, clingo_ast_t const **);
-                auto tuple_size = va_arg(args, size_t);
-                auto const **cond = va_arg(args, clingo_ast_t const **);
-                auto cond_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::BdLitAggregateElement>(
-                    type, convert(loc), convert<CppClingo::Input::Term>(tuple, tuple_size),
-                    convert<CppClingo::Input::Lit>(cond, cond_size));
-                break;
-            }
-            case clingo_ast_type_body_aggregate: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto sign = va_arg(args, int);
-                auto const *lhs = va_arg(args, clingo_ast_t const *);
-                auto fun = va_arg(args, int);
-                auto const **elems = va_arg(args, clingo_ast_t const **);
-                auto elems_size = va_arg(args, size_t);
-                auto const *rhs = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::BdLitAggregate>(
-                    type, convert(loc), static_cast<CppClingo::Sign>(sign), convert<CppClingo::Input::LGuard>(lhs),
-                    static_cast<CppClingo::AggregateFunction>(fun),
-                    convert<CppClingo::Input::BdLitAggregateElement>(elems, elems_size),
-                    convert<CppClingo::Input::RGuard>(rhs));
-                break;
-            }
-            case clingo_ast_type_body_sort: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *lhs = va_arg(args, clingo_ast_t const *);
-                auto const **elems = va_arg(args, clingo_ast_t const **);
-                auto elems_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::BdLitSort>(
-                    type, convert(loc), convert<CppClingo::Input::Term>(lhs),
-                    convert<CppClingo::Input::BdLitAggregateElement>(elems, elems_size));
-                break;
-            }
-            case clingo_ast_type_body_set_aggregate: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto sign = va_arg(args, int);
-                auto const *lhs = va_arg(args, clingo_ast_t const *);
-                auto const **elems = va_arg(args, clingo_ast_t const **);
-                auto elems_size = va_arg(args, size_t);
-                auto const *rhs = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::BdLitSetAggregate>(
-                    type, convert(loc), static_cast<CppClingo::Sign>(sign), convert<CppClingo::Input::LGuard>(lhs),
-                    convert<CppClingo::Input::SetAggregateElement>(elems, elems_size),
-                    convert<CppClingo::Input::RGuard>(rhs));
-                break;
-            }
-            case clingo_ast_type_body_theory_atom: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto sign = va_arg(args, int);
-                auto const *term = va_arg(args, clingo_ast_t const *);
-                auto const **elems = va_arg(args, clingo_ast_t const **);
-                auto elems_size = va_arg(args, size_t);
-                auto const *rhs = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::BdLitTheoryAtom>(
-                    type, convert(loc), static_cast<CppClingo::Sign>(sign), convert<CppClingo::Input::Term>(term),
-                    convert<CppClingo::Input::TheoryElement>(elems, elems_size),
-                    convert<std::optional<CppClingo::Input::TheoryRGuard>>(rhs));
-                break;
-            }
-            case clingo_ast_type_body_conditional_literal: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *lit = va_arg(args, clingo_ast_t const *);
-                auto const **cond = va_arg(args, clingo_ast_t const **);
-                auto cond_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::BdLitConjunction>(
-                    type, CppClingo::Input::CondLit{convert(loc), convert<CppClingo::Input::Lit>(lit),
-                                                    convert<CppClingo::Input::Lit>(cond, cond_size)});
-                break;
-            }
-            case clingo_ast_type_head_simple_literal: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *lit = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::HdLitSimple>(type, convert<CppClingo::Input::Lit>(lit));
-                break;
-            }
-            case clingo_ast_type_head_aggregate_element: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const **tuple = va_arg(args, clingo_ast_t const **);
-                auto tuple_size = va_arg(args, size_t);
-                auto const *lit = va_arg(args, clingo_ast_t const *);
-                auto const **cond = va_arg(args, clingo_ast_t const **);
-                auto cond_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::HdLitAggregateElement>(
-                    type, convert(loc), convert<CppClingo::Input::Term>(tuple, tuple_size), convert<Lit>(lit),
-                    convert<CppClingo::Input::Lit>(cond, cond_size));
-                break;
-            }
-            case clingo_ast_type_head_aggregate: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *lhs = va_arg(args, clingo_ast_t const *);
-                auto fun = va_arg(args, int);
-                auto const **elems = va_arg(args, clingo_ast_t const **);
-                auto elems_size = va_arg(args, size_t);
-                auto const *rhs = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::HdLitAggregate>(
-                    type, convert(loc), convert<CppClingo::Input::LGuard>(lhs),
-                    static_cast<CppClingo::AggregateFunction>(fun),
-                    convert<CppClingo::Input::HdLitAggregateElement>(elems, elems_size),
-                    convert<CppClingo::Input::RGuard>(rhs));
-                break;
-            }
-            case clingo_ast_type_head_set_aggregate: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *lhs = va_arg(args, clingo_ast_t const *);
-                auto const **elems = va_arg(args, clingo_ast_t const **);
-                auto elems_size = va_arg(args, size_t);
-                auto const *rhs = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::HdLitSetAggregate>(
-                    type, convert(loc), convert<CppClingo::Input::LGuard>(lhs),
-                    convert<CppClingo::Input::SetAggregateElement>(elems, elems_size),
-                    convert<CppClingo::Input::RGuard>(rhs));
-                break;
-            }
-            case clingo_ast_type_head_theory_atom: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *term = va_arg(args, clingo_ast_t const *);
-                auto const **elems = va_arg(args, clingo_ast_t const **);
-                auto elems_size = va_arg(args, size_t);
-                auto const *rhs = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::HdLitTheoryAtom>(
-                    type, convert(loc), convert<CppClingo::Input::Term>(term),
-                    convert<CppClingo::Input::TheoryElement>(elems, elems_size),
-                    convert<std::optional<CppClingo::Input::TheoryRGuard>>(rhs));
-                break;
-            }
-            case clingo_ast_type_head_conditional_literal: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *lit = va_arg(args, clingo_ast_t const *);
-                auto const **cond = va_arg(args, clingo_ast_t const **);
-                auto cond_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::CondLit>(
-                    type, CppClingo::Input::CondLit{convert(loc), convert<CppClingo::Input::Lit>(lit),
-                                                    convert<CppClingo::Input::Lit>(cond, cond_size)});
-                break;
-            }
-            case clingo_ast_type_head_disjunction: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const **elems = va_arg(args, clingo_ast_t const **);
-                auto elems_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::HdLitDisjunction>(
-                    type, convert(loc), convert<CppClingo::Input::HdLitDisjunctionElement>(elems, elems_size));
-                break;
-            }
-            case clingo_ast_type_statement_rule: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *head = va_arg(args, clingo_ast_t const *);
-                auto const **body = va_arg(args, clingo_ast_t const **);
-                auto body_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmRule>(type, convert(loc), convert<HdLit>(head),
-                                                                convert<BdLit>(body, body_size));
-                break;
-            }
-            case clingo_ast_type_theory_operator_definition: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                auto name_size = va_arg(args, size_t);
-                auto priority = va_arg(args, int);
-                auto op_type = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TheoryOpDefinition>(
-                    type, convert(loc), *lib->store->string({name, name_size}), priority,
-                    static_cast<TheoryOpType>(op_type));
-                break;
-            }
-            case clingo_ast_type_theory_term_definition: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                auto name_size = va_arg(args, size_t);
-                auto const **ops = va_arg(args, clingo_ast_t const **);
-                auto ops_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TheoryTermDefinition>(
-                    type, convert(loc), *lib->store->string({name, name_size}),
-                    convert<TheoryOpDefinition>(ops, ops_size));
-                break;
-            }
-            case clingo_ast_type_theory_guard_definition: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *ops = va_arg(args, clingo_string_t const *);
-                auto ops_size = va_arg(args, size_t);
-                auto const *term = va_arg(args, char const *);
-                auto term_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TheoryRGuardDefinition>(type, convert(lib, ops, ops_size),
-                                                                               *lib->store->string({term, term_size}));
-                break;
-            }
-            case clingo_ast_type_theory_atom_definition: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                auto name_size = va_arg(args, size_t);
-                auto arity = va_arg(args, int);
-                auto const *term = va_arg(args, char const *);
-                auto term_size = va_arg(args, size_t);
-                auto const *guard = va_arg(args, clingo_ast_t const *);
-                auto atom_type = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::TheoryAtomDefinition>(
-                    type, convert(loc), *lib->store->string({name, name_size}), arity,
-                    *lib->store->string({term, term_size}), convert<std::optional<TheoryRGuardDefinition>>(guard),
-                    static_cast<TheoryAtomType>(atom_type));
-                break;
-            }
-            case clingo_ast_type_statement_theory: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                auto name_size = va_arg(args, size_t);
-                auto const **terms = va_arg(args, clingo_ast_t const **);
-                auto terms_size = va_arg(args, size_t);
-                auto const **atoms = va_arg(args, clingo_ast_t const **);
-                auto atoms_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmTheory>(
-                    type, convert(loc), *lib->store->string({name, name_size}),
-                    convert<TheoryTermDefinition>(terms, terms_size), convert<TheoryAtomDefinition>(atoms, atoms_size));
-                break;
-            }
-            case clingo_ast_type_optimize_tuple: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *weight = va_arg(args, clingo_ast_t const *);
-                auto const *prio = va_arg(args, clingo_ast_t const *);
-                auto const **terms = va_arg(args, clingo_ast_t const **);
-                auto terms_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::OptimizeTuple>(
-                    type, convert<Term>(weight), convert<std::optional<Term>>(prio), convert<Term>(terms, terms_size));
-                break;
-            }
-            case clingo_ast_type_optimize_element: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *tuple = va_arg(args, clingo_ast_t const *);
-                auto const **cond = va_arg(args, clingo_ast_t const **);
-                auto cond_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::OptimizeElement>(type, convert<OptimizeTuple>(tuple),
-                                                                        convert<Lit>(cond, cond_size));
-                break;
-            }
-            case clingo_ast_type_statement_optimize: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const **elems = va_arg(args, clingo_ast_t const **);
-                auto elems_size = va_arg(args, size_t);
-                auto optimize_type = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmOptimize>(type, convert(loc),
-                                                                    static_cast<OptimizeType>(optimize_type),
-                                                                    convert<OptimizeElement>(elems, elems_size));
-                break;
-            }
-            case clingo_ast_type_statement_weak_constraint: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const **body = va_arg(args, clingo_ast_t const **);
-                auto body_size = va_arg(args, size_t);
-                auto const *tuple = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmWeakConstraint>(
-                    type, convert(loc), convert<BdLit>(body, body_size), convert<OptimizeTuple>(tuple));
-                break;
-            }
-            case clingo_ast_type_program_part: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *name = va_arg(args, char const *);
-                auto name_size = va_arg(args, size_t);
-                const auto *syms = va_arg(args, clingo_symbol_t const *);
-                auto size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::ProgramParam>(type, *lib->store->string({name, name_size}),
-                                                                     convert(syms, size));
-                break;
-            }
-            case clingo_ast_type_edge: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *u = va_arg(args, clingo_ast_t const *);
-                auto const *v = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::Edge>(type, convert<Term>(u), convert<Term>(v));
-                break;
-            }
-            case clingo_ast_type_statement_show: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *term = va_arg(args, clingo_ast_t const *);
-                auto const **body = va_arg(args, clingo_ast_t const **);
-                auto body_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmShow>(type, convert(loc), convert<Term>(term),
-                                                                convert<BdLit>(body, body_size));
-                break;
-            }
-            case clingo_ast_type_statement_show_nothing: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmShowNothing>(type, convert(loc));
-                break;
-            }
-            case clingo_ast_type_statement_show_signature: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                auto name_size = va_arg(args, size_t);
-                auto arity = va_arg(args, int);
-                auto sign = va_arg(args, int);
-                auto value = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmShowSig>(
-                    type, convert(loc), sign != 0, *lib->store->string({name, name_size}), arity, value != 0);
-                break;
-            }
-            case clingo_ast_type_statement_project: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *atom = va_arg(args, clingo_ast_t const *);
-                auto const **body = va_arg(args, clingo_ast_t const **);
-                auto body_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmProject>(type, convert(loc), convert<Term>(atom),
-                                                                   convert<BdLit>(body, body_size));
-                break;
-            }
-            case clingo_ast_type_statement_project_signature: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                auto name_size = va_arg(args, size_t);
-                auto arity = va_arg(args, int);
-                auto sign = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmProjectSig>(type, convert(loc), sign != 0,
-                                                                      *lib->store->string({name, name_size}), arity);
-                break;
-            }
-            case clingo_ast_type_statement_defined: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                auto name_size = va_arg(args, size_t);
-                auto arity = va_arg(args, int);
-                auto sign = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmDefined>(type, convert(loc), sign != 0,
-                                                                   *lib->store->string({name, name_size}), arity);
-                break;
-            }
-            case clingo_ast_type_statement_external: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *atom = va_arg(args, clingo_ast_t const *);
-                auto const **body = va_arg(args, clingo_ast_t const **);
-                auto body_size = va_arg(args, size_t);
-                auto const *external_type = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmExternal>(type, convert(loc), convert<Term>(atom),
-                                                                    convert<BdLit>(body, body_size),
-                                                                    convert<std::optional<Term>>(external_type));
-                break;
-            }
-            case clingo_ast_type_statement_edge: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const **edges = va_arg(args, clingo_ast_t const **);
-                auto edges_size = va_arg(args, size_t);
-                auto const **body = va_arg(args, clingo_ast_t const **);
-                auto body_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmEdge>(type, convert(loc), convert<Edge>(edges, edges_size),
-                                                                convert<BdLit>(body, body_size));
-                break;
-            }
-            case clingo_ast_type_statement_heuristic: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *atom = va_arg(args, clingo_ast_t const *);
-                auto const **body = va_arg(args, clingo_ast_t const **);
-                auto body_size = va_arg(args, size_t);
-                auto const *weight = va_arg(args, clingo_ast_t const *);
-                auto const *modifier = va_arg(args, clingo_ast_t const *);
-                auto const *priority = va_arg(args, clingo_ast_t const *);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmHeuristic>(
-                    type, convert(loc), convert<Term>(atom), convert<BdLit>(body, body_size), convert<Term>(weight),
-                    convert<std::optional<Term>>(priority), convert<Term>(modifier));
-                break;
-            }
-            case clingo_ast_type_statement_include: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *value = va_arg(args, char const *);
-                auto value_size = va_arg(args, size_t);
-                auto include_type = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmInclude>(type, convert(loc),
-                                                                   static_cast<IncludeType>(include_type),
-                                                                   *lib->store->string({value, value_size}));
-                break;
-            }
-            case clingo_ast_type_statement_program: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                auto name_size = va_arg(args, size_t);
-                auto const *arguments = va_arg(args, clingo_string_t const *);
-                auto arguments_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmProgram>(type, convert(loc),
-                                                                   *lib->store->string({name, name_size}),
-                                                                   convert(lib, arguments, arguments_size));
-                break;
-            }
-            case clingo_ast_type_statement_script: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *value = va_arg(args, char const *);
-                auto value_size = va_arg(args, size_t);
-                auto const *script_type = va_arg(args, char const *);
-                auto script_size = va_arg(args, size_t);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmScript>(type, convert(loc),
-                                                                  *lib->store->string({script_type, script_size}),
-                                                                  *lib->store->string({value, value_size}));
-                break;
-            }
-            case clingo_ast_type_statement_const: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *name = va_arg(args, char const *);
-                auto name_size = va_arg(args, size_t);
-                auto const *term = va_arg(args, clingo_ast_t const *);
-                auto prec = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmConst>(type, convert(loc), static_cast<Precedence>(prec),
-                                                                 *lib->store->string({name, name_size}),
-                                                                 convert<Term>(term));
-                break;
-            }
-            case clingo_ast_type_statement_parts: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const **elems = va_arg(args, clingo_ast_t const **);
-                auto size = va_arg(args, size_t);
-                // auto elems = CppClingo::Input::ProgramParamVec{};
-                auto prec = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmParts>(type, convert(loc), static_cast<Precedence>(prec),
-                                                                 convert<CppClingo::Input::ProgramParam>(elems, size));
-                break;
-            }
-            case clingo_ast_type_statement_comment: {
-                std::va_list args;
-                va_start(args, ast);
-                auto const *loc = va_arg(args, clingo_location_t const *);
-                auto const *value = va_arg(args, char const *);
-                auto value_size = va_arg(args, size_t);
-                auto comment_type = va_arg(args, int);
-                va_end(args);
-                *ast = construct_ast<CppClingo::Input::StmComment>(type, convert(loc),
-                                                                   static_cast<CommentType>(comment_type),
-                                                                   *lib->store->string({value, value_size}));
-                break;
-            }
+        std::va_list args;
+        va_start(args, ast);
+        try {
+            auto reader = VaArgs{&args};
+            construct(lib, type, ast, reader);
+        } catch (...) {
+            va_end(args);
+            throw;
         }
+        va_end(args);
+    }
+    CLINGO_CATCH;
+    // NOLINTEND
+}
+
+extern "C" auto clingo_ast_construct_values(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_value_t const *values,
+                                            size_t size, clingo_ast_t **ast) -> bool {
+    CLINGO_TRY {
+        if (lib == nullptr || ast == nullptr) {
+            return fail_arguments();
+        }
+        *ast = nullptr;
+        auto const &info = *clingo_ast_info();
+        if (type < 0 || std::cmp_greater_equal(type, info.records_size)) {
+            return fail_with(clingo_result_invalid, "invalid AST type");
+        }
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        if (!check_values(info.records[type], info, values, size)) {
+            return false;
+        }
+        auto reader = ValueArgs{values};
+        construct(lib, type, ast, reader);
     }
     CLINGO_CATCH;
 }
-// NOLINTEND(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
 
 extern "C" auto clingo_ast_to_string(clingo_ast_t *ast, clingo_string_builder_t *builder) -> bool {
     CLINGO_TRY {

@@ -248,7 +248,7 @@ auto py_symbol_repr(PyObject *self) -> PyObject * {
 
 auto py_symbol_hash(PyObject *self) -> Py_hash_t {
     auto *s = cast_symbol(self);
-    return static_cast<Py_hash_t>(clingo_symbol_hash(s->sym));
+    return py_hash(clingo_symbol_hash(s->sym));
 }
 
 auto py_symbol_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
@@ -997,44 +997,3 @@ auto py_symbol_check(PyObject *type, PyObject *obj, clingo_symbol_t *sym) -> int
 }
 
 } // namespace PyClingo
-
-namespace pybind11::detail {
-
-static auto get_symbol_type() -> PyObject * {
-    // we use a static variable here for performance reasons
-    // this means the python interpreter can be loaded only once
-    static auto *symbol_type = PyClingo::steal(PyClingo::py_symbol_type()).get();
-    return symbol_type;
-}
-
-auto type_caster<PyClingo::Symbol>::load(handle src, [[maybe_unused]] bool noclue) -> bool {
-    if (src.is_none()) {
-        return false;
-    }
-    auto *type = get_symbol_type();
-    if (type == nullptr) {
-        throw error_already_set();
-    }
-    auto *obj = src.ptr();
-    if (!PyObject_TypeCheck(obj, reinterpret_cast<PyTypeObject *>(type))) {
-        return false;
-    }
-    auto *s = PyClingo::cast_symbol(obj);
-    value = PyClingo::Symbol{s->sym, true};
-    return true;
-}
-
-auto type_caster<PyClingo::Symbol>::cast(PyClingo::Symbol const &src, [[maybe_unused]] return_value_policy policy,
-                                         [[maybe_unused]] handle parent) -> handle {
-    auto *type = get_symbol_type();
-    if (type == nullptr) {
-        throw error_already_set();
-    }
-    PyObject *obj = PyClingo::py_symbol_new(type, src.handle(), true);
-    if (obj == nullptr) {
-        throw error_already_set();
-    }
-    return obj;
-}
-
-} // namespace pybind11::detail

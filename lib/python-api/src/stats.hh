@@ -2,16 +2,11 @@
 
 #include <clingo/stats.h>
 
-#include "iterable.hh"
-
 #include <pybind11/pybind11.h>
 
 #include <cstdint>
 
 namespace PyClingo {
-
-using Stats = TypeHint<"clingo.stats.Stats">;
-using StatsView = TypeHint<"clingo.stats.StatsView">;
 
 enum class StatsType : uint8_t {
     value = clingo_stats_type_value,

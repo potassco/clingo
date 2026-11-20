@@ -1,366 +1,534 @@
 """
-Install the package and stubs into the virtual environment `.venv`.
+Generate the stubs of the clingo.ast submodules and install clingo's stubs.
 
-This generates stubs using pybind11-stubgen and then fine-tunes them. The file
-is full of hacks to work around limitations of pybind11-stubgen.
+The stubs of all modules are maintained by hand in `lib/python-api/stubs`
+except for the AST submodules, which are generated from the description of the
+AST structure provided by `clingo.ast._type_info()`.
+
+Commands:
+- ast: regenerate the stubs of the AST submodules
+- check: check that the stubs of the AST submodules are up to date
+- strip: copy the stubs removing the implementations of overloaded functions
+  (used by CMake to install the stubs)
+- install: install the stubs and link the built module into the active
+  environment
+- doc: copy the stubs for the documentation turning references like
+  `clingo.ast.AST` into links
+
+The generated stubs are formatted with black and isort if they are available.
 """
 
 import argparse
+import ast as pyast
+import importlib
 import os
 import re
-import subprocess
+import shutil
 import sys
 import sysconfig
 import tempfile
+from collections.abc import Callable
 from glob import glob
 from pathlib import Path
+from typing import Any
 
-import black
-import isort
+STUBS = Path("lib", "python-api", "stubs")
+# NOTE: mkdocstrings searches the stubs directory for the clingo package
+DOC_STUBS = Path("doc", "python-api", "stubs", "clingo")
+BUILD = Path("build", "debug", "bin", "python")
+LINE_LENGTH = 88
+
+GROUP_DOCS = {
+    "terms": "AST nodes for terms.",
+    "literals": "AST nodes for literals.",
+    "aggregates": "AST nodes for aggregates.",
+    "theory": "AST nodes for theory terms and atoms.",
+    "body": "AST nodes for body literals.",
+    "head": "AST nodes for head literals.",
+    "statements": "AST nodes for statements.",
+}
 
 
-def reorder_classes(content: str, order: list[str]) -> str:
-    class_regex = re.compile(
-        r"^class\s+(\w+).*?:\n"  # class preamble
-        r"(?:^[ ]{4}.*\n|^\n)*",  # class body
-        # r"^[ ]{4}[^ ].*$",  # end of class body
-        re.MULTILINE,
+def camel_case(name: str) -> str:
+    """
+    Convert a snake case name into camel case (like the bindings do).
+    """
+    return "".join(part[:1].upper() + part[1:] for part in name.split("_"))
+
+
+def docstring(doc: str, indent: str) -> list[str]:
+    """
+    Format a docstring as a list of lines.
+    """
+    lines = [f'{indent}"""']
+    for line in doc.replace("\\", "\\\\").replace('"""', '\\"\\"\\"').split("\n"):
+        lines.append(f"{indent}{line}" if line else "")
+    lines.append(f'{indent}"""')
+    return lines
+
+
+def summary(doc: str) -> str:
+    """
+    Get the first paragraph of a documentation string.
+    """
+    return doc.split("\n\n", 1)[0]
+
+
+def wrap_def(head: str, params: list[str], tail: str, indent: str) -> list[str]:
+    """
+    Format a function definition like black does.
+    """
+    line = f"{indent}{head}({', '.join(params)}){tail}"
+    if len(line) <= LINE_LENGTH:
+        return [line]
+    line = f"{indent}    {', '.join(params)}"
+    if len(line) <= LINE_LENGTH:
+        return [f"{indent}{head}(", line, f"{indent}){tail}"]
+    return [
+        f"{indent}{head}(",
+        *(f"{indent}    {param}," for param in params),
+        f"{indent}){tail}",
+    ]
+
+
+def wrap_union(name: str, types: list[str]) -> list[str]:
+    """
+    Format a union type alias like black does.
+    """
+    line = f"{name}: TypeAlias = {' | '.join(types)}"
+    if len(line) <= LINE_LENGTH:
+        return [line]
+    return [
+        f"{name}: TypeAlias = (",
+        f"    {types[0]}",
+        *(f"    | {t}" for t in types[1:]),
+        ")",
+    ]
+
+
+class ASTStubs:
+    """
+    Generate the stubs of the AST submodules from the AST description.
+    """
+
+    def __init__(self, info: dict[str, Any]):
+        self._info = info
+        self._groups: dict[tuple[str, str], str] = {}
+        for kind, key in (
+            ("record", "records"),
+            ("union", "unions"),
+            ("enum", "enums"),
+        ):
+            for item in info[key]:
+                self._groups[(kind, item["name"])] = item["group"]
+        self._imports: dict[str, set[str]] = {}
+        self._group = ""
+
+    def groups(self) -> list[str]:
+        """
+        Get the groups in the order of their first appearance.
+        """
+        res: list[str] = []
+        for key in ("enums", "records", "unions"):
+            for item in self._info[key]:
+                if item["group"] not in res:
+                    res.append(item["group"])
+        return res
+
+    def _import(self, module: str, name: str) -> str:
+        if module != self._group:
+            self._imports.setdefault(module, set()).add(name)
+        return name
+
+    def _ref(self, ref: tuple[str, str]) -> str:
+        kind, name = ref
+        group = self._groups[(kind, name)]
+        return self._import(f"clingo.ast.{group}", camel_case(name))
+
+    def _type(self, arg: dict[str, Any]) -> str:
+        kind = arg["type"]
+        if kind == "number":
+            return "int"
+        if kind == "bool":
+            return "bool"
+        if kind == "string":
+            return "str"
+        if kind == "symbol":
+            return self._import("clingo.symbol", "Symbol")
+        if kind == "location":
+            return self._import("clingo.core", "Location")
+        if kind == "string_array":
+            return f"{self._import('collections.abc', 'Sequence')}[str]"
+        if kind == "symbol_array":
+            seq = self._import("collections.abc", "Sequence")
+            return f"{seq}[{self._import('clingo.symbol', 'Symbol')}]"
+        ref = self._ref(arg["ref"])
+        if kind == "optional_ast":
+            return f"{ref} | None"
+        if kind == "ast_array":
+            return f"{self._import('collections.abc', 'Sequence')}[{ref}]"
+        return ref
+
+    def _default(self, arg: dict[str, Any]) -> str:
+        if not arg["has_default"]:
+            return ""
+        if arg["type"] == "bool":
+            return " = True" if arg["default"] else " = False"
+        if arg["type"] == "optional_ast":
+            return " = None"
+        if arg["type"] in ("string_array", "symbol_array", "ast_array"):
+            return " = ()"
+        return f" = {arg['default']}"
+
+    @staticmethod
+    def _arg_doc(name: str, doc: str) -> list[str]:
+        paragraphs = doc.split("\n\n") if doc else [""]
+        lines = [f"    {name}: {paragraphs[0]}".rstrip()]
+        for paragraph in paragraphs[1:]:
+            lines.extend(["", f"        {paragraph}"])
+        return lines
+
+    def _enum(self, enm: dict[str, Any]) -> list[str]:
+        name = camel_case(enm["name"])
+        lines = [f"class {name}({self._import('enum', 'IntEnum')}):"]
+        lines.extend(docstring(enm["doc"] or f"The {name} enumeration.", "    "))
+        lines.append("")
+        for value_name, value, doc in enm["values"]:
+            lines.append(f"    {camel_case(value_name)} = {value}")
+            if doc:
+                lines.extend(docstring(doc, "    "))
+        return lines
+
+    def _record(self, rec: dict[str, Any]) -> list[str]:
+        name = camel_case(rec["name"])
+        args = rec["arguments"]
+        library = self._import("clingo.core", "Library")
+        lines = [
+            f"@{self._import('typing', 'final')}",
+            f"class {name}({self._import('clingo.ast', 'AST')}):",
+        ]
+        lines.extend(docstring(rec["doc"] or f"The {name} node.", "    "))
+        lines.append("")
+        match_args = ", ".join(f'"{arg["name"]}"' for arg in args)
+        lines.append(
+            f"    __match_args__ = ({match_args}{',' if len(args) == 1 else ''})"
+        )
+        lines.extend(
+            docstring("The names of the arguments for positional patterns.", "    ")
+        )
+        params = ["self", f"lib: {library}"]
+        params.extend(
+            f"{arg['name']}: {self._type(arg)}{self._default(arg)}" for arg in args
+        )
+        lines.extend(wrap_def("def __init__", params, " -> None:", "    "))
+        init_doc = [
+            "Construct the node.",
+            "",
+            "Args:",
+            "    lib: The library object for storing symbols.",
+        ]
+        for arg in args:
+            init_doc.extend(self._arg_doc(arg["name"], arg["doc"]))
+        lines.extend(docstring("\n".join(init_doc), "        "))
+        lines.append("")
+        params = ["self", f"lib: {library}", "*"]
+        params.extend(f"{arg['name']}: {self._type(arg)} = ..." for arg in args)
+        lines.extend(wrap_def("def update", params, f" -> {name}:", "    "))
+        update_doc = [
+            "Create a copy of the node with the given arguments replaced.",
+            "",
+            "Arguments that are not given keep their current values.",
+            "",
+            "Args:",
+            "    lib: The library object for storing symbols.",
+        ]
+        for arg in args:
+            update_doc.extend(self._arg_doc(arg["name"], summary(arg["doc"])))
+        update_doc.extend(["", "Returns:", "    The updated node."])
+        lines.extend(docstring("\n".join(update_doc), "        "))
+        for arg in args:
+            lines.append("")
+            lines.append("    @property")
+            lines.append(f"    def {arg['name']}(self) -> {self._type(arg)}:")
+            lines.extend(
+                docstring(arg["doc"] or f"The {arg['name']} of the node.", "        ")
+            )
+        return lines
+
+    def _union(self, uni: dict[str, Any]) -> list[str]:
+        name = camel_case(uni["name"])
+        types = [self._ref(tuple(ref)) for ref in uni["types"]]
+        self._import("typing", "TypeAlias")
+        lines = wrap_union(name, types)
+        if uni["doc"]:
+            lines.extend(docstring(uni["doc"], ""))
+        return lines
+
+    def _header(self) -> list[str]:
+        std = [m for m in sorted(self._imports) if not m.startswith("clingo")]
+        local = [m for m in sorted(self._imports) if m.startswith("clingo")]
+        lines: list[str] = []
+        for block in (std, local):
+            for module in block:
+                lines.append(
+                    f"from {module} import {', '.join(sorted(self._imports[module]))}"
+                )
+            if block:
+                lines.append("")
+        return lines
+
+    def generate(self, group: str) -> str:
+        """
+        Generate the stubs of the given group.
+        """
+        self._group = f"clingo.ast.{group}"
+        self._imports = {}
+        blocks: list[list[str]] = []
+        for enm in self._info["enums"]:
+            if enm["group"] == group:
+                blocks.append(self._enum(enm))
+        for rec in self._info["records"]:
+            if rec["group"] == group:
+                blocks.append(self._record(rec))
+        unions = [
+            self._union(uni) for uni in self._info["unions"] if uni["group"] == group
+        ]
+        lines = docstring(GROUP_DOCS.get(group, "AST nodes."), "")
+        lines.append("")
+        lines.extend(self._header())
+        for block in blocks:
+            lines.extend(block)
+            lines.append("")
+        for union in unions:
+            lines.extend(union)
+        return "\n".join(lines).rstrip() + "\n"
+
+
+def format_code(path: Path, content: str) -> str:
+    """
+    Format the given code with isort and black if available.
+    """
+    try:
+        import black  # pylint: disable=import-outside-toplevel
+        import isort  # pylint: disable=import-outside-toplevel
+    except ImportError:
+        return content
+    try:
+        content = isort.code(content, profile="black")
+        return black.format_file_contents(
+            content, fast=False, mode=black.FileMode(is_pyi=True)
+        )
+    except black.NothingChanged:
+        return content
+    except Exception as exc:  # pylint: disable=broad-except
+        sys.exit(f"failed to format {path}: {exc}")
+
+
+def import_clingo(build: Path):
+    """
+    Import the clingo module from the build directory.
+    """
+    sys.path.insert(0, str(build))
+    return importlib.import_module("clingo.ast")
+
+
+def generate_ast(build: Path, out: Path) -> list[Path]:
+    """
+    Generate the stubs of the AST submodules into the given directory.
+    """
+    info = import_clingo(build)._type_info()
+    gen = ASTStubs(info)
+    out.mkdir(parents=True, exist_ok=True)
+    paths = []
+    for group in gen.groups():
+        path = out / f"{group}.pyi"
+        content = gen.generate(group)
+        path.write_text(format_code(path, content), encoding="utf8")
+        paths.append(path)
+    return paths
+
+
+def is_overload(node: pyast.expr) -> bool:
+    """
+    Check whether the decorator is `overload` or `typing.overload`.
+    """
+    return (isinstance(node, pyast.Name) and node.id == "overload") or (
+        isinstance(node, pyast.Attribute) and node.attr == "overload"
     )
 
-    pieces = []
-    classes = {}
-    last_end = 0
 
-    for match in class_regex.finditer(content):
-        start, end = match.span()
-        if start > last_end:
-            pieces.append(content[last_end:start])
-        class_block = match.group(0)
-        class_name = match.group(1)
-        pieces.append(class_name)
-        classes[class_name] = class_block
-        last_end = end
-    if last_end < len(content):
-        pieces.append(content[last_end:])
-
-    order_stack = order[:]
-
-    result = []
-    for piece in pieces:
-        if piece in classes:
-            if piece in order:
-                print(order_stack[0])
-                result.append(classes[order_stack.pop(0)])
-            else:
-                result.append(classes[piece])
-        else:
-            result.append(piece)
-    return "".join(result)
-
-
-class Rewriter:
+def strip_overload_implementations(content: str) -> str:
     """
-    Rewriter to fine-tune generated stubs.
+    Remove the implementations following overloaded functions.
+
+    The source stubs keep them because mkdocstrings shows their documentation.
+    Type checkers do not accept implementations in stubs though.
+    """
+    tree = pyast.parse(content)
+    remove: list[tuple[int, int]] = []
+
+    def visit(body: list[pyast.stmt]):
+        overloaded: set[str] = set()
+        for node in body:
+            if isinstance(node, pyast.ClassDef):
+                visit(node.body)
+            elif isinstance(node, (pyast.FunctionDef, pyast.AsyncFunctionDef)):
+                if any(is_overload(dec) for dec in node.decorator_list):
+                    overloaded.add(node.name)
+                elif node.name in overloaded:
+                    start = min(
+                        [node.lineno, *(dec.lineno for dec in node.decorator_list)]
+                    )
+                    assert node.end_lineno is not None
+                    remove.append((start, node.end_lineno))
+                    overloaded.discard(node.name)
+
+    visit(tree.body)
+    lines = content.splitlines(keepends=True)
+    for start, end in sorted(remove, reverse=True):
+        del lines[start - 1 : end]
+    return "".join(lines)
+
+
+REFERENCE_RE = re.compile(r"`(?P<name>clingo(?:\.[A-Za-z_][A-Za-z0-9_]*)*)`")
+
+
+def link_references(content: str) -> str:
+    """
+    Turn references like `clingo.ast.AST` into mkdocstrings cross-references.
     """
 
-    def format(self, path: str, content: str):
-        """
-        Format the given code.
-        """
-        try:
-            content = isort.code(content, profile="black")
-            mode = black.FileMode(is_pyi=True)
-            return black.format_file_contents(content, fast=False, mode=mode)
-        except:
-            sys.exit(f"failed to format: {path}")
+    def replace(match: re.Match[str]) -> str:
+        name = match.group("name")
+        return f"[`{name.split('.')[-1]}`][{name}]"
 
-    def simplify_comparisons(self, content: str) -> str:
-        """
-        Simplify comparison signatures.
-        """
-        for method in ["__eq__", "__ne__", "__lt__", "__le__", "__gt__", "__ge__"]:
-            overload_pattern = rf"(@typing\.overload\s+def\s+{method}.*?\.\.\.(?:\s*@typing\.overload\s+def\s+{method}.*?\.\.\.)*)"
-            simple_pattern = rf"def\s+{method}.*?\.\.\."
+    return REFERENCE_RE.sub(replace, content)
 
-            # replacement for both patterns
-            replacement = f"def {method}(self, arg0: typing.Any) -> bool: ..."
 
-            # apply both patterns
-            content = re.sub(overload_pattern, replacement, content, flags=re.DOTALL)
-            content = re.sub(simple_pattern, replacement, content, flags=re.DOTALL)
-        return content
+def cmd_ast(args):
+    """
+    Regenerate the stubs of the AST submodules.
+    """
+    for path in generate_ast(args.build, args.stubs / "ast"):
+        print(f"generated {path}")
 
-    def replace_list_returns(self, content: str) -> str:
-        """
-        Replace lists in return values by sequences.
-        """
-        return content.replace("-> list[", "-> typing.Sequence[")
 
-    def extract_docstrings(self, code):
-        """
-        Extract and replace dostrings with a placeholder.
-        """
-        docstring_pattern = r'("""[\s\S]*?""")'
-        docstrings = {}
-        count = 0
-
-        def replace(match):
-            nonlocal count
-            count += 1
-            docstrings[count] = match.group(1)
-            return f"#docstring[{count}]"
-
-        code = re.sub(docstring_pattern, replace, code)
-        return code, docstrings
-
-    def reinsert_docstrings(self, code, docstrings):
-        """
-        Reinsert docstring placeholders.
-        """
-        for i, docstring in docstrings.items():
-            code = code.replace(f"#docstring[{i}]", docstring)
-        return code
-
-    def patch_repr(self, class_def: str, repr_implementation: str) -> str:
-        """
-        Replace the implementation of the __repr__ method in a class definition.
-
-        Args:
-            class_code (str): The string containing the class definition.
-            repr_implementation (str): The new implementation for the __repr__ method.
-
-        Returns:
-            str: The modified class definition with the patched __repr__ method.
-        """
-        repr_pattern = re.compile(r"def __repr__\(.*?\).*:\n\s+\.\.\.")
-        indented_repr = "\n".join(
-            f"        {line}" for line in repr_implementation.strip().splitlines()
+def cmd_check(args):
+    """
+    Check that the stubs of the AST submodules are up to date.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        outdated = []
+        for path in generate_ast(args.build, Path(tmp)):
+            current = args.stubs / "ast" / path.name
+            if not current.exists() or current.read_text(
+                encoding="utf8"
+            ) != path.read_text(encoding="utf8"):
+                outdated.append(str(current))
+    if outdated:
+        sys.exit(
+            "outdated stubs (run `python scripts/stubs.py ast`): " + ", ".join(outdated)
         )
-
-        def replace_repr(match):
-            assert match
-            return f"def __repr__(self) -> str:\n{indented_repr}"
-
-        return re.sub(repr_pattern, replace_repr, class_def)
-
-    def generate_enum_members_spec(self, class_def):
-        """
-        Generate members of enums.
-        """
-        pattern = r"(\w+):\s*typing\.ClassVar\[(.*?)\].*?#\s*value\s*=\s*<.*?\.\w+:\s*(-?\d+)>"
-
-        def repl(match):
-            member, _, value = match.groups()
-            return f"{member} = {value}"
-
-        class_def = re.sub(pattern, repl, class_def)
-        class_def = re.sub(r"@classmethod[\s\S]*", "", class_def)
-
-        return class_def
-
-    def generate_enum_members(self, class_def):
-        """
-        Generate members of enums.
-        """
-        pattern = r"(\w+):\s*typing\.ClassVar\[(.*?)\].*?"
-
-        i = -1
-
-        def repl(match):
-            nonlocal i
-            member, _ = match.groups()
-            i += 1
-            return f"{member} = {i}"
-
-        class_def = re.sub(pattern, repl, class_def)
-        class_def = re.sub(r"@classmethod[\s\S]*", "", class_def)
-
-        return class_def
-
-    def enums_to_top(self, content: str):
-        """
-        Move enums to the top of the generated file.
-        """
-        # extract class definitions
-        content, docstrings = self.extract_docstrings(content)
-        content = self.simplify_comparisons(content)
-        content = self.replace_list_returns(content)
-        content = content.replace(" | typing.SupportsIndex", "")
-        class_pattern = re.compile(r"(?m)^class\s[^:]+:\n(?:\n|(?:    .*\n))*")
-        classes = class_pattern.findall(content)
-        for class_def in classes:
-            content = content.replace(class_def, "")
-
-        # partition into enum and other classes
-        enum_classes = []
-        other_classes = []
-        for class_def in classes:
-            if "typing.ClassVar" in class_def:
-                enum_classes.append(self.generate_enum_members_spec(class_def))
-            else:
-                other_classes.append(class_def)
-
-        # reorder class definitions
-        return self.reinsert_docstrings(
-            content.strip()
-            + "\n\n"
-            + "\n".join(enum_classes)
-            + "\n"
-            + "\n".join(other_classes),
-            docstrings,
-        )
-
-    def doc_enums(self, content: str):
-        """
-        Document enum members.
-        """
-        lines: list[str] = []
-        mem = False
-        com = False
-        dct: dict[str, str] = {}
-        for line in content.splitlines():
-            if not com:
-                lines.append(line)
-                com = re.match(' *"""$', line) is not None
-                if not com:
-                    for key, val in dct.items():
-                        if line.find(f"{key}: typing.ClassVar") >= 0:
-                            lines.append('    """\n')
-                            lines.append(f"    {val}\n")
-                            lines.append('    """\n')
-            else:
-                if line.find('"""') >= 0:
-                    lines.append(line)
-                    mem = com = False
-                else:
-                    if not mem:
-                        mem = line.find("Members:") >= 0
-                        if mem:
-                            dct = {}
-                            lines.pop()
-                        else:
-                            lines.append(line)
-                    else:
-                        elm = re.match(r" *([^ :]*) : (.*)", line)
-                        if elm is not None:
-                            dct[elm[1]] = elm[2]
-        return "\n".join(lines)
-
-    def generate(self):
-        """
-        Generate stubs.
-        """
-        # https://typing.readthedocs.io/en/latest/spec/distributing.html
-
-        args = ["pybind11-stubgen"]
-        extension = ".pyi"
-        libpath = sysconfig.get_path("purelib")
-        env = os.environ.copy()
-        env["PYTHONPATH"] = "./build/debug/bin/python"
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            args.extend(["--root-suffix=-stubs"])
-
-            args.extend(
-                [
-                    "--print-value-comments",
-                    "--enum-class-locations",
-                    "WeightConstraintType:clingo.propagate",
-                    "--enum-class-locations",
-                    "LogLevel:clingo.core",
-                    "-o",
-                    tmpdir,
-                    "clingo",
-                ]
-            )
-            subprocess.check_call(args, env=env)
-
-            for root, dirs, files in os.walk(tmpdir):
-                assert dirs is not None
-                for file in files:
-                    path = os.path.join(root, file)
-                    gen_path = os.path.join("lib", "python-api", "stubs", file)
-                    target_path = os.path.join(libpath, Path(path).relative_to(tmpdir))
-
-                    # NOTE: stubs will be written manually in the future
-                    if file in (
-                        "base.pyi",
-                        "symbol.pyi",
-                        "stats.pyi",
-                        "config.pyi",
-                        "backend.pyi",
-                        "theory.pyi",
-                        "app.pyi",
-                        "ground.pyi",
-                        "solve.pyi",
-                        "propagate.pyi",
-                        "script.pyi",
-                    ):
-                        with (
-                            open(gen_path, "r", encoding="utf8") as hnd,
-                            open(target_path, "w", encoding="utf8") as hnd2,
-                        ):
-                            hnd2.write(hnd.read())
-                    elif file.endswith(extension):
-                        sys.stderr.write(f"processing {file}...\n")
-                        with open(path, "r", encoding="utf8") as hnd:
-                            content = hnd.read()
-                        # if content contains collections.abc, we have to add collections.abc to the imports
-                        if (
-                            "collections.abc." in content
-                            and "import collections.abc" not in content
-                        ):
-                            imp = content.find("\nimport")
-                            assert imp >= 0
-                            content = (
-                                content[:imp]
-                                + "\nimport collections.abc"
-                                + content[imp:]
-                            )
-                        content = content.replace("typing.SupportsInt", "int")
-                        pattern = r"^(\w+):\s*(?:\(\s*)?types\.UnionType(?:\s*\))?\s*#\s*value\s*=\s*(.+)$"
-                        unions = []
-
-                        def append(match):
-                            unions.append(f"{match[1]}: typing.TypeAlias = {match[2]}")
-                            return ""
-
-                        content = re.sub(pattern, append, content, flags=re.MULTILINE)
-                        content = self.enums_to_top(content)
-                        if unions:
-                            content += "\n" + "\n".join(unions) + "\n"
-                        content = self.format(path, content)
-                        gen_content = None
-                        try:
-                            with open(gen_path, "r", encoding="utf8") as hnd:
-                                gen_content = hnd.read()
-                        except OSError:
-                            pass
-                        if content != gen_content:
-                            with open(gen_path, "w", encoding="utf8") as hnd:
-                                Path(gen_path).parent.mkdir(parents=True, exist_ok=True)
-                                hnd.write(content)
-                        with open(target_path, "w", encoding="utf8") as hnd:
-                            Path(target_path).parent.mkdir(parents=True, exist_ok=True)
-                            hnd.write(content)
-
-        try:
-            for lib in glob("./build/debug/bin/python/clingo*.so"):
-                name = os.path.basename(lib)
-                src = os.path.relpath(lib, libpath)
-                dst = os.path.relpath(os.path.join(libpath, name), ".")
-                os.symlink(src, dst)
-        except FileExistsError:
-            pass
-
-    def main(self):
-        """
-        Parse commandline arguments.
-        """
-        parser = argparse.ArgumentParser(description="Generate clingo stubs.")
-
-        parser.parse_args()
-        self.generate()
+    print("stubs are up to date")
 
 
-Rewriter().main()
+def copy_stubs(
+    source: Path, target: Path, transform: Callable[[str], str]
+) -> list[Path]:
+    """
+    Copy the stubs in source to target applying the transformation.
+
+    The target directory is replaced so that removed stubs do not linger.
+    """
+    if target.exists():
+        shutil.rmtree(target)
+    paths = []
+    for path in sorted(source.rglob("*.pyi")):
+        dst = target / path.relative_to(source)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_text(transform(path.read_text(encoding="utf8")), encoding="utf8")
+        paths.append(dst)
+    return paths
+
+
+def cmd_strip(args):
+    """
+    Copy the stubs removing the implementations of overloaded functions.
+    """
+    paths = copy_stubs(args.stubs, args.output, strip_overload_implementations)
+    print(f"stripped {len(paths)} stubs into {args.output}")
+
+
+def cmd_install(args):
+    """
+    Install the stubs and link the built module into the environment.
+    """
+    target = Path(args.prefix) / "clingo-stubs"
+    for path in copy_stubs(args.stubs, target, strip_overload_implementations):
+        print(f"installed {path}")
+    for lib in glob(str(args.build / "clingo*.so")):
+        dst = Path(args.prefix) / os.path.basename(lib)
+        if not dst.exists():
+            dst.symlink_to(os.path.relpath(lib, args.prefix))
+            print(f"linked {dst}")
+
+
+def cmd_doc(args):
+    """
+    Copy the stubs for the documentation turning references into links.
+
+    The overload implementations are kept because mkdocstrings shows their
+    documentation.
+    """
+    for path in copy_stubs(args.stubs, args.output, link_references):
+        print(f"copied {path}")
+
+
+def main():
+    """
+    Parse the command line and run the selected command.
+    """
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--build",
+        type=Path,
+        default=BUILD,
+        help="directory containing the built module",
+    )
+    parser.add_argument(
+        "--stubs", type=Path, default=STUBS, help="directory containing the stubs"
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser(
+        "ast", help="regenerate the stubs of the AST submodules"
+    ).set_defaults(run=cmd_ast)
+    sub.add_parser(
+        "check", help="check that the AST stubs are up to date"
+    ).set_defaults(run=cmd_check)
+    strip = sub.add_parser(
+        "strip", help="copy the stubs without overload implementations"
+    )
+    strip.add_argument(
+        "--output", type=Path, required=True, help="directory for the stubs"
+    )
+    strip.set_defaults(run=cmd_strip)
+    install = sub.add_parser(
+        "install", help="install stubs and module into the environment"
+    )
+    install.add_argument(
+        "--prefix", default=sysconfig.get_path("purelib"), help="installation directory"
+    )
+    install.set_defaults(run=cmd_install)
+    doc = sub.add_parser("doc", help="copy the stubs for the documentation")
+    doc.add_argument(
+        "--output", type=Path, default=DOC_STUBS, help="directory for the stubs"
+    )
+    doc.set_defaults(run=cmd_doc)
+    args = parser.parse_args()
+    args.run(args)
+
+
+if __name__ == "__main__":
+    main()

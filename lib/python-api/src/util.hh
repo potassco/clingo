@@ -2,102 +2,26 @@
 
 #include <clingo/core.h>
 
-#include <pybind11/functional.h>
-#include <pybind11/operators.h>
+// NOTE: needed for module registration until clingo.cc is ported
 #include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
 #include <algorithm>
-#include <compare> // IWYU pragma: keep
+#include <array>
 #include <concepts>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
+#include <initializer_list>
 #include <limits>
-#include <ranges>
-#include <stdexcept>
+#include <span>
+#include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <utility>
-#include <variant>
 
 namespace PyClingo {
 
 namespace py = pybind11;
-
-namespace Detail {
-
-template <class T, class... Ts> constexpr bool is_variant_member_v = (std::is_same_v<T, Ts> || ...);
-
-template <class... Ts, class T>
-    requires is_variant_member_v<T, Ts...>
-auto equal(T const &t, std::variant<Ts...> const &v) -> bool {
-    return std::holds_alternative<T>(v) && t == std::get<T>(v);
-}
-
-template <class... Ts, class T>
-    requires is_variant_member_v<T, Ts...>
-auto compare(T const &t, std::variant<Ts...> const &v) {
-    if (std::holds_alternative<T>(v)) {
-        return t <=> std::get<T>(v);
-    }
-    return v.index() <=> std::variant<Ts...>(t).index();
-}
-
-} // namespace Detail
-
-template <typename> struct funptr_traits;
-
-template <typename R, typename... As> struct funptr_traits<R (*)(As...)> {
-    using return_type = R;
-    using args_tuple = std::tuple<As...>;
-    template <std::size_t N> using arg = std::tuple_element_t<N, args_tuple>;
-
-    static constexpr std::size_t arity = sizeof...(As);
-};
-
-template <class T> struct value_handle {
-  public:
-    using pointer = T::pointer;
-
-    value_handle() = default;
-
-    value_handle(const value_handle &other) : ptr_{other ? T::copy(other.ptr_) : nullptr} {}
-
-    value_handle(value_handle &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {}
-
-    explicit value_handle(pointer ptr, bool copy) : ptr_{copy && ptr != nullptr ? T::copy(ptr) : ptr} {}
-
-    ~value_handle() {
-        if (*this) {
-            T::free(ptr_);
-        }
-    }
-
-    auto operator=(const value_handle &other) -> value_handle & {
-        if (this != &other) {
-            if (*this) {
-                T::free(ptr_);
-            }
-            ptr_ = other ? T::copy(other.ptr_) : nullptr;
-        }
-        return *this;
-    }
-
-    auto operator=(value_handle &&other) noexcept -> value_handle & {
-        if (this != &other) {
-            if (*this) {
-                T::free(ptr_);
-            }
-            ptr_ = std::exchange(other.ptr_, nullptr);
-        }
-        return *this;
-    }
-
-    [[nodiscard]] auto get() const -> pointer { return ptr_; }
-    explicit operator bool() const { return ptr_ != nullptr; }
-
-  private:
-    pointer ptr_ = nullptr;
-};
 
 //! Check whether the pointer stored at the given address is not null.
 //!
@@ -122,295 +46,6 @@ inline auto invalid_slot() noexcept -> void const * {
     return pointer_slot(&invalid_pointer);
 }
 
-//! A handle to a reference counted C object.
-//!
-//! The handle either owns a reference to the object or borrows it. A borrowed
-//! handle neither acquires nor releases the object. Accessing the object via
-//! get() throws once the handle has been reset (e.g., invalidated).
-//!
-//! The pointer is stored as `void *` so that views can observe its address via
-//! ptr_ref() to check whether the object is still valid.
-template <class T, class P> class managed_handle {
-  public:
-    friend T;
-
-    //! Tag to construct a handle that does not own the pointer.
-    struct borrow_t {};
-
-    managed_handle() = default;
-
-    managed_handle(managed_handle const &other) = delete; // NOLINT
-
-    auto operator=(managed_handle const &other) -> managed_handle & = delete; // NOLINT
-
-    managed_handle(managed_handle &&other) noexcept
-        : ptr_{std::exchange(other.ptr_, nullptr)}, owns_{std::exchange(other.owns_, true)} {}
-
-    auto operator=(managed_handle &&other) noexcept -> managed_handle & {
-        if (this != &other) {
-            release_();
-            ptr_ = std::exchange(other.ptr_, nullptr);
-            owns_ = std::exchange(other.owns_, true);
-        }
-        return *this;
-    }
-    ~managed_handle() noexcept { release_(); }
-    explicit managed_handle(P *ptr, bool inc = true) : ptr_{ptr} { T::acquire(ptr, inc); }
-    //! Construct a handle that neither acquires nor releases the pointer.
-    managed_handle(P *ptr, borrow_t /*tag*/) : ptr_{ptr}, owns_{false} {}
-
-    //! Get the pointer and throw if the handle is no longer valid.
-    [[nodiscard]] auto get() const -> P * {
-        if (ptr_ == nullptr) {
-            throw std::runtime_error{T::invalid_message};
-        }
-        return get_unchecked();
-    }
-    //! Get the pointer or nullptr if the handle is no longer valid.
-    [[nodiscard]] auto get_unchecked() const noexcept -> P * { return static_cast<P *>(ptr_); }
-    //! Get the address of the held pointer, which is null once the handle is no longer valid.
-    [[nodiscard]] auto ptr_ref() const noexcept -> void *const * { return &ptr_; }
-    //! Check whether the handle owns the pointer.
-    [[nodiscard]] auto owns() const noexcept -> bool { return owns_; }
-
-    void reset(std::nullptr_t = nullptr) noexcept {
-        release_();
-        ptr_ = nullptr;
-        owns_ = true;
-    }
-    void reset(P *ptr, bool inc = true) {
-        release_();
-        ptr_ = ptr;
-        owns_ = true;
-        T::acquire(ptr, inc);
-    }
-
-  private:
-    void release_() noexcept {
-        if (owns_) {
-            T::release(get_unchecked());
-        }
-    }
-
-    void *ptr_ = nullptr;
-    bool owns_ = true;
-};
-
-template <class T> class reference_keeper {
-  public:
-    void tie(py::handle obj) { list_.append(obj); }
-
-    auto keeper_ref() -> PyObject * { return list_.ptr(); }
-
-    //! The number of objects kept alive via tie().
-    [[nodiscard]] auto kept() const -> size_t { return list_.ptr() != nullptr ? py::len(list_) : 0; }
-
-    //! Keep a single owner alive (in addition to the tied objects).
-    void keep_owner(py::object obj) { owner_ = std::move(obj); }
-
-    //! Get the owner set with keep_owner() (borrowed, might be nullptr).
-    [[nodiscard]] auto owner_ref() const -> PyObject * { return owner_.ptr(); }
-
-    static void setup(PyHeapTypeObject *heap_type) {
-        auto *type = &heap_type->ht_type;
-        type->tp_flags |= Py_TPFLAGS_HAVE_GC;
-        type->tp_traverse = [](PyObject *self_base, visitproc visit, void *arg) -> int {
-            auto *self = py::cast<T *>(py::handle(self_base));
-            if (constructed_.contains(self)) {
-                Py_VISIT(self->list_.ptr());
-                Py_VISIT(self->owner_.ptr());
-            }
-            return 0;
-        };
-        type->tp_clear = [](PyObject *self_base) -> int {
-            auto *self = py::cast<T *>(py::handle(self_base));
-            if (constructed_.contains(self)) {
-                Py_CLEAR(self->list_.ptr());
-                Py_CLEAR(self->owner_.ptr());
-            }
-            return 0;
-        };
-    }
-
-    reference_keeper(reference_keeper const &other) = delete;
-    reference_keeper(reference_keeper &&other) noexcept = delete;
-    auto operator=(reference_keeper const &other) -> reference_keeper & = delete;
-    auto operator=(reference_keeper &&other) noexcept -> reference_keeper & = delete;
-    ~reference_keeper() { constructed_.erase(static_cast<T *>(this)); }
-
-  private:
-    friend T;
-
-    // NOTE: we keep a set of constructed objects to avoid traversing/clearing
-    // objects whose constructor has not been called. This is a bug in pybind11
-    // tracked in issue: <https://github.com/pybind/pybind11/issues/4869>.
-    static std::unordered_set<T *> constructed_;
-
-    reference_keeper() { constructed_.emplace(static_cast<T *>(this)); }
-
-    py::list list_;
-    py::object owner_;
-};
-
-template <class T> inline std::unordered_set<T *> reference_keeper<T>::constructed_ = {};
-
-// NOLINTBEGIN
-// A compile time string literal.
-template <unsigned N> struct FixedString {
-    char buf[N];
-    constexpr FixedString(char const (&s)[N]) { std::copy_n(s, N, buf); }
-};
-
-// Docstring operator that simply drops the first newline.
-//
-// This facilitates writing nicely aligned docstrings.
-template <FixedString S> consteval auto operator""_d() -> char const * {
-    static_assert(S.buf[0] == '\n', "string must start with a newline");
-    return S.buf + 1;
-}
-// NOLINTEND
-
-//! Use std::transform to build a vector.
-template <class It, class Pred> auto transform(It begin, It end, Pred pred) {
-    auto p = std::vector<std::invoke_result_t<Pred, typename std::iterator_traits<It>::value_type>>{};
-    p.reserve(std::distance(begin, end));
-    std::transform(begin, end, std::back_inserter(p), pred);
-    return p;
-}
-
-//! Use std::transform to build a vector.
-template <class Rng, class Pred> auto transform(Rng const &rng, Pred pred) {
-    using std::begin;
-    using std::end;
-    return transform(begin(rng), end(rng), pred);
-}
-
-template <class T, class P> class ManagedPtr {
-  public:
-    ManagedPtr() = default;
-    explicit ManagedPtr(P *ptr, bool inc = true) : ptr_{ptr} { T::acquire(ptr, inc); }
-    ManagedPtr(ManagedPtr const &other) : ManagedPtr{other.ptr_} {}
-    ManagedPtr(ManagedPtr &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)} {}
-    ~ManagedPtr() noexcept { T::release(ptr_); }
-    // NOLINTNEXTLINE(bugprone-unhandled-self-assignment)
-    auto operator=(ManagedPtr const &other) -> ManagedPtr & {
-        T::acquire(other.ptr_);
-        T::release(ptr_);
-        ptr_ = other.ptr_;
-        return *this;
-    }
-    auto operator=(ManagedPtr &&other) noexcept -> ManagedPtr & {
-        T::release(ptr_);
-        ptr_ = std::exchange(other.ptr_, nullptr);
-        return *this;
-    }
-    [[nodiscard]] auto get() const noexcept -> P * { return ptr_; }
-    void reset(std::nullptr_t = nullptr) noexcept {
-        T::release(ptr_);
-        ptr_ = nullptr;
-    }
-    void reset(P *ptr, bool inc = true) {
-        T::release(ptr_);
-        ptr_ = ptr;
-        T::acquire(ptr_, inc);
-    }
-    friend auto operator==(ManagedPtr const &p, std::nullptr_t) noexcept -> bool { return p.ptr_ == nullptr; }
-    friend auto operator!=(ManagedPtr const &p, std::nullptr_t) noexcept -> bool { return p.ptr_ != nullptr; }
-    friend auto operator==(std::nullptr_t, ManagedPtr const &p) noexcept -> bool { return p.ptr_ == nullptr; }
-    friend auto operator!=(std::nullptr_t, ManagedPtr const &p) noexcept -> bool { return p.ptr_ != nullptr; }
-
-  private:
-    P *ptr_ = nullptr;
-};
-
-//! Smart pointer whose copies model references.
-template <class T, void (*deleter)(T *) noexcept> class owner_ptr {
-  public:
-    //! Create a reference to the given pointer.
-    explicit constexpr owner_ptr(T *ptr) noexcept : ptr_{ptr}, own_{false} {}
-    //! Depending on the given flag create an owning pointer or a reference.
-    explicit constexpr owner_ptr(T *ptr, bool own) noexcept : ptr_{ptr}, own_{own && ptr != nullptr} {}
-    //! Create a null pointer.
-    constexpr owner_ptr() noexcept : ptr_{nullptr}, own_{false} {}
-    //! Create a reference to another pointer.
-    constexpr owner_ptr(owner_ptr const &other) noexcept : ptr_{other.ptr_}, own_{false} {};
-    //! Take ownership of another pointer.
-    constexpr owner_ptr(owner_ptr &&other) noexcept
-        : ptr_{std::exchange(other.ptr_, nullptr)}, own_{std::exchange(other.own_, false)} {};
-    //! Copy assign another pointer.
-    //!
-    //! Does not take ownership of the source pointer. Frees the held pointer
-    //! ownership is held.
-    // NOLINTNEXTLINE
-    auto operator=(owner_ptr const &other) noexcept -> owner_ptr & {
-        if (ptr_ != other.ptr_) {
-            if (own_) {
-                deleter(ptr_);
-            }
-            ptr_ = other.ptr_;
-            own_ = false;
-        }
-        return *this;
-    }
-    //! Move assign another pointer.
-    //!
-    //! Takes ownership if the source pointer had ownership. Frees the held
-    //! pointer ownership is held.
-    auto operator=(owner_ptr &&other) noexcept -> owner_ptr & {
-        if (ptr_ != other.ptr_) {
-            if (own_) {
-                deleter(ptr_);
-            }
-            ptr_ = std::exchange(other.ptr_, nullptr);
-            own_ = std::exchange(other.own_, false);
-        } else if (other.own_) {
-            own_ = std::exchange(other.own_, false);
-        }
-        return *this;
-    }
-    //! Free the held pointer ownership is held.
-    ~owner_ptr() noexcept {
-        if (own_) {
-            deleter(ptr_);
-        }
-    }
-
-    //! Get the held pointer.
-    [[nodiscard]] auto get() const -> T * { return ptr_; }
-
-    //! Member pointer operator.
-    auto operator->() const -> T * { return ptr_; }
-
-    //! Take ownership of the given pointer.
-    //!
-    //! Frees the held pointer if it had ownership.
-    void reset(T *ptr) noexcept {
-        if (own_) {
-            deleter(ptr_);
-        }
-        ptr_ = ptr;
-        own_ = ptr != nullptr;
-    }
-
-    //! Clear the pointer.
-    //!
-    //! Frees the held pointer if it had ownership.
-    void reset(std::nullptr_t = nullptr) noexcept {
-        if (own_) {
-            deleter(ptr_);
-        }
-        ptr_ = nullptr;
-        own_ = false;
-    }
-
-    //! Check if the pointer is owning.
-    [[nodiscard]] auto is_owner() const -> bool { return own_; }
-
-  private:
-    T *ptr_;
-    bool own_;
-};
-
 //! Backport of std::unreachable from C++23.
 [[noreturn]] inline void unreachable() {
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
@@ -420,28 +55,12 @@ template <class T, void (*deleter)(T *) noexcept> class owner_ptr {
 #endif
 }
 
-//! Transform the given range into a vector applying the given function to
-//! eache element.
-template <std::ranges::range R, class F> auto transform_vec(R &&rng, F &&fun) {
-    // NOTE:
-    // - can be written better in C++23 as
-    //   return std::vector{std::from_range, std::ranges::views::transform(std::forward<R>(rng), std::forward<F>(fun))};
-    // - the iterator based vector constructor should not be used in C++20 because
-    //   it relies on C++17 iterator_traits, which do not play nicely with ranges
-    // - see https://stackoverflow.com/questions/67606563/
-    auto result = std::vector<std::decay_t<std::invoke_result_t<F, std::ranges::range_value_t<R>>>>{};
-    if constexpr (std::ranges::sized_range<R>) {
-        result.reserve(std::ranges::size(rng));
-    }
-    std::ranges::transform(std::forward<R>(rng), std::back_inserter(result), std::forward<F>(fun));
-    return result;
-}
-
-//! Compute the hash for the given type.
+//! Convert a hash value into a Python hash value.
 //!
-//! This is a convenience wrapper around the std::hash struct.
-template <class T> auto hash_value(T const &x) {
-    return std::hash<T>{}(x);
+//! Python reserves -1 to indicate errors, so it is mapped to -2 (like Python does for integers).
+inline auto py_hash(size_t value) -> Py_hash_t {
+    auto res = static_cast<Py_hash_t>(value);
+    return res == -1 ? -2 : res;
 }
 
 //! Combine the given hash values.
@@ -450,43 +69,6 @@ inline auto hash_combine(size_t a, size_t b) -> size_t {
     auto p = std::make_pair(a, b);
     return std::hash<std::string_view>{}(std::string_view(reinterpret_cast<char const *>(&p), sizeof(decltype(p))));
     // NOLINTEND
-}
-
-//! Adds the hash and equality dunders to the given class.
-//!
-//! Assumes that type T provides a hash member function and corresponding
-//! comparison operators.
-template <class T, typename... O> auto make_hashable(pybind11::class_<T, O...> cls) -> pybind11::class_<T, O...> {
-    cls.def("__hash__", &T::hash, "Compute a hash for the object.").def(py::self == py::self).def(py::self != py::self);
-    return cls;
-}
-
-//! Adds the hash and comparision dunders to the given class.
-//!
-//! Assumes that type T provides a hash member function and corresponding
-//! comparison operators.
-template <class T, typename... O> auto make_comparable(pybind11::class_<T, O...> cls) -> pybind11::class_<T, O...> {
-    cls.def(py::self < py::self).def(py::self <= py::self).def(py::self > py::self).def(py::self >= py::self);
-    return make_hashable(std::move(cls));
-}
-
-//! Adds the hash and comparision dunders to the given class.
-//!
-//! Additional comparison dunders are added for the given variant type S. A
-//! variant S holding type T is compared using T's comparision operators and
-//! otherwise the indices of type T and the one in the variant are
-//! compared.
-//!
-//! Assumes that T is a variant member of S.
-template <class S, typename T, typename... O>
-auto make_comparable_base(pybind11::class_<T, O...> cls) -> pybind11::class_<T, O...> {
-    cls.def("__eq__", [](T const &a, S const &b) -> bool { return Detail::equal(a, b); })
-        .def("__ne__", [](T const &a, S const &b) -> bool { return !Detail::equal(a, b); })
-        .def("__le__", [](T const &a, S const &b) -> bool { return Detail::compare(a, b) <= 0; })
-        .def("__ge__", [](T const &a, S const &b) -> bool { return Detail::compare(a, b) >= 0; })
-        .def("__lt__", [](T const &a, S const &b) -> bool { return Detail::compare(a, b) < 0; })
-        .def("__gt__", [](T const &a, S const &b) -> bool { return Detail::compare(a, b) > 0; });
-    return make_comparable<T>(std::move(cls));
 }
 
 template <class T, auto Destroy> class Guard {
@@ -642,39 +224,6 @@ template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *wha
         *out = static_cast<T>(v);
     }
     return true;
-}
-
-//! Cast a Python object to a pybind11 wrapped C++ object.
-//!
-//! For managed handles, this also checks that the handle is still valid.
-template <class T> auto py_cast(PyObject *obj) noexcept -> T * {
-    try {
-        auto res = py::handle{obj}.cast<T *>();
-        if (res == nullptr) {
-            PyErr_SetString(PyExc_TypeError, "object is not of the expected type");
-            return nullptr;
-        }
-        if constexpr (requires { res->get_unchecked(); }) {
-            if (res->get_unchecked() == nullptr) {
-                PyErr_SetString(PyExc_RuntimeError, T::invalid_message);
-                return nullptr;
-            }
-        }
-        return res;
-    } catch (py::error_already_set &e) {
-        try {
-            e.restore();
-        } catch (...) {
-            PyErr_SetString(PyExc_RuntimeError, "error restoring Python exception");
-        }
-        return nullptr;
-    } catch (py::cast_error &) {
-        PyErr_SetString(PyExc_TypeError, "object is not of the expected type");
-        return nullptr;
-    } catch (std::exception const &e) {
-        PyErr_SetString(PyExc_TypeError, e.what());
-        return nullptr;
-    }
 }
 
 //! A growable array of trivially copyable values.
@@ -843,6 +392,14 @@ inline auto parse_string_sequence(PyObject *obj, PyGuard &seq, PyBuffer<clingo_s
     }
 
     return true;
+}
+
+//! Get a placeholder for required arguments set by parse_args() that fails every type check.
+//!
+//! Initializing the outputs with it instead of nullptr keeps clang-analyzer
+//! from assuming that they are still null after parsing.
+inline auto unset_arg() -> PyObject * {
+    return Py_Ellipsis;
 }
 
 //! Parse required and optional arguments passed with the METH_FASTCALL | METH_KEYWORDS convention.

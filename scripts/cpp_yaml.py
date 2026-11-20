@@ -1,78 +1,42 @@
-import re
-from dataclasses import dataclass
+"""
+Print the constructor argument tables of the C++ API (cxx-api/include/clingo/detail/ast.hh).
 
-import yaml
-from clingo.ast import _type_info_yaml
+The tables are derived from the description of the AST structure provided by
+`clingo.ast._type_info()`, which lists the records in the order of
+`clingo_ast_type_e`.
+"""
 
+from clingo.ast import _type_info
 
-@dataclass
-class Node:
-    name: str
-    arguments: list[tuple[str, str]]
-
-
-def parse_types():
-    pattern = re.compile(r"\bclingo_ast_type_[a-zA-Z0-9_]+(?=,|\s*})")
-    matches = pattern.findall(open("lib/c-api/include/clingo/ast.h").read())
-    i = 0
-    types = {}
-    for m in matches:
-        types[m.replace("clingo_ast_type_", "")] = i
-        i += 1
-    return types
-
-
-def parse_nodes() -> list[Node]:
-    types = yaml.safe_load(_type_info_yaml())
-
-    nodes = []
-    type_map = {}
-
-    for node_name, node in types.items():
-        type_map[node_name] = node
-
-    type_remap = {
-        "enum": "integer",
-        "number": "integer",
-        "bool": "integer",
-        "record": "node",
-        "union": "node",
-        "array": "node_array",
-        "optional": "optional_node",
-    }
-
-    for node_name, node in types.items():
-        if node["type"] == "record":
-            arguments = []
-            for argument_name, argument in node["arguments"].items():
-                argument_type = argument["type"]
-                if argument_type in type_map:
-                    argument_type = type_map[argument_type]["type"]
-                arguments.append(
-                    (argument_name, type_remap.get(argument_type, argument_type))
-                )
-
-            nodes.append(Node(node_name, arguments))
-
-    return nodes
+TYPE_MAP = {
+    "number": "integer",
+    "bool": "integer",
+    "enum": "integer",
+    "symbol": "symbol",
+    "symbol_array": "symbol_array",
+    "string": "string",
+    "string_array": "string_array",
+    "location": "location",
+    "ast": "node",
+    "optional_ast": "optional_node",
+    "ast_array": "node_array",
+}
 
 
 def main():
-    types = parse_types()
-    nodes = sorted(parse_nodes(), key=lambda x: types[x.name])
-    print(
-        "enum class ArgType { node, node_array, optional_node, integer, symbol, symbol_array, string, string_array, location };"
-    )
-    print("struct Arg { clingo_ast_attribute_t attr; ArgType type; };")
-    for node in nodes:
-        args = []
-        for an, at in node.arguments:
-            args.append(f"Arg{{clingo_ast_attribute_{an}, ArgType::{at}}}")
-        print(f"constexpr auto const_{node.name} = std::array{{{', '.join(args)}}};")
-    print("};")
+    """
+    Print the tables.
+    """
+    records = _type_info()["records"]
+    for rec in records:
+        args = [
+            f"Arg{{clingo_ast_attribute_{arg['name']}, Arg::{TYPE_MAP[arg['type']]}}}"
+            for arg in rec["arguments"]
+        ]
+        print(f"constexpr auto cons_{rec['name']} = std::array{{{', '.join(args)}}};")
     print("constexpr auto cons = std::array{")
-    for node in nodes:
-        print(f"    std::span{{cons_{node.name}.data(), cons_{node.name}.size()}},")
+    for rec in records:
+        print(f"    std::span{{cons_{rec['name']}.data(), cons_{rec['name']}.size()}},")
     print("};")
 
 

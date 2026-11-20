@@ -183,7 +183,7 @@ void start_finish(clingo_ground_result_t result, void *data) {
         return;
     }
     auto res = steal(PyObject_CallFunction(h->state->ground_result_enum, "i", static_cast<int>(result)));
-    auto ret = steal(res.get() != nullptr ? PyObject_CallOneArg(h->finish, res.get()) : nullptr);
+    auto ret = steal(res.get() != nullptr ? PyObject_CallFunctionObjArgs(h->finish, res.get(), nullptr) : nullptr);
     if (ret.get() == nullptr) {
         PyErr_Print();
         fprintf(stderr, "panic: ground finish callback failed\n");

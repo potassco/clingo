@@ -528,7 +528,11 @@ auto py_model_str(PyObject *self) -> PyObject * {
     if (list.get() == nullptr) {
         return nullptr;
     }
-    auto data = StrData{string_builder(), list.get()};
+    auto bld = Guard<clingo_string_builder_t *, clingo_string_builder_free>{nullptr};
+    if (!clingo_string_builder_new(&bld.get())) {
+        return py_handle_error();
+    }
+    auto data = StrData{bld.get(), list.get()};
     if (!clingo_model_symbols(mdl, clingo_show_type_shown, str_cb, &data)) {
         return py_handle_error();
     }

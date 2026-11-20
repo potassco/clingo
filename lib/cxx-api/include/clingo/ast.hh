@@ -33,6 +33,7 @@ inline constexpr int or_ = 5;
 inline constexpr int plus = 6;
 inline constexpr int power = 7;
 inline constexpr int xor_ = 8;
+inline constexpr int interval = 9;
 } // namespace BinaryOperator
 
 namespace Sign {

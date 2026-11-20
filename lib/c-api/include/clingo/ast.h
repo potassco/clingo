@@ -163,13 +163,91 @@ typedef struct clingo_ast clingo_ast_t;
 //! @name Functions to create/free ASTs
 //! @{
 
+//! Enumeration of the value types of AST arguments.
+//!
+//! The comments state how values are passed to clingo_ast_construct() and
+//! which member of ::clingo_ast_value_t holds them.
+enum clingo_ast_value_type_e {
+    clingo_ast_value_type_number,       //!< an `int` (member number)
+    clingo_ast_value_type_bool,         //!< an `int` that is zero or one (member number)
+    clingo_ast_value_type_enum,         //!< an `int` holding an enumeration value (member number)
+    clingo_ast_value_type_symbol,       //!< a `clingo_symbol_t` (member symbol)
+    clingo_ast_value_type_location,     //!< a `clingo_location_t const *` (member location)
+    clingo_ast_value_type_string,       //!< a `char const *` followed by a `size_t` (member string)
+    clingo_ast_value_type_string_array, //!< a `clingo_string_t const *` followed by a `size_t` (member string_array)
+    clingo_ast_value_type_symbol_array, //!< a `clingo_symbol_t const *` followed by a `size_t` (member symbol_array)
+    clingo_ast_value_type_ast,          //!< a `clingo_ast_t const *` (member ast)
+    clingo_ast_value_type_optional_ast, //!< a `clingo_ast_t const *` that might be NULL (member ast)
+    clingo_ast_value_type_ast_array,    //!< a `clingo_ast_t const **` followed by a `size_t` (member ast_array)
+};
+//! Corresponding type to ::clingo_ast_value_type_e.
+typedef int clingo_ast_value_type_t;
+
+//! An array of strings.
+typedef struct clingo_string_array {
+    clingo_string_t const *data; //!< the strings
+    size_t size;                 //!< the number of strings
+} clingo_string_array_t;
+
+//! An array of symbols.
+typedef struct clingo_symbol_array {
+    clingo_symbol_t const *data; //!< the symbols
+    size_t size;                 //!< the number of symbols
+} clingo_symbol_array_t;
+
+//! An array of ASTs.
+typedef struct clingo_ast_array {
+    clingo_ast_t const *const *data; //!< the ASTs
+    size_t size;                     //!< the number of ASTs
+} clingo_ast_array_t;
+
+//! A value to construct an AST.
+//!
+//! @see clingo_ast_construct_values()
+typedef struct clingo_ast_value {
+    //! The type of the value.
+    clingo_ast_value_type_t type;
+    union {
+        int number;                         //!< a number, Boolean, or enumeration value
+        clingo_symbol_t symbol;             //!< a symbol
+        clingo_location_t const *location;  //!< a location
+        clingo_string_t string;             //!< a string
+        clingo_string_array_t string_array; //!< an array of strings
+        clingo_symbol_array_t symbol_array; //!< an array of symbols
+        clingo_ast_t const *ast;            //!< an AST or NULL for an absent optional AST
+        clingo_ast_array_t ast_array;       //!< an array of ASTs
+    };
+} clingo_ast_value_t;
+
 //! Construct an AST of the given type.
+//!
+//! The arguments of the AST follow in the order given by its record
+//! description (see clingo_ast_info() and ::clingo_ast_value_type_e).
 //!
 //! @param[in] lib the library object to store symbols
 //! @param[in] type the type of AST to construct
 //! @param[out] ast the resulting AST
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...);
+
+//! Construct an AST of the given type from an array of values.
+//!
+//! This function is equivalent to clingo_ast_construct() but takes the
+//! arguments as an array, which is easier to use for language bindings. The
+//! values must match the arguments of the record description of the type
+//! (see clingo_ast_info()).
+//!
+//! @param[in] lib the library object to store symbols
+//! @param[in] type the type of AST to construct
+//! @param[in] values the arguments of the AST
+//! @param[in] size the number of arguments
+//! @param[out] ast the resulting AST
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid if the values do not match the record description
+//! - ::clingo_result_bad_alloc
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct_values(clingo_lib_t *lib, clingo_ast_type_t type,
+                                                           clingo_ast_value_t const *values, size_t size,
+                                                           clingo_ast_t **ast);
 
 //! Copy the given AST node.
 //!
@@ -352,10 +430,97 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast(clingo_ast_t *ast, c
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_ast_array(clingo_ast_t *ast, clingo_ast_attribute_t attribute,
                                                                   clingo_ast_t ***value, size_t *size);
 
-//! Get a description of the AST structure in form of a YAML document.
+//! @}
+
+//! @name Functions to describe the structure of ASTs
+//! @{
+
+//! Enumeration of the kinds of AST type descriptions.
+enum clingo_ast_ref_type_e {
+    clingo_ast_ref_type_none,   //!< no reference
+    clingo_ast_ref_type_enum,   //!< an enumeration (see clingo_ast_info_t::enums)
+    clingo_ast_ref_type_record, //!< a record, i.e., an AST type (see clingo_ast_info_t::records)
+    clingo_ast_ref_type_union,  //!< a union of records and unions (see clingo_ast_info_t::unions)
+};
+//! Corresponding type to ::clingo_ast_ref_type_e.
+typedef int clingo_ast_ref_type_t;
+
+//! A reference to an AST type description.
+typedef struct clingo_ast_ref {
+    clingo_ast_ref_type_t type; //!< the kind of the referenced description
+    size_t index;               //!< the index of the description in the corresponding array
+} clingo_ast_ref_t;
+
+//! A value of an enumeration.
+typedef struct clingo_ast_enum_value_info {
+    char const *name; //!< the name of the value
+    int value;        //!< the numeric value
+    char const *doc;  //!< the documentation of the value
+} clingo_ast_enum_value_info_t;
+
+//! An enumeration used by AST arguments.
+typedef struct clingo_ast_enum_info {
+    char const *name;                           //!< the name of the enumeration
+    char const *group;                          //!< the group the enumeration belongs to (e.g., term)
+    char const *doc;                            //!< the documentation of the enumeration
+    clingo_ast_enum_value_info_t const *values; //!< the values of the enumeration
+    size_t size;                                //!< the number of values
+} clingo_ast_enum_info_t;
+
+//! A union of records and unions.
+typedef struct clingo_ast_union_info {
+    char const *name;              //!< the name of the union
+    char const *group;             //!< the group the union belongs to
+    char const *doc;               //!< the documentation of the union
+    clingo_ast_ref_t const *types; //!< the records and unions in the union
+    size_t size;                   //!< the number of types
+} clingo_ast_union_info_t;
+
+//! An argument of a record.
+typedef struct clingo_ast_argument_info {
+    char const *name;                 //!< the name of the argument
+    clingo_ast_attribute_t attribute; //!< the attribute to access the argument
+    clingo_ast_value_type_t type;     //!< the value type of the argument
+    //! The enumeration of enumeration values or the record or union of AST values.
+    clingo_ast_ref_t ref;
+    //! Whether the argument has a default value.
+    //!
+    //! The default value of Boolean, number, and enumeration values is given
+    //! by default_value. The default of optional ASTs is NULL and the default
+    //! of arrays is the empty array.
+    bool has_default;
+    int default_value; //!< the default value (see has_default)
+    char const *doc;   //!< the documentation of the argument
+} clingo_ast_argument_info_t;
+
+//! A record, i.e., the description of an AST type.
+typedef struct clingo_ast_record_info {
+    char const *name;                            //!< the name of the record
+    char const *group;                           //!< the group the record belongs to
+    char const *doc;                             //!< the documentation of the record
+    clingo_ast_argument_info_t const *arguments; //!< the arguments of the record
+    size_t size;                                 //!< the number of arguments
+} clingo_ast_record_info_t;
+
+//! The description of the structure of ASTs.
 //!
-//! @return A YAML string.
-CLINGO_VISIBILITY_DEFAULT char const *clingo_ast_type_info_yaml(void);
+//! Names use snake case. Documentation strings might consist of multiple
+//! paragraphs separated by empty lines; the first line is a short summary.
+typedef struct clingo_ast_info {
+    clingo_ast_record_info_t const *records; //!< the records indexed by ::clingo_ast_type_e
+    size_t records_size;                     //!< the number of records
+    clingo_ast_union_info_t const *unions;   //!< the unions
+    size_t unions_size;                      //!< the number of unions
+    clingo_ast_enum_info_t const *enums;     //!< the enumerations
+    size_t enums_size;                       //!< the number of enumerations
+} clingo_ast_info_t;
+
+//! Get a description of the structure of ASTs.
+//!
+//! The description is statically allocated.
+//!
+//! @return the description
+CLINGO_VISIBILITY_DEFAULT clingo_ast_info_t const *clingo_ast_info(void);
 
 //! @}
 

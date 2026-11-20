@@ -2,7 +2,14 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <memory>
+#include <set>
+#include <string_view>
+#include <vector>
+
 namespace Clingo::Test {
+
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-union-access)
 
 namespace {
 
@@ -982,4 +989,212 @@ TEST_CASE_METHOD(Fixture, "ast transform", "[cxx][ast][transform]") {
     REQUIRE(stm_yz->to_string() == "a(Y) :- b(Z).");
 }
 
+namespace {
+
+using ASTPtr = std::unique_ptr<clingo_ast_t, decltype(&clingo_ast_free)>;
+
+auto make_ptr(clingo_ast_t *ast) -> ASTPtr {
+    return {ast, clingo_ast_free};
+}
+
+//! Rebuild the given AST from its arguments using clingo_ast_construct_values().
+//!
+//! The arguments are read according to the AST description and child ASTs are
+//! rebuilt recursively. The types of the visited ASTs are collected.
+auto rebuild(clingo_lib_t *lib, clingo_ast_t *ast, std::set<clingo_ast_type_t> &seen) -> ASTPtr {
+    auto const &info = *clingo_ast_info();
+    clingo_ast_type_t type = 0;
+    REQUIRE(clingo_ast_get_type(ast, &type));
+    REQUIRE(type >= 0);
+    REQUIRE(std::cmp_less(type, info.records_size));
+    seen.insert(type);
+    auto const &record = info.records[type];
+    REQUIRE(record.name != nullptr);
+    REQUIRE(record.group != nullptr);
+    auto values = std::vector<clingo_ast_value_t>(record.size);
+    auto children = std::vector<ASTPtr>{};
+    auto arrays = std::vector<std::vector<clingo_ast_t const *>>{};
+    arrays.reserve(record.size);
+    for (size_t i = 0; i < record.size; ++i) {
+        auto const &arg = record.arguments[i];
+        auto &val = values[i];
+        val.type = arg.type;
+        switch (arg.type) {
+            case clingo_ast_value_type_number:
+            case clingo_ast_value_type_bool:
+            case clingo_ast_value_type_enum: {
+                REQUIRE(clingo_ast_attribute_get_number(ast, arg.attribute, &val.number));
+                break;
+            }
+            case clingo_ast_value_type_symbol: {
+                REQUIRE(clingo_ast_attribute_get_symbol(ast, arg.attribute, &val.symbol));
+                break;
+            }
+            case clingo_ast_value_type_location: {
+                REQUIRE(clingo_ast_attribute_get_location(ast, arg.attribute, &val.location));
+                break;
+            }
+            case clingo_ast_value_type_string: {
+                REQUIRE(clingo_ast_attribute_get_string(ast, arg.attribute, &val.string));
+                break;
+            }
+            case clingo_ast_value_type_string_array: {
+                REQUIRE(clingo_ast_attribute_get_string_array(ast, arg.attribute, &val.string_array.data,
+                                                              &val.string_array.size));
+                break;
+            }
+            case clingo_ast_value_type_symbol_array: {
+                REQUIRE(clingo_ast_attribute_get_symbol_array(ast, arg.attribute, &val.symbol_array.data,
+                                                              &val.symbol_array.size));
+                break;
+            }
+            case clingo_ast_value_type_ast:
+            case clingo_ast_value_type_optional_ast: {
+                clingo_ast_t *child = nullptr;
+                REQUIRE(clingo_ast_attribute_get_ast(ast, arg.attribute, &child));
+                auto owned = make_ptr(child);
+                REQUIRE((child != nullptr || arg.type == clingo_ast_value_type_optional_ast));
+                if (child != nullptr) {
+                    children.emplace_back(rebuild(lib, child, seen));
+                }
+                val.ast = child != nullptr ? children.back().get() : nullptr;
+                break;
+            }
+            case clingo_ast_value_type_ast_array: {
+                clingo_ast_t **data = nullptr;
+                size_t size = 0;
+                REQUIRE(clingo_ast_attribute_get_ast_array(ast, arg.attribute, &data, &size));
+                auto &array = arrays.emplace_back();
+                for (size_t j = 0; j < size; ++j) {
+                    children.emplace_back(rebuild(lib, data[j], seen));
+                    array.emplace_back(children.back().get());
+                }
+                clingo_ast_array_free(data, size);
+                val.ast_array.data = array.data();
+                val.ast_array.size = array.size();
+                break;
+            }
+            default: {
+                FAIL("unexpected value type");
+            }
+        }
+    }
+    clingo_ast_t *res = nullptr;
+    auto constructed = clingo_ast_construct_values(lib, type, values.data(), values.size(), &res);
+    if (!constructed) {
+        auto code = clingo_result_t{};
+        auto msg = clingo_string_t{};
+        clingo_get_error(&code, &msg);
+        FAIL("constructing " << record.name << " failed: " << std::string_view{msg.data, msg.size});
+    }
+    auto ptr = make_ptr(res);
+    INFO(record.name);
+    REQUIRE(clingo_ast_equal(ast, res));
+    return ptr;
+}
+
+} // namespace
+
+TEST_CASE("ast info", "[cxx][ast][info]") {
+    auto const &info = *clingo_ast_info();
+    REQUIRE(info.records_size == clingo_ast_type_statement_comment + 1);
+    REQUIRE(info.unions_size > 0);
+    REQUIRE(info.enums_size > 0);
+    for (size_t i = 0; i < info.unions_size; ++i) {
+        auto const &uni = info.unions[i];
+        for (size_t j = 0; j < uni.size; ++j) {
+            auto ref = uni.types[j];
+            REQUIRE((ref.type == clingo_ast_ref_type_record || ref.type == clingo_ast_ref_type_union));
+            REQUIRE(ref.index < (ref.type == clingo_ast_ref_type_record ? info.records_size : info.unions_size));
+        }
+    }
+
+    Library lib;
+    auto *c_lib = c_cast(lib);
+
+    SECTION("round trip") {
+        // the statements cover most record types
+        auto stms = std::vector<std::string_view>{
+            "a; b: c :- d: e.",
+            "p(X;Y) :- q(X,2*3); r(Y).",
+            "not q(X) :- p(X).",
+            ":- X<Y<=Z, not -f(X), not #true.",
+            "a(X) :- b(X), X = |1;-2|, Y = -(-2), Z = 1+(-2), V = @f(1,2;3), U = (1,2;3).",
+            "a(X) :- b(X), W = f\"a{X:x}b\".",
+            "a(X) :- X = 1..3, Y = X\\2, Z = (X?1)^(X&2), W = ~X, V = X**2/3.",
+            "a :- (X,Y) = #sort { Z: p(Z) }.",
+            "a :- 5 < #sum { 5,X: not p(X), r(X) } <= 5.",
+            "a :- not #count { 5,X: not p(X), r(X) }.",
+            "a :- 5 < { not p(X): r(X) } <= 5.",
+            "a :- r(X); r(X): not p(X).",
+            "5 < #sum { 5,X: q(X): not p(X), r(X) } <= 5 :- a.",
+            "{ p(X): r(X) } :- a.",
+            "#theory t { t { + : 3, binary, left }; &p/1: t, {+,-}, t, directive }.",
+            "&f(X) { f(1,2),5: not p(X), r(X) } <> 5 :- a.",
+            "a :- not &f(X) { f(1,2),5: not p(X), r(X) } <> 5.",
+            "#minimize { 5,X,Y: p(X), q(X); 5@2,X,Y: p(X), q(X) }.",
+            ":~ p(X); q(X). [5,X,Y]",
+            "#show -p(X): q(X); p(X).",
+            "#show.",
+            "#show p/2.",
+            "#project -p(X): q(X); p(X).",
+            "#project p/2.",
+            "#defined p/2.",
+            "#external -p(X): q(X); p(X). [true]",
+            "#edge (u,v;x,y): q(X); p(X).",
+            "#heuristic a: q(X); p(X). [w@p,m]",
+            "#program step(t,k).",
+            "#script (python)def p(x): return x#end.",
+            "#const x=f(2+3). [override]",
+        };
+        auto seen = std::set<clingo_ast_type_t>{};
+        for (auto stm : stms) {
+            INFO(stm);
+            auto node = AST::parse(lib, stm);
+            std::ignore = rebuild(c_lib, c_cast(node), seen);
+        }
+        REQUIRE(seen.size() > 40);
+    }
+
+    SECTION("invalid values") {
+        auto x = AST::parse(lib, "X", AST::ParseType::term);
+        clingo_location_t const *loc = nullptr;
+        REQUIRE(clingo_ast_attribute_get_location(c_cast(x), clingo_ast_attribute_location, &loc));
+        auto check = [&](std::vector<clingo_ast_value_t> const &values) {
+            clingo_ast_t *res = nullptr;
+            REQUIRE(!clingo_ast_construct_values(c_lib, clingo_ast_type_term_unary_operation, values.data(),
+                                                 values.size(), &res));
+            REQUIRE(res == nullptr);
+            clingo_clear_error();
+        };
+        auto value = [](clingo_ast_value_type_t type, auto set) {
+            auto val = clingo_ast_value_t{};
+            val.type = type;
+            set(val);
+            return val;
+        };
+        auto vloc = value(clingo_ast_value_type_location, [&](auto &val) { val.location = loc; });
+        auto vop = value(clingo_ast_value_type_enum, [](auto &val) { val.number = 0; });
+        auto vx = value(clingo_ast_value_type_ast, [&](auto &val) { val.ast = c_cast(x); });
+        clingo_ast_t *proj = nullptr;
+        REQUIRE(clingo_ast_construct_values(c_lib, clingo_ast_type_projection, &vloc, 1, &proj));
+        auto p = make_ptr(proj);
+        clingo_ast_t *res = nullptr;
+        auto valid = std::vector{vloc, vop, vx};
+        REQUIRE(
+            clingo_ast_construct_values(c_lib, clingo_ast_type_term_unary_operation, valid.data(), valid.size(), &res));
+        clingo_ast_free(res);
+        // wrong number of values, wrong order, invalid enumeration value, missing AST, and wrong AST type
+        check({vloc, vop});
+        check({vloc, vx, vop});
+        check({vloc, value(clingo_ast_value_type_enum, [](auto &val) { val.number = 42; }), vx});
+        check({vloc, vop, value(clingo_ast_value_type_ast, [](auto &val) { val.ast = nullptr; })});
+        check({vloc, vop, value(clingo_ast_value_type_ast, [&](auto &val) { val.ast = p.get(); })});
+        REQUIRE(!clingo_ast_construct_values(c_lib, -1, nullptr, 0, &res));
+        clingo_clear_error();
+    }
+}
+
+// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-union-access)
+//
 } // namespace Clingo::Test

@@ -10,7 +10,8 @@ from typing import cast
 
 import pytest
 from clingo.app import AppOptions
-from clingo.ast import Program, Statement, parse_string
+from clingo.ast import Program, parse_string
+from clingo.ast.statements import Statement
 from clingo.control import Control
 from clingo.core import Library
 from clingo.solve import Model

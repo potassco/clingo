@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterator, Sequence
 from typing import TypeAlias
 
 from clingo.app import AppOptions
-from clingo.ast import Statement
+from clingo.ast.statements import Statement
 from clingo.control import Control
 from clingo.core import Library
 from clingo.solve import Model

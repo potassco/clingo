@@ -32,7 +32,7 @@ set(ide_source_group "Source Files")
 set(source-group
     "src/ast.cc"
     "src/ast.hh"
-    "src/ast_yaml.cc"
+    "src/ast_info.cc"
     "src/backend.cc"
     "src/base.cc"
     "src/config.cc"

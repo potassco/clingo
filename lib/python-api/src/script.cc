@@ -820,14 +820,14 @@ PyModuleDef script_def = {
 };
 
 auto intern_names(ScriptModuleState *state) -> bool {
-    auto names = std::array{
-        std::pair{&state->str_execute, "execute"},   std::pair{&state->str_call, "call"},
-        std::pair{&state->str_callable, "callable"}, std::pair{&state->str_main, "main"},
-        std::pair{&state->str_name, "name"},         std::pair{&state->str_version, "version"},
+    static constexpr auto names = std::array{
+        std::pair{&ScriptModuleState::str_execute, "execute"},   std::pair{&ScriptModuleState::str_call, "call"},
+        std::pair{&ScriptModuleState::str_callable, "callable"}, std::pair{&ScriptModuleState::str_main, "main"},
+        std::pair{&ScriptModuleState::str_name, "name"},         std::pair{&ScriptModuleState::str_version, "version"},
     };
-    return std::ranges::all_of(names, [](auto const &pair) {
-        *pair.first = PyUnicode_InternFromString(pair.second);
-        return *pair.first != nullptr;
+    return std::ranges::all_of(names, [state](auto const &pair) {
+        state->*pair.first = PyUnicode_InternFromString(pair.second);
+        return state->*pair.first != nullptr;
     });
 }
 

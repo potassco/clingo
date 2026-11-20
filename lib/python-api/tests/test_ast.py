@@ -7,6 +7,7 @@ from textwrap import dedent
 
 import pytest
 from clingo import ast
+from clingo.ast import aggregates, body, head, literals, statements, terms, theory
 from clingo.core import Library, Location, Position
 from clingo.symbol import parse_term
 
@@ -63,7 +64,7 @@ class TestAST:
         """
         Generate a symbol for testing.
         """
-        return ast.TermSymbolic(self.lib, self.loc, parse_term(self.lib, val))
+        return terms.TermSymbolic(self.lib, self.loc, parse_term(self.lib, val))
 
     def test_location(self):
         """
@@ -95,7 +96,7 @@ class TestAST:
         """
         Test projection.
         """
-        p = ast.Projection(self.lib, self.loc)
+        p = terms.Projection(self.lib, self.loc)
 
         assert p.location == self.loc
         assert str(p) == "*"
@@ -104,8 +105,8 @@ class TestAST:
         """
         Test variable terms.
         """
-        x = ast.TermVariable(self.lib, self.loc, "X", False)
-        a = ast.TermVariable(self.lib, self.loc, "_", True)
+        x = terms.TermVariable(self.lib, self.loc, "X", False)
+        a = terms.TermVariable(self.lib, self.loc, "_", True)
 
         assert x.location == self.loc
         assert x.name == "X"
@@ -120,7 +121,7 @@ class TestAST:
         Test symbolic term.
         """
         s = parse_term(self.lib, "f(1,2)")
-        p = ast.TermSymbolic(self.lib, self.loc, s)
+        p = terms.TermSymbolic(self.lib, self.loc, s)
 
         assert p.location == self.loc
         assert p.symbol == s
@@ -131,27 +132,27 @@ class TestAST:
         Test format string terms.
         """
         t = ast.parse_term(self.lib, 'f"a{X:x}b"')
-        assert isinstance(t, ast.TermFormatString)
+        assert isinstance(t, terms.TermFormatString)
         assert str(t) == 'f"a{X:x}b"'
 
         elems = t.elements
         assert len(elems) == 3
-        assert isinstance(elems[0], ast.FormatFieldLiteral)
+        assert isinstance(elems[0], terms.FormatFieldLiteral)
         assert str(elems[0]) == "a"
-        assert isinstance(elems[1], ast.FormatFieldExpression)
+        assert isinstance(elems[1], terms.FormatFieldExpression)
         assert str(elems[1]) == "{X:x}"
-        assert isinstance(elems[2], ast.FormatFieldLiteral)
+        assert isinstance(elems[2], terms.FormatFieldLiteral)
         assert str(elems[2]) == "b"
 
         expr = elems[1]
         assert str(expr.left) == "X"
         assert expr.right == ":x"
 
-        assert str(ast.TermFormatString(self.lib, self.loc, elems)) == 'f"a{X:x}b"'
-        assert str(ast.FormatFieldLiteral(self.lib, self.loc, "a")) == "a"
+        assert str(terms.TermFormatString(self.lib, self.loc, elems)) == 'f"a{X:x}b"'
+        assert str(terms.FormatFieldLiteral(self.lib, self.loc, "a")) == "a"
         assert (
             str(
-                ast.FormatFieldExpression(
+                terms.FormatFieldExpression(
                     self.lib, self.loc, ast.parse_term(self.lib, "X"), ":x"
                 )
             )
@@ -162,7 +163,7 @@ class TestAST:
         """
         Test absolute term.
         """
-        p = ast.TermAbsolute(self.lib, self.loc, [self.sym("1"), self.sym("-2")])
+        p = terms.TermAbsolute(self.lib, self.loc, [self.sym("1"), self.sym("-2")])
 
         assert p.location == self.loc
         assert p.pool, [self.sym("1") == self.sym("-2")]
@@ -172,12 +173,12 @@ class TestAST:
         """
         Test unary term.
         """
-        p = ast.TermUnaryOperation(
-            self.lib, self.loc, ast.UnaryOperator.Minus, self.sym("-2")
+        p = terms.TermUnaryOperation(
+            self.lib, self.loc, terms.UnaryOperator.Minus, self.sym("-2")
         )
 
         assert p.location == self.loc
-        assert p.operator_type == ast.UnaryOperator.Minus
+        assert p.operator_type == terms.UnaryOperator.Minus
         assert p.right == self.sym("-2")
         assert str(p) == "-(-2)"
 
@@ -185,13 +186,13 @@ class TestAST:
         """
         Test binary term.
         """
-        p = ast.TermBinaryOperation(
-            self.lib, self.loc, self.sym("1"), ast.BinaryOperator.Plus, self.sym("-2")
+        p = terms.TermBinaryOperation(
+            self.lib, self.loc, self.sym("1"), terms.BinaryOperator.Plus, self.sym("-2")
         )
 
         assert p.location == self.loc
         assert p.left == self.sym("1")
-        assert p.operator_type == ast.BinaryOperator.Plus
+        assert p.operator_type == terms.BinaryOperator.Plus
         assert p.right == self.sym("-2")
         assert str(p) == "1+(-2)"
 
@@ -200,10 +201,10 @@ class TestAST:
         Test tuple term.
         """
         a = [
-            ast.ArgumentTuple(self.lib, [self.sym("1"), self.sym("2")]),
+            terms.ArgumentTuple(self.lib, [self.sym("1"), self.sym("2")]),
             self.sym("3"),
         ]
-        p = ast.TermTuple(
+        p = terms.TermTuple(
             self.lib,
             self.loc,
             a,
@@ -218,13 +219,13 @@ class TestAST:
         Test function term.
         """
         a = [
-            ast.ArgumentTuple(self.lib, [self.sym("1"), self.sym("2")]),
-            ast.ArgumentTuple(
-                self.lib, [self.sym("3"), ast.Projection(self.lib, self.loc)]
+            terms.ArgumentTuple(self.lib, [self.sym("1"), self.sym("2")]),
+            terms.ArgumentTuple(
+                self.lib, [self.sym("3"), terms.Projection(self.lib, self.loc)]
             ),
         ]
-        p = ast.TermFunction(self.lib, self.loc, "f", a, True)
-        q = ast.TermFunction(self.lib, self.loc, "f", [ast.ArgumentTuple(self.lib)])
+        p = terms.TermFunction(self.lib, self.loc, "f", a, True)
+        q = terms.TermFunction(self.lib, self.loc, "f", [terms.ArgumentTuple(self.lib)])
 
         assert p.location == self.loc
         assert p.name == "f"
@@ -237,8 +238,8 @@ class TestAST:
         """
         Test theory variable terms.
         """
-        x = ast.TheoryTermVariable(self.lib, self.loc, "X", False)
-        a = ast.TheoryTermVariable(self.lib, self.loc, "_", True)
+        x = theory.TheoryTermVariable(self.lib, self.loc, "X", False)
+        a = theory.TheoryTermVariable(self.lib, self.loc, "_", True)
 
         assert x.location == self.loc
         assert x.name == "X"
@@ -253,7 +254,7 @@ class TestAST:
         Test theory_symbolic term.
         """
         s = parse_term(self.lib, "f(1,2)")
-        p = ast.TheoryTermSymbolic(self.lib, self.loc, s)
+        p = theory.TheoryTermSymbolic(self.lib, self.loc, s)
 
         assert p.location == self.loc
         assert p.symbol == s
@@ -263,26 +264,30 @@ class TestAST:
         """
         Test theory tuple term.
         """
-        p = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "p(1,2)"))
-        q = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "q"))
+        p = theory.TheoryTermSymbolic(
+            self.lib, self.loc, parse_term(self.lib, "p(1,2)")
+        )
+        q = theory.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "q"))
         a = [p, q]
-        b = ast.TheoryTermTuple(self.lib, self.loc, ast.TheoryTupleType.Set, a)
+        b = theory.TheoryTermTuple(self.lib, self.loc, theory.TheoryTupleType.Set, a)
 
         assert b.location == self.loc
         assert b.arguments == a
-        assert b.tuple_type == ast.TheoryTupleType.Set
+        assert b.tuple_type == theory.TheoryTupleType.Set
         assert str(b) == "{p(1,2),q}"
 
     def test_theory_function(self):
         """
         Test theory function term.
         """
-        p = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "p(1,2)"))
-        q = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "q"))
+        p = theory.TheoryTermSymbolic(
+            self.lib, self.loc, parse_term(self.lib, "p(1,2)")
+        )
+        q = theory.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "q"))
         a = [p, q]
-        b = ast.TheoryTermFunction(self.lib, self.loc, "a", a)
-        c = ast.TheoryTermFunction(self.lib, self.loc, "++", a)
-        d = ast.TheoryTermFunction(self.lib, self.loc, "not", [q])
+        b = theory.TheoryTermFunction(self.lib, self.loc, "a", a)
+        c = theory.TheoryTermFunction(self.lib, self.loc, "++", a)
+        d = theory.TheoryTermFunction(self.lib, self.loc, "not", [q])
 
         assert b.location == self.loc
         assert c.location == self.loc
@@ -298,13 +303,15 @@ class TestAST:
         """
         Test theory function term.
         """
-        p = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "p(1,2)"))
-        q = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "q"))
+        p = theory.TheoryTermSymbolic(
+            self.lib, self.loc, parse_term(self.lib, "p(1,2)")
+        )
+        q = theory.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "q"))
 
-        a = ast.UnparsedElement(self.lib, ["+", "-"], p)
-        b = ast.UnparsedElement(self.lib, ["*"], q)
+        a = theory.UnparsedElement(self.lib, ["+", "-"], p)
+        b = theory.UnparsedElement(self.lib, ["*"], q)
 
-        x = ast.TheoryTermUnparsed(self.lib, self.loc, [a, b])
+        x = theory.TheoryTermUnparsed(self.lib, self.loc, [a, b])
 
         assert x.location == self.loc
         assert p.location == self.loc
@@ -322,10 +329,10 @@ class TestAST:
         """
         Test Boolean literal.
         """
-        p = ast.LiteralBoolean(self.lib, self.loc, ast.Sign.Single, True)
+        p = literals.LiteralBoolean(self.lib, self.loc, literals.Sign.Single, True)
 
         assert p.location == self.loc
-        assert p.sign == ast.Sign.Single
+        assert p.sign == literals.Sign.Single
         assert p.value
         assert str(p) == "not #true"
 
@@ -334,10 +341,10 @@ class TestAST:
         Test symbolic literal.
         """
         a = ast.parse_term(self.lib, "-f(X)")
-        p = ast.LiteralSymbolic(self.lib, self.loc, ast.Sign.Single, a)
+        p = literals.LiteralSymbolic(self.lib, self.loc, literals.Sign.Single, a)
 
         assert p.location == self.loc
-        assert p.sign == ast.Sign.Single
+        assert p.sign == literals.Sign.Single
         assert p.atom == a
         assert str(p) == "not -f(X)"
 
@@ -346,14 +353,18 @@ class TestAST:
         Test comparison literal.
         """
         a = ast.parse_term(self.lib, "X")
-        b = ast.RightGuard(self.lib, ast.Relation.Less, ast.parse_term(self.lib, "Y"))
-        c = ast.RightGuard(
-            self.lib, ast.Relation.LessEqual, ast.parse_term(self.lib, "Z")
+        b = literals.RightGuard(
+            self.lib, literals.Relation.Less, ast.parse_term(self.lib, "Y")
         )
-        p = ast.LiteralComparison(self.lib, self.loc, ast.Sign.Single, a, [b, c])
+        c = literals.RightGuard(
+            self.lib, literals.Relation.LessEqual, ast.parse_term(self.lib, "Z")
+        )
+        p = literals.LiteralComparison(
+            self.lib, self.loc, literals.Sign.Single, a, [b, c]
+        )
 
         assert p.location == self.loc
-        assert p.sign == ast.Sign.Single
+        assert p.sign == literals.Sign.Single
         assert p.left == a
         assert p.right == [b, c]
         assert str(p) == "not X<Y<=Z"
@@ -363,7 +374,7 @@ class TestAST:
         Test simple head literal.
         """
         s = "not p(X)"
-        p = ast.HeadSimpleLiteral(self.lib, ast.parse_literal(self.lib, s))
+        p = head.HeadSimpleLiteral(self.lib, ast.parse_literal(self.lib, s))
         q = ast.parse_literal(self.lib, s)
 
         assert p.literal == q
@@ -375,9 +386,9 @@ class TestAST:
         """
         l1 = ast.parse_literal(self.lib, "not p(X)")
         l2 = ast.parse_literal(self.lib, "r(X)")
-        l3 = ast.HeadConditionalLiteral(self.lib, self.loc, l2, [l1])
+        l3 = head.HeadConditionalLiteral(self.lib, self.loc, l2, [l1])
 
-        p = ast.HeadDisjunction(self.lib, self.loc, [l2, l3])
+        p = head.HeadDisjunction(self.lib, self.loc, [l2, l3])
 
         assert l3.location == self.loc
         assert l3.literal == l2
@@ -394,11 +405,11 @@ class TestAST:
         t1 = ast.parse_term(self.lib, "5")
         l1 = ast.parse_literal(self.lib, "not p(X)")
         l2 = ast.parse_literal(self.lib, "r(X)")
-        e1 = ast.SetAggregateElement(self.lib, self.loc, l1, [l2])
-        lg1 = ast.LeftGuard(self.lib, t1, ast.Relation.Less)
-        rg1 = ast.RightGuard(self.lib, ast.Relation.LessEqual, t1)
-        a1 = ast.HeadSetAggregate(self.lib, self.loc, None, [e1], None)
-        a2 = ast.HeadSetAggregate(self.lib, self.loc, lg1, [e1], rg1)
+        e1 = aggregates.SetAggregateElement(self.lib, self.loc, l1, [l2])
+        lg1 = literals.LeftGuard(self.lib, t1, literals.Relation.Less)
+        rg1 = literals.RightGuard(self.lib, literals.Relation.LessEqual, t1)
+        a1 = head.HeadSetAggregate(self.lib, self.loc, None, [e1], None)
+        a2 = head.HeadSetAggregate(self.lib, self.loc, lg1, [e1], rg1)
 
         assert a1.location == self.loc
         assert a1.left is None
@@ -425,22 +436,22 @@ class TestAST:
         l1 = ast.parse_literal(self.lib, "not p(X)")
         l2 = ast.parse_literal(self.lib, "r(X)")
         l3 = ast.parse_literal(self.lib, "q(X)")
-        e1 = ast.HeadAggregateElement(self.lib, self.loc, [t1, t2], l3, [l1, l2])
-        lg1 = ast.LeftGuard(self.lib, t1, ast.Relation.Less)
-        rg1 = ast.RightGuard(self.lib, ast.Relation.LessEqual, t1)
-        a1 = ast.HeadAggregate(
+        e1 = head.HeadAggregateElement(self.lib, self.loc, [t1, t2], l3, [l1, l2])
+        lg1 = literals.LeftGuard(self.lib, t1, literals.Relation.Less)
+        rg1 = literals.RightGuard(self.lib, literals.Relation.LessEqual, t1)
+        a1 = head.HeadAggregate(
             self.lib,
             self.loc,
             None,
-            ast.AggregateFunction.Count,
+            aggregates.AggregateFunction.Count,
             [e1],
             None,
         )
-        a2 = ast.HeadAggregate(
+        a2 = head.HeadAggregate(
             self.lib,
             self.loc,
             lg1,
-            ast.AggregateFunction.Sum,
+            aggregates.AggregateFunction.Sum,
             [e1],
             rg1,
         )
@@ -451,13 +462,13 @@ class TestAST:
 
         assert a1.location == self.loc
         assert a1.left is None
-        assert a1.function == ast.AggregateFunction.Count
+        assert a1.function == aggregates.AggregateFunction.Count
         assert a1.elements == [e1]
         assert a1.right is None
 
         assert a2.location == self.loc
         assert a2.left == lg1
-        assert a2.function == ast.AggregateFunction.Sum
+        assert a2.function == aggregates.AggregateFunction.Sum
         assert a2.elements == [e1]
         assert a2.right == rg1
 
@@ -470,14 +481,16 @@ class TestAST:
         Test head theory atom.
         """
         t1 = ast.parse_term(self.lib, "f(X)")
-        tt1 = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "f(1,2)"))
-        tt2 = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "5"))
+        tt1 = theory.TheoryTermSymbolic(
+            self.lib, self.loc, parse_term(self.lib, "f(1,2)")
+        )
+        tt2 = theory.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "5"))
         l1 = ast.parse_literal(self.lib, "not p(X)")
         l2 = ast.parse_literal(self.lib, "r(X)")
-        e1 = ast.TheoryAtomElement(self.lib, self.loc, [tt1, tt2], [l1, l2])
-        rg1 = ast.TheoryRightGuard(self.lib, "<>", tt2)
-        a1 = ast.HeadTheoryAtom(self.lib, self.loc, t1, [e1], rg1)
-        a2 = ast.HeadTheoryAtom(self.lib, self.loc, t1, [e1], None)
+        e1 = theory.TheoryAtomElement(self.lib, self.loc, [tt1, tt2], [l1, l2])
+        rg1 = theory.TheoryRightGuard(self.lib, "<>", tt2)
+        a1 = head.HeadTheoryAtom(self.lib, self.loc, t1, [e1], rg1)
+        a2 = head.HeadTheoryAtom(self.lib, self.loc, t1, [e1], None)
 
         assert rg1.theory_operator == "<>"
         assert rg1.term == tt2
@@ -502,7 +515,7 @@ class TestAST:
         Test simple body literal.
         """
         s = "not p(X)"
-        p = ast.BodySimpleLiteral(self.lib, ast.parse_literal(self.lib, s))
+        p = body.BodySimpleLiteral(self.lib, ast.parse_literal(self.lib, s))
         q = ast.parse_literal(self.lib, s)
 
         assert p.literal == q
@@ -514,7 +527,7 @@ class TestAST:
         """
         s = ast.parse_literal(self.lib, "not p(X)")
         t = ast.parse_literal(self.lib, "r(X)")
-        p = ast.BodyConditionalLiteral(self.lib, self.loc, s, [t])
+        p = body.BodyConditionalLiteral(self.lib, self.loc, s, [t])
 
         assert p.location == self.loc
         assert p.literal == s
@@ -528,30 +541,34 @@ class TestAST:
         t1 = ast.parse_term(self.lib, "5")
         l1 = ast.parse_literal(self.lib, "not p(X)")
         l2 = ast.parse_literal(self.lib, "r(X)")
-        e1 = ast.SetAggregateElement(self.lib, self.loc, l1, [l2])
-        lg1 = ast.LeftGuard(self.lib, t1, ast.Relation.Less)
-        rg1 = ast.RightGuard(self.lib, ast.Relation.LessEqual, t1)
-        a1 = ast.BodySetAggregate(self.lib, self.loc, ast.Sign.Single, None, [e1], None)
-        a2 = ast.BodySetAggregate(self.lib, self.loc, ast.Sign.NoSign, lg1, [e1], rg1)
+        e1 = aggregates.SetAggregateElement(self.lib, self.loc, l1, [l2])
+        lg1 = literals.LeftGuard(self.lib, t1, literals.Relation.Less)
+        rg1 = literals.RightGuard(self.lib, literals.Relation.LessEqual, t1)
+        a1 = body.BodySetAggregate(
+            self.lib, self.loc, literals.Sign.Single, None, [e1], None
+        )
+        a2 = body.BodySetAggregate(
+            self.lib, self.loc, literals.Sign.NoSign, lg1, [e1], rg1
+        )
 
         assert e1.location == self.loc
         assert e1.literal == l1
         assert e1.condition == [l2]
 
         assert lg1.term == t1
-        assert lg1.relation == ast.Relation.Less
+        assert lg1.relation == literals.Relation.Less
 
         assert rg1.term == t1
-        assert rg1.relation == ast.Relation.LessEqual
+        assert rg1.relation == literals.Relation.LessEqual
 
         assert a1.location == self.loc
-        assert a1.sign == ast.Sign.Single
+        assert a1.sign == literals.Sign.Single
         assert a1.left is None
         assert a1.elements == [e1]
         assert a1.right is None
 
         assert a2.location == self.loc
-        assert a2.sign == ast.Sign.NoSign
+        assert a2.sign == literals.Sign.NoSign
         assert a2.left == lg1
         assert a2.elements == [e1]
         assert a2.right == rg1
@@ -570,24 +587,24 @@ class TestAST:
         t2 = ast.parse_term(self.lib, "X")
         l1 = ast.parse_literal(self.lib, "not p(X)")
         l2 = ast.parse_literal(self.lib, "r(X)")
-        e1 = ast.BodyAggregateElement(self.lib, self.loc, [t1, t2], [l1, l2])
-        lg1 = ast.LeftGuard(self.lib, t1, ast.Relation.Less)
-        rg1 = ast.RightGuard(self.lib, ast.Relation.LessEqual, t1)
-        a1 = ast.BodyAggregate(
+        e1 = body.BodyAggregateElement(self.lib, self.loc, [t1, t2], [l1, l2])
+        lg1 = literals.LeftGuard(self.lib, t1, literals.Relation.Less)
+        rg1 = literals.RightGuard(self.lib, literals.Relation.LessEqual, t1)
+        a1 = body.BodyAggregate(
             self.lib,
             self.loc,
-            ast.Sign.Single,
+            literals.Sign.Single,
             None,
-            ast.AggregateFunction.Count,
+            aggregates.AggregateFunction.Count,
             [e1],
             None,
         )
-        a2 = ast.BodyAggregate(
+        a2 = body.BodyAggregate(
             self.lib,
             self.loc,
-            ast.Sign.NoSign,
+            literals.Sign.NoSign,
             lg1,
-            ast.AggregateFunction.Sum,
+            aggregates.AggregateFunction.Sum,
             [e1],
             rg1,
         )
@@ -597,16 +614,16 @@ class TestAST:
         assert e1.condition == [l1, l2]
 
         assert a1.location == self.loc
-        assert a1.sign == ast.Sign.Single
+        assert a1.sign == literals.Sign.Single
         assert a1.left is None
-        assert a1.function == ast.AggregateFunction.Count
+        assert a1.function == aggregates.AggregateFunction.Count
         assert a1.elements == [e1]
         assert a1.right is None
 
         assert a2.location == self.loc
-        assert a2.sign == ast.Sign.NoSign
+        assert a2.sign == literals.Sign.NoSign
         assert a2.left == lg1
-        assert a2.function == ast.AggregateFunction.Sum
+        assert a2.function == aggregates.AggregateFunction.Sum
         assert a2.elements == [e1]
         assert a2.right == rg1
 
@@ -621,8 +638,8 @@ class TestAST:
         left = ast.parse_term(self.lib, "(X,Y)")
         value = ast.parse_term(self.lib, "Z")
         condition = ast.parse_literal(self.lib, "p(Z)")
-        element = ast.BodyAggregateElement(self.lib, self.loc, [value], [condition])
-        sort = ast.BodySort(self.lib, self.loc, left, [element])
+        element = body.BodyAggregateElement(self.lib, self.loc, [value], [condition])
+        sort = body.BodySort(self.lib, self.loc, left, [element])
 
         assert sort.location == self.loc
         assert sort.left == left
@@ -630,7 +647,7 @@ class TestAST:
         assert str(sort) == "(X,Y) = #sort { Z: p(Z) }"
 
         parsed = ast.parse_body_literal(self.lib, "(X,Y) = #sort { Z: p(Z) }")
-        assert isinstance(parsed, ast.BodySort)
+        assert isinstance(parsed, body.BodySort)
         assert parsed == sort
 
     def test_body_theory_atom(self):
@@ -638,14 +655,20 @@ class TestAST:
         Test body theory atom.
         """
         t1 = ast.parse_term(self.lib, "f(X)")
-        tt1 = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "f(1,2)"))
-        tt2 = ast.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "5"))
+        tt1 = theory.TheoryTermSymbolic(
+            self.lib, self.loc, parse_term(self.lib, "f(1,2)")
+        )
+        tt2 = theory.TheoryTermSymbolic(self.lib, self.loc, parse_term(self.lib, "5"))
         l1 = ast.parse_literal(self.lib, "not p(X)")
         l2 = ast.parse_literal(self.lib, "r(X)")
-        e1 = ast.TheoryAtomElement(self.lib, self.loc, [tt1, tt2], [l1, l2])
-        rg1 = ast.TheoryRightGuard(self.lib, "<>", tt2)
-        a1 = ast.BodyTheoryAtom(self.lib, self.loc, ast.Sign.Single, t1, [e1], rg1)
-        a2 = ast.BodyTheoryAtom(self.lib, self.loc, ast.Sign.Single, t1, [e1], None)
+        e1 = theory.TheoryAtomElement(self.lib, self.loc, [tt1, tt2], [l1, l2])
+        rg1 = theory.TheoryRightGuard(self.lib, "<>", tt2)
+        a1 = body.BodyTheoryAtom(
+            self.lib, self.loc, literals.Sign.Single, t1, [e1], rg1
+        )
+        a2 = body.BodyTheoryAtom(
+            self.lib, self.loc, literals.Sign.Single, t1, [e1], None
+        )
 
         assert rg1.theory_operator == "<>"
         assert rg1.term == tt2
@@ -655,7 +678,7 @@ class TestAST:
         assert e1.condition == [l1, l2]
 
         assert a1.location == self.loc
-        assert a1.sign == ast.Sign.Single
+        assert a1.sign == literals.Sign.Single
         assert a1.name == t1
         assert a1.elements == [e1]
         assert a1.right == rg1
@@ -670,9 +693,9 @@ class TestAST:
         """
         Test rule.
         """
-        h = ast.HeadSimpleLiteral(self.lib, ast.parse_literal(self.lib, "not q(X)"))
-        b = ast.BodySimpleLiteral(self.lib, ast.parse_literal(self.lib, "p(X)"))
-        r = ast.StatementRule(self.lib, self.loc, h, [b])
+        h = head.HeadSimpleLiteral(self.lib, ast.parse_literal(self.lib, "not q(X)"))
+        b = body.BodySimpleLiteral(self.lib, ast.parse_literal(self.lib, "p(X)"))
+        r = statements.StatementRule(self.lib, self.loc, h, [b])
 
         assert r.head == h
         assert r.body == [b]
@@ -682,44 +705,44 @@ class TestAST:
         """
         Test theory definition.
         """
-        od1 = ast.TheoryOperatorDefinition(
-            self.lib, self.loc, "+", 3, ast.TheoryOperatorType.BinaryLeft
+        od1 = statements.TheoryOperatorDefinition(
+            self.lib, self.loc, "+", 3, statements.TheoryOperatorType.BinaryLeft
         )
 
         assert od1.location == self.loc
         assert od1.name == "+"
         assert od1.priority == 3
-        assert od1.operator_type == ast.TheoryOperatorType.BinaryLeft
+        assert od1.operator_type == statements.TheoryOperatorType.BinaryLeft
         assert str(od1) == "+ : 3, binary, left"
 
-        td1 = ast.TheoryTermDefinition(self.lib, self.loc, "t", [od1])
+        td1 = statements.TheoryTermDefinition(self.lib, self.loc, "t", [od1])
         assert td1.location == self.loc
         assert td1.name == "t"
         assert td1.operators == [od1]
         assert str(td1) == "t { + : 3, binary, left }"
 
-        gd1 = ast.TheoryGuardDefinition(self.lib, ["+", "-"], "t")
+        gd1 = statements.TheoryGuardDefinition(self.lib, ["+", "-"], "t")
         assert gd1.operators == ["+", "-"]
         assert gd1.term == "t"
         assert str(gd1) == "{+,-}, t"
 
-        ad1 = ast.TheoryAtomDefinition(
-            self.lib, self.loc, "p", 1, "t", None, ast.TheoryAtomType.Directive
+        ad1 = statements.TheoryAtomDefinition(
+            self.lib, self.loc, "p", 1, "t", None, statements.TheoryAtomType.Directive
         )
-        ad2 = ast.TheoryAtomDefinition(
-            self.lib, self.loc, "p", 1, "t", gd1, ast.TheoryAtomType.Directive
+        ad2 = statements.TheoryAtomDefinition(
+            self.lib, self.loc, "p", 1, "t", gd1, statements.TheoryAtomType.Directive
         )
         assert ad1.location == self.loc
         assert ad1.name == "p"
         assert ad1.arity == 1
         assert ad1.term == "t"
         assert ad1.guard is None
-        assert ad1.atom_type == ast.TheoryAtomType.Directive
+        assert ad1.atom_type == statements.TheoryAtomType.Directive
         assert ad2.guard == gd1
         assert str(ad1) == "&p/1: t, directive"
         assert str(ad2) == "&p/1: t, {+,-}, t, directive"
 
-        d1 = ast.StatementTheory(self.lib, self.loc, "t", [td1], [ad1, ad2])
+        d1 = statements.StatementTheory(self.lib, self.loc, "t", [td1], [ad1, ad2])
         assert d1.location == self.loc
         assert d1.name == "t"
         assert d1.terms == [td1]
@@ -735,41 +758,41 @@ class TestAST:
         """
         Test optimization statements.
         """
-        terms = [ast.parse_term(self.lib, "X"), ast.parse_term(self.lib, "Y")]
+        tup = [ast.parse_term(self.lib, "X"), ast.parse_term(self.lib, "Y")]
         weight = ast.parse_term(self.lib, "5")
         prio = ast.parse_term(self.lib, "2")
-        t1 = ast.OptimizeTuple(self.lib, weight, None, terms)
-        t2 = ast.OptimizeTuple(self.lib, weight, prio, terms)
+        t1 = statements.OptimizeTuple(self.lib, weight, None, tup)
+        t2 = statements.OptimizeTuple(self.lib, weight, prio, tup)
         assert t1.weight == weight
         assert t1.priority is None
-        assert t1.terms == terms
+        assert t1.terms == tup
         assert t2.priority == prio
         assert str(t1) == "5,X,Y"
         assert str(t2) == "5@2,X,Y"
 
         l1 = ast.parse_literal(self.lib, "p(X)")
         l2 = ast.parse_literal(self.lib, "q(X)")
-        e1 = ast.OptimizeElement(self.lib, t1, [l1, l2])
-        e2 = ast.OptimizeElement(self.lib, t2, [l1, l2])
+        e1 = statements.OptimizeElement(self.lib, t1, [l1, l2])
+        e2 = statements.OptimizeElement(self.lib, t2, [l1, l2])
         assert e1.tuple == t1
         assert e1.condition == [l1, l2]
         assert str(e1) == "5,X,Y: p(X), q(X)"
         assert str(e2) == "5@2,X,Y: p(X), q(X)"
 
-        so1 = ast.StatementOptimize(
-            self.lib, self.loc, [e1, e2], ast.OptimizeType.Minimize
+        so1 = statements.StatementOptimize(
+            self.lib, self.loc, [e1, e2], statements.OptimizeType.Minimize
         )
         assert so1.location == self.loc
         assert so1.elements, [e1 == e2]
-        assert so1.optimize_type == ast.OptimizeType.Minimize
+        assert so1.optimize_type == statements.OptimizeType.Minimize
         assert str(so1) == "#minimize { 5,X,Y: p(X), q(X); 5@2,X,Y: p(X), q(X) }."
 
-        body = [
-            ast.BodySimpleLiteral(self.lib, l1),
-            ast.BodySimpleLiteral(self.lib, l2),
+        lits = [
+            body.BodySimpleLiteral(self.lib, l1),
+            body.BodySimpleLiteral(self.lib, l2),
         ]
-        sw1 = ast.StatementWeakConstraint(self.lib, self.loc, body, t1)
-        assert sw1.body == body
+        sw1 = statements.StatementWeakConstraint(self.lib, self.loc, lits, t1)
+        assert sw1.body == lits
         assert sw1.tuple == t1
         assert str(sw1) == " :~ p(X); q(X). [5,X,Y]"
 
@@ -780,15 +803,15 @@ class TestAST:
         t1 = ast.parse_term(self.lib, "-p(X)")
         l1 = ast.parse_body_literal(self.lib, "q(X)")
         l2 = ast.parse_body_literal(self.lib, "p(X)")
-        s1 = ast.StatementShow(self.lib, self.loc, t1, [l1, l2])
+        s1 = statements.StatementShow(self.lib, self.loc, t1, [l1, l2])
         assert s1.location == self.loc
         assert s1.term == t1
         assert s1.body == [l1, l2]
         assert str(s1) == "#show -p(X): q(X); p(X)."
 
-        s2 = ast.StatementShowSignature(self.lib, self.loc, "p", 2)
-        s3 = ast.StatementShowSignature(self.lib, self.loc, "q", 2, True)
-        s4 = ast.StatementShowSignature(self.lib, self.loc, "p", 2, False, False)
+        s2 = statements.StatementShowSignature(self.lib, self.loc, "p", 2)
+        s3 = statements.StatementShowSignature(self.lib, self.loc, "q", 2, True)
+        s4 = statements.StatementShowSignature(self.lib, self.loc, "p", 2, False, False)
         assert s2.location == self.loc
         assert s2.name == "p"
         assert s2.arity == 2
@@ -801,7 +824,7 @@ class TestAST:
         assert str(s3) == "#show -q/2. [true]"
         assert str(s4) == "#show p/2. [false]"
 
-        s5 = ast.StatementShowNothing(self.lib, self.loc)
+        s5 = statements.StatementShowNothing(self.lib, self.loc)
         assert str(s5) == "#show."
 
     def test_statement_project(self):
@@ -811,14 +834,14 @@ class TestAST:
         t1 = ast.parse_term(self.lib, "-p(X)")
         l1 = ast.parse_body_literal(self.lib, "q(X)")
         l2 = ast.parse_body_literal(self.lib, "p(X)")
-        s1 = ast.StatementProject(self.lib, self.loc, t1, [l1, l2])
+        s1 = statements.StatementProject(self.lib, self.loc, t1, [l1, l2])
         assert s1.location == self.loc
         assert s1.atom == t1
         assert s1.body == [l1, l2]
         assert str(s1) == "#project -p(X): q(X); p(X)."
 
-        s2 = ast.StatementProjectSignature(self.lib, self.loc, "p", 2)
-        s3 = ast.StatementProjectSignature(self.lib, self.loc, "q", 2, True)
+        s2 = statements.StatementProjectSignature(self.lib, self.loc, "p", 2)
+        s3 = statements.StatementProjectSignature(self.lib, self.loc, "q", 2, True)
         assert s2.location == self.loc
         assert s2.name == "p"
         assert s2.arity == 2
@@ -831,8 +854,8 @@ class TestAST:
         """
         Test defined statements.
         """
-        s2 = ast.StatementDefined(self.lib, self.loc, "p", 2)
-        s3 = ast.StatementDefined(self.lib, self.loc, "q", 2, True)
+        s2 = statements.StatementDefined(self.lib, self.loc, "p", 2)
+        s3 = statements.StatementDefined(self.lib, self.loc, "q", 2, True)
         assert s2.location == self.loc
         assert s2.name == "p"
         assert s2.arity == 2
@@ -849,8 +872,8 @@ class TestAST:
         t2 = ast.parse_term(self.lib, "true")
         l1 = ast.parse_body_literal(self.lib, "q(X)")
         l2 = ast.parse_body_literal(self.lib, "p(X)")
-        s1 = ast.StatementExternal(self.lib, self.loc, t1, [l1, l2])
-        s2 = ast.StatementExternal(self.lib, self.loc, t1, [l1, l2], t2)
+        s1 = statements.StatementExternal(self.lib, self.loc, t1, [l1, l2])
+        s2 = statements.StatementExternal(self.lib, self.loc, t1, [l1, l2], t2)
         assert s1.location == self.loc
         assert s1.atom == t1
         assert s1.body == [l1, l2]
@@ -867,8 +890,8 @@ class TestAST:
         v1 = ast.parse_term(self.lib, "v")
         u2 = ast.parse_term(self.lib, "x")
         v2 = ast.parse_term(self.lib, "y")
-        e1 = ast.Edge(self.lib, u1, v1)
-        e2 = ast.Edge(self.lib, u2, v2)
+        e1 = statements.Edge(self.lib, u1, v1)
+        e2 = statements.Edge(self.lib, u2, v2)
         assert e1.u == u1
         assert e1.v == v1
         assert e2.u == u2
@@ -878,7 +901,7 @@ class TestAST:
 
         l1 = ast.parse_body_literal(self.lib, "q(X)")
         l2 = ast.parse_body_literal(self.lib, "p(X)")
-        s1 = ast.StatementEdge(self.lib, self.loc, [e1, e2], [l1, l2])
+        s1 = statements.StatementEdge(self.lib, self.loc, [e1, e2], [l1, l2])
         assert s1.location == self.loc
         assert s1.pool == [e1, e2]
         assert s1.body == [l1, l2]
@@ -895,8 +918,8 @@ class TestAST:
 
         l1 = ast.parse_body_literal(self.lib, "q(X)")
         l2 = ast.parse_body_literal(self.lib, "p(X)")
-        s1 = ast.StatementHeuristic(self.lib, self.loc, a, [l1, l2], w, m)
-        s2 = ast.StatementHeuristic(self.lib, self.loc, a, [l1, l2], w, m, p)
+        s1 = statements.StatementHeuristic(self.lib, self.loc, a, [l1, l2], w, m)
+        s2 = statements.StatementHeuristic(self.lib, self.loc, a, [l1, l2], w, m, p)
         assert s1.atom == a
         assert s1.weight == w
         assert s1.modifier == m
@@ -909,17 +932,19 @@ class TestAST:
         """
         Test include statements.
         """
-        s1 = ast.StatementInclude(self.lib, self.loc, "file", ast.IncludeType.System)
+        s1 = statements.StatementInclude(
+            self.lib, self.loc, "file", statements.IncludeType.System
+        )
         assert s1.location == self.loc
         assert s1.value == "file"
-        assert s1.include_type == ast.IncludeType.System
+        assert s1.include_type == statements.IncludeType.System
         assert str(s1) == '#include "file".'
 
     def test_statement_program(self):
         """
         Test program statements.
         """
-        s1 = ast.StatementProgram(self.lib, self.loc, "step", ["t", "k"])
+        s1 = statements.StatementProgram(self.lib, self.loc, "step", ["t", "k"])
         assert s1.location == self.loc
         assert s1.name == "step"
         assert s1.arguments == ["t", "k"]
@@ -929,7 +954,9 @@ class TestAST:
         """
         Test script statements.
         """
-        s1 = ast.StatementScript(self.lib, self.loc, "def p(x): return x", "python")
+        s1 = statements.StatementScript(
+            self.lib, self.loc, "def p(x): return x", "python"
+        )
         assert s1.location == self.loc
         assert s1.value == "def p(x): return x"
         assert s1.script_type == "python"
@@ -940,11 +967,13 @@ class TestAST:
         Test const statements.
         """
         t1 = ast.parse_term(self.lib, "f(2+3)")
-        s1 = ast.StatementConst(self.lib, self.loc, "x", t1, ast.Precedence.Override)
+        s1 = statements.StatementConst(
+            self.lib, self.loc, "x", t1, statements.Precedence.Override
+        )
         assert s1.location == self.loc
         assert s1.name == "x"
         assert s1.value == t1
-        assert s1.precedence == ast.Precedence.Override
+        assert s1.precedence == statements.Precedence.Override
         assert str(s1) == "#const x=f(2+3). [override]"
 
     def test_statement_parts(self):
@@ -952,15 +981,17 @@ class TestAST:
         Test parts statements.
         """
         a1 = [parse_term(self.lib, "1"), parse_term(self.lib, "2")]
-        e1 = ast.ProgramPart(self.lib, "base", [])
-        e2 = ast.ProgramPart(self.lib, "step", a1)
-        s1 = ast.StatementParts(self.lib, self.loc, [e1, e2], ast.Precedence.Override)
+        e1 = statements.ProgramPart(self.lib, "base", [])
+        e2 = statements.ProgramPart(self.lib, "step", a1)
+        s1 = statements.StatementParts(
+            self.lib, self.loc, [e1, e2], statements.Precedence.Override
+        )
         assert s1.location == self.loc
         assert e1.name == "base"
         assert not e1.arguments
         assert e2.name == "step"
         assert e2.arguments == a1
-        assert s1.precedence == ast.Precedence.Override
+        assert s1.precedence == statements.Precedence.Override
         assert s1.elements == [e1, e2]
         assert str(s1) == "#parts base,step(1,2). [override]"
 
@@ -968,12 +999,12 @@ class TestAST:
         """
         Test const statements.
         """
-        s1 = ast.StatementComment(
-            self.lib, self.loc, "% something arbitrary", ast.CommentType.Line
+        s1 = statements.StatementComment(
+            self.lib, self.loc, "% something arbitrary", statements.CommentType.Line
         )
         assert s1.location == self.loc
         assert s1.value == "% something arbitrary"
-        assert s1.comment_type == ast.CommentType.Line
+        assert s1.comment_type == statements.CommentType.Line
         assert str(s1) == "% something arbitrary"
 
     def test_parse(self):
@@ -1049,7 +1080,7 @@ class TestAST:
             arg.visit(dispatch, prefix)
 
         @dispatch.register
-        def _(var: ast.TermVariable, prefix):
+        def _(var: terms.TermVariable, prefix):
             variables.append(prefix + var.name)
 
         stm = ast.parse_statement(self.lib, "p(A) :- q(B,C), D = {}.")
@@ -1066,7 +1097,7 @@ class TestAST:
             return expr.transform(self.lib, dispatch, prefix)
 
         @dispatch.register
-        def _(var: ast.TermVariable, prefix):
+        def _(var: terms.TermVariable, prefix):
             return var.update(self.lib, name=prefix + var.name)
 
         stm = ast.parse_statement(self.lib, "a(X) :- b(X).")
@@ -1076,8 +1107,8 @@ class TestAST:
         """
         Test comparison functions.
         """
-        x = ast.TermVariable(self.lib, self.loc, "X")
-        a = ast.TermVariable(self.lib, self.loc, "_", True)
+        x = terms.TermVariable(self.lib, self.loc, "X")
+        a = terms.TermVariable(self.lib, self.loc, "_", True)
 
         assert x == x  # pylint: disable=comparison-with-itself
         assert a != x

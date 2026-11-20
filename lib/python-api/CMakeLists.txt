@@ -20,8 +20,6 @@ set(source-group
     "src/embed.cc"
     "src/ground.cc"
     "src/ground.hh"
-    "src/iterable.hh"
-    "src/iterator.hh"
     "src/module.cc"
     "src/propagate.cc"
     "src/propagate.hh"
@@ -60,8 +58,21 @@ target_link_libraries(pyclingo PRIVATE clingo clingo-python)
 if(CLINGO_USE_VERSION_SCRIPT AND UNIX AND NOT APPLE)
     set_target_properties(pyclingo PROPERTIES LINK_FLAGS "-Wl,--version-script='${CMAKE_SOURCE_DIR}/cmake/pyclingo.map'")
 endif()
+if(CLINGO_INSTALL_WHEEL OR CLINGO_INSTALL_DEFAULT)
+    file(GLOB_RECURSE stub_files CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/stubs/*.pyi")
+    set(stubs_dir "${CMAKE_CURRENT_BINARY_DIR}/clingo-stubs")
+    add_custom_command(
+        OUTPUT "${stubs_dir}.stamp"
+        COMMAND "${Python_EXECUTABLE}" "${CLINGO_SOURCE_DIR}/scripts/stubs.py"
+            --stubs "${CMAKE_CURRENT_SOURCE_DIR}/stubs" strip --output "${stubs_dir}"
+        COMMAND "${CMAKE_COMMAND}" -E touch "${stubs_dir}.stamp"
+        DEPENDS ${stub_files} "${CLINGO_SOURCE_DIR}/scripts/stubs.py"
+        COMMENT "Stripping overload implementations from the stubs"
+        VERBATIM)
+    add_custom_target(pyclingo-stubs ALL DEPENDS "${stubs_dir}.stamp")
+endif()
 if(CLINGO_INSTALL_WHEEL)
-    install(DIRECTORY stubs/ DESTINATION clingo-stubs)
+    install(DIRECTORY "${stubs_dir}/" DESTINATION clingo-stubs)
     install(TARGETS pyclingo
         RUNTIME DESTINATION "."
         LIBRARY DESTINATION ".")
@@ -95,7 +106,7 @@ elseif(CLINGO_INSTALL_DEFAULT)
     install(
         FILES "${CMAKE_CURRENT_BINARY_DIR}/INSTALLER" "${CMAKE_CURRENT_BINARY_DIR}/METADATA"
         DESTINATION "${python_install_dir}/clingo-${CLINGO_VERSION}.dist-info")
-    install(DIRECTORY stubs/ DESTINATION "${python_install_dir}/clingo-stubs")
+    install(DIRECTORY "${stubs_dir}/" DESTINATION "${python_install_dir}/clingo-stubs")
     install(
         TARGETS pyclingo
         EXPORT clingo-targets
