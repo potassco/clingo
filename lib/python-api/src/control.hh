@@ -1,8 +1,8 @@
 #pragma once
 
-#include <clingo/control.h>
+#include <Python.h>
 
-#include <pybind11/pybind11.h>
+#include <clingo/control.h>
 
 #include <cstdint>
 
@@ -16,14 +16,6 @@ auto py_control_type() -> PyObject *;
 //! Returns nullptr with a Python error set if the object is not a control
 //! object of the given type or if it is no longer valid.
 auto py_control_get(PyObject *type, PyObject *obj) -> clingo_control_t *;
-
-//! Get the clingo control object of a `clingo.control.Control` object without its type.
-//!
-//! The type is identified via the module it belongs to. This function is meant
-//! for modules registered before the control module, which cannot import its
-//! types. Returns nullptr with a Python error set if the object is not a
-//! control object or if it is no longer valid.
-auto py_control_get_any(PyObject *obj) -> clingo_control_t *;
 
 //! How a clingo control object is passed to a callback (see py_control_begin()).
 enum class ControlRef : uint8_t { share, claim };
@@ -73,6 +65,9 @@ class ControlGuard {
     ControlRef ref_type_;
 };
 
-void register_control(pybind11::module &m);
+//! Create the clingo.control module with its own types and functions (first registration phase).
+auto create_control(PyObject *parent) -> PyObject *;
+//! Store the types of other modules in the state of the clingo.control module (second registration phase).
+auto link_control(PyObject *mod) -> bool;
 
 } // namespace PyClingo

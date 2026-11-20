@@ -1,9 +1,9 @@
 #pragma once
 
+#include <Python.h>
+
 #include <clingo/control.h>
 #include <clingo/propagate.h>
-
-#include <pybind11/pybind11.h>
 
 namespace PyClingo {
 
@@ -20,6 +20,9 @@ auto py_propagator_type() -> PyObject *;
 auto py_register_propagator(PyObject *type, clingo_control_t *ctl, PyObject *keeper, PyObject *library,
                             PyObject *propagator) -> bool;
 
-void register_propagate(pybind11::module &m);
+//! Create the clingo.propagate module with its own types and functions (first registration phase).
+auto create_propagate(PyObject *parent) -> PyObject *;
+//! Store the types of other modules in the state of the clingo.propagate module (second registration phase).
+auto link_propagate(PyObject *mod) -> bool;
 
 } // namespace PyClingo

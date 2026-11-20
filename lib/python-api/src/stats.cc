@@ -1,9 +1,11 @@
 #include "stats.hh"
 
+#include "collection.hh"
 #include "core.hh"
 
 #include <array>
 #include <cassert>
+#include <functional>
 #include <limits>
 #include <string_view>
 
@@ -57,6 +59,9 @@ struct StatsModuleState {
     PyObject *stats_map_view_type{nullptr};
     PyObject *stats_map_type{nullptr};
     PyObject *stats_iter_type{nullptr};
+    PyObject *keys_view_type{nullptr};
+    PyObject *values_view_type{nullptr};
+    PyObject *items_view_type{nullptr};
 };
 
 auto get_state(PyObject *module) -> StatsModuleState * {
@@ -75,6 +80,26 @@ auto get_state_from_self(PyObject *self) -> StatsModuleState * {
         return nullptr;
     }
     return get_state(mod);
+}
+
+//! Get the view type of the given kind for a mapping of this module (borrowed reference).
+auto view_type(PyObject *mapping, ViewKind kind) -> PyObject * {
+    auto *state = get_state_from_self(mapping);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    switch (kind) {
+        case ViewKind::keys: {
+            return state->keys_view_type;
+        }
+        case ViewKind::values: {
+            return state->values_view_type;
+        }
+        case ViewKind::items: {
+            break;
+        }
+    }
+    return state->items_view_type;
 }
 
 auto py_stats_cast(PyObject *obj) -> PyStatsObject * {
@@ -99,7 +124,7 @@ auto py_stats_checked(PyObject *obj) -> PyStatsObject * {
 auto py_stats_alloc(PyObject *owner, void const *valid, PyObject *type, clingo_stats_t *stats, uint64_t key)
     -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
-    auto *obj = to->tp_alloc(to, 0);
+    auto *obj = PyType_GenericAlloc(to, 0);
     if (obj == nullptr) {
         return nullptr;
     }
@@ -114,7 +139,7 @@ auto py_stats_alloc(PyObject *owner, void const *valid, PyObject *type, clingo_s
 
 auto py_stats_traverse(PyObject *self, visitproc visit, void *arg) -> int {
     auto *o = reinterpret_cast<PyStatsObject *>(self);
-    Py_VISIT(Py_TYPE(o));
+    Py_VISIT(Py_TYPE(self));
     Py_VISIT(o->owner);
     return 0;
 }
@@ -474,7 +499,7 @@ auto stats_nestify(clingo_stats_t *stats, uint64_t key) -> PyObject * {
                 if (v == nullptr) {
                     return nullptr;
                 }
-                PyList_SET_ITEM(out.get(), static_cast<Py_ssize_t>(i), v);
+                PyList_SetItem(out.get(), static_cast<Py_ssize_t>(i), v);
             }
             return out.release();
         }
@@ -770,6 +795,9 @@ auto py_stats_view_contains(PyObject *self, PyObject *key) -> int {
         return -1;
     }
 
+    if (PyUnicode_Check(key) == 0) {
+        return 0;
+    }
     char const *k = nullptr;
     Py_ssize_t kn = 0;
     if (stats_key_to_str(key, &k, &kn) < 0) {
@@ -816,7 +844,7 @@ auto py_stats_iter_new(PyObject *owner, IterKind kind) -> PyObject * {
     }
 
     auto *type = reinterpret_cast<PyTypeObject *>(state->stats_iter_type);
-    auto *obj = type->tp_alloc(type, 0);
+    auto *obj = PyType_GenericAlloc(type, 0);
     auto *it = reinterpret_cast<PyStatsIterObject *>(obj);
     if (obj == nullptr) {
         return nullptr;
@@ -835,7 +863,7 @@ auto py_stats_iter_new(PyObject *owner, IterKind kind) -> PyObject * {
 
 auto py_stats_iter_traverse(PyObject *self, visitproc visit, void *arg) -> int {
     auto *it = reinterpret_cast<PyStatsIterObject *>(self);
-    Py_VISIT(Py_TYPE(it));
+    Py_VISIT(Py_TYPE(self));
     Py_VISIT(it->owner);
     return 0;
 }
@@ -1233,25 +1261,29 @@ auto py_stats_map_view_iter(PyObject *self) -> PyObject * {
     return py_stats_iter_new(self, IterKind::map_keys);
 }
 
-auto py_stats_map_keys(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
+auto stats_map_keys(PyObject *self) -> PyObject * {
     return py_stats_iter_new(self, IterKind::map_keys);
 }
 
-auto py_stats_map_view_values(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
+auto stats_map_view_values(PyObject *self) -> PyObject * {
     return py_stats_iter_new(self, IterKind::map_values_view);
 }
 
-auto py_stats_map_values(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
+auto stats_map_values(PyObject *self) -> PyObject * {
     return py_stats_iter_new(self, IterKind::map_values);
 }
 
-auto py_stats_map_view_items(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
+auto stats_map_view_items(PyObject *self) -> PyObject * {
     return py_stats_iter_new(self, IterKind::map_items_view);
 }
 
-auto py_stats_map_items(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
+using StatsMapViewProtocol = MappingProtocol<view_type, stats_map_keys, stats_map_view_values, stats_map_view_items>;
+
+auto stats_map_items(PyObject *self) -> PyObject * {
     return py_stats_iter_new(self, IterKind::map_items);
 }
+
+using StatsMapProtocol = MappingProtocol<view_type, stats_map_keys, stats_map_values, stats_map_items>;
 
 auto py_stats_map_ass_subscript(PyObject *self, PyObject *key, PyObject *value) -> int {
     if (value == nullptr) {
@@ -1364,11 +1396,33 @@ auto py_stats_view_getset = std::array{
     PyGetSetDef{nullptr, nullptr, nullptr, nullptr, nullptr},
 };
 
+//! Compare stats objects by the statistics entry they refer to.
+auto py_stats_richcompare(PyObject *self, PyObject *other, int op) -> PyObject * {
+    auto *state = get_state_from_self(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    if ((op != Py_EQ && op != Py_NE) ||
+        PyObject_TypeCheck(other, reinterpret_cast<PyTypeObject *>(state->stats_view_type)) == 0) {
+        Py_RETURN_NOTIMPLEMENTED;
+    }
+    auto *a = py_stats_cast(self);
+    auto *b = py_stats_cast(other);
+    return PyBool_FromLong((a->stats == b->stats && a->key == b->key) == (op == Py_EQ) ? 1 : 0);
+}
+
+auto py_stats_hash(PyObject *self) -> Py_hash_t {
+    auto *o = py_stats_cast(self);
+    return py_hash(std::hash<uint64_t>{}(o->key) ^ std::hash<void const *>{}(o->stats));
+}
+
 auto py_stats_view_slots = std::array{
     PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Class representing read-only solver stats."))},
     PyType_Slot{Py_tp_str, reinterpret_cast<void *>(py_stats_str)},
     PyType_Slot{Py_tp_methods, py_stats_view_methods.data()},
     PyType_Slot{Py_tp_getset, py_stats_view_getset.data()},
+    PyType_Slot{Py_tp_richcompare, reinterpret_cast<void *>(py_stats_richcompare)},
+    PyType_Slot{Py_tp_hash, reinterpret_cast<void *>(py_stats_hash)},
     PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_stats_view_len)},
     PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_stats_view_subscript)},
     PyType_Slot{Py_sq_contains, reinterpret_cast<void *>(py_stats_view_contains)},
@@ -1387,11 +1441,19 @@ auto py_stats_view_spec = PyType_Spec{
     py_stats_view_slots.data(),
 };
 
+auto py_stats_array_view_methods = std::array{
+    PyMethodDef{"index", py_sequence_index, METH_VARARGS, PyDoc_STR("Get the first index of a value.")},
+    PyMethodDef{"count", py_sequence_count, METH_O, PyDoc_STR("Count the occurrences of a value.")},
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
 auto py_stats_array_view_slots = std::array{
     PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Class representing a read-only array of stats."))},
     PyType_Slot{Py_tp_str, reinterpret_cast<void *>(py_stats_str)},
     PyType_Slot{Py_sq_length, reinterpret_cast<void *>(py_stats_view_len)},
     PyType_Slot{Py_sq_item, reinterpret_cast<void *>(py_stats_array_view_subscript)},
+    PyType_Slot{Py_tp_methods, py_stats_array_view_methods.data()},
+    PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_sequence_subscript)},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_stats_array_view_iter)},
     PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_stats_traverse)},
     PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_stats_clear)},
@@ -1403,12 +1465,13 @@ auto py_stats_array_view_spec = PyType_Spec{
     "clingo.stats.StatsArrayView",
     sizeof(PyStatsObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_SEQUENCE | Py_TPFLAGS_HAVE_GC |
-        Py_TPFLAGS_BASETYPE,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
     py_stats_array_view_slots.data(),
 };
 
 auto py_stats_array_methods = std::array{
+    PyMethodDef{"index", py_sequence_index, METH_VARARGS, PyDoc_STR("Get the first index of a value.")},
+    PyMethodDef{"count", py_sequence_count, METH_O, PyDoc_STR("Count the occurrences of a value.")},
     PyMethodDef{"append", py_stats_array_append, METH_O, PyDoc_STR("Append a value to the array.")},
     PyMethodDef{"extend", py_stats_array_extend, METH_O, PyDoc_STR("Append values from an iterable to the array.")},
     PyMethodDef{nullptr, nullptr, 0, nullptr},
@@ -1420,24 +1483,22 @@ auto py_stats_array_slots = std::array{
     PyType_Slot{Py_tp_methods, py_stats_array_methods.data()},
     PyType_Slot{Py_sq_length, reinterpret_cast<void *>(py_stats_view_len)},
     PyType_Slot{Py_sq_item, reinterpret_cast<void *>(py_stats_array_subscript)},
+    PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_sequence_subscript)},
     PyType_Slot{Py_sq_ass_item, reinterpret_cast<void *>(py_stats_array_ass_subscript)},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_stats_array_iter)},
     PyType_Slot{0, nullptr},
 };
 
 auto py_stats_array_spec = PyType_Spec{
-    "clingo.stats.StatsArray",
-    sizeof(PyStatsObject),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_SEQUENCE,
+    "clingo.stats.StatsArray",   sizeof(PyStatsObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
     py_stats_array_slots.data(),
 };
 
 auto py_stats_map_view_methods = std::array{
     PyMethodDef{"get", py_stats_map_view_get, METH_VARARGS, PyDoc_STR("Get value for key or default.")},
-    PyMethodDef{"keys", py_stats_map_keys, METH_NOARGS, PyDoc_STR("Get iterator over keys.")},
-    PyMethodDef{"values", py_stats_map_view_values, METH_NOARGS, PyDoc_STR("Get iterator over values.")},
-    PyMethodDef{"items", py_stats_map_view_items, METH_NOARGS, PyDoc_STR("Get iterator over items.")},
+    PyMethodDef{"keys", StatsMapViewProtocol::keys, METH_NOARGS, PyDoc_STR("Get a view on the keys.")},
+    PyMethodDef{"values", StatsMapViewProtocol::values, METH_NOARGS, PyDoc_STR("Get a view on the values.")},
+    PyMethodDef{"items", StatsMapViewProtocol::items, METH_NOARGS, PyDoc_STR("Get a view on the items.")},
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
 
@@ -1445,6 +1506,7 @@ auto py_stats_map_view_slots = std::array{
     PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Class representing a read-only map of stats."))},
     PyType_Slot{Py_tp_str, reinterpret_cast<void *>(py_stats_str)},
     PyType_Slot{Py_tp_methods, py_stats_map_view_methods.data()},
+    PyType_Slot{Py_tp_richcompare, reinterpret_cast<void *>(StatsMapViewProtocol::richcompare)},
     PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_stats_view_len)},
     PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_stats_map_view_subscript)},
     PyType_Slot{Py_sq_contains, reinterpret_cast<void *>(py_stats_view_contains)},
@@ -1459,8 +1521,7 @@ auto py_stats_map_view_spec = PyType_Spec{
     "clingo.stats.StatsMapView",
     sizeof(PyStatsObject),
     0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING | Py_TPFLAGS_HAVE_GC |
-        Py_TPFLAGS_BASETYPE,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
     py_stats_map_view_slots.data(),
 };
 
@@ -1479,21 +1540,21 @@ auto py_stats_map_methods = std::array{
     },
     PyMethodDef{
         "keys",
-        py_stats_map_keys,
+        StatsMapProtocol::keys,
         METH_NOARGS,
-        PyDoc_STR("Get iterator over keys."),
+        PyDoc_STR("Get a view on the keys."),
     },
     PyMethodDef{
         "values",
-        py_stats_map_values,
+        StatsMapProtocol::values,
         METH_NOARGS,
-        PyDoc_STR("Get iterator over values."),
+        PyDoc_STR("Get a view on the values."),
     },
     PyMethodDef{
         "items",
-        py_stats_map_items,
+        StatsMapProtocol::items,
         METH_NOARGS,
-        PyDoc_STR("Get iterator over items."),
+        PyDoc_STR("Get a view on the items."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
@@ -1502,6 +1563,7 @@ auto py_stats_map_slots = std::array{
     PyType_Slot{Py_tp_doc, PyDoc_STR(const_cast<char *>("Class representing a map of stats."))},
     PyType_Slot{Py_tp_str, reinterpret_cast<void *>(py_stats_str)},
     PyType_Slot{Py_tp_methods, py_stats_map_methods.data()},
+    PyType_Slot{Py_tp_richcompare, reinterpret_cast<void *>(StatsMapProtocol::richcompare)},
     PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_stats_view_len)},
     PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_stats_map_subscript)},
     PyType_Slot{Py_mp_ass_subscript, reinterpret_cast<void *>(py_stats_map_ass_subscript)},
@@ -1511,10 +1573,7 @@ auto py_stats_map_slots = std::array{
 };
 
 auto py_stats_map_spec = PyType_Spec{
-    "clingo.stats.StatsMap",
-    sizeof(PyStatsObject),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_MAPPING,
+    "clingo.stats.StatsMap",   sizeof(PyStatsObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
     py_stats_map_slots.data(),
 };
 
@@ -1536,6 +1595,8 @@ auto py_stats_slots = std::array{
     PyType_Slot{Py_tp_str, reinterpret_cast<void *>(py_stats_str)},
     PyType_Slot{Py_tp_methods, py_stats_methods.data()},
     PyType_Slot{Py_tp_getset, py_stats_getset.data()},
+    PyType_Slot{Py_tp_richcompare, reinterpret_cast<void *>(py_stats_richcompare)},
+    PyType_Slot{Py_tp_hash, reinterpret_cast<void *>(py_stats_hash)},
     PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_stats_view_len)},
     PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_stats_subscript)},
     PyType_Slot{Py_sq_contains, reinterpret_cast<void *>(py_stats_view_contains)},
@@ -1564,6 +1625,9 @@ auto stats_module_traverse(PyObject *module, visitproc visit, void *arg) -> int 
     Py_VISIT(state->stats_map_view_type);
     Py_VISIT(state->stats_map_type);
     Py_VISIT(state->stats_iter_type);
+    Py_VISIT(state->keys_view_type);
+    Py_VISIT(state->values_view_type);
+    Py_VISIT(state->items_view_type);
     return 0;
 }
 
@@ -1583,6 +1647,9 @@ auto stats_module_clear(PyObject *module) -> int {
     Py_CLEAR(state->stats_map_view_type);
     Py_CLEAR(state->stats_map_type);
     Py_CLEAR(state->stats_iter_type);
+    Py_CLEAR(state->keys_view_type);
+    Py_CLEAR(state->values_view_type);
+    Py_CLEAR(state->items_view_type);
     return 0;
 }
 
@@ -1604,23 +1671,16 @@ PyModuleDef stats_def = {
 
 } // namespace
 
-void register_stats(pybind11::module &m) {
+auto create_stats(PyObject *parent) -> PyObject * {
     auto stats_mod = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &stats_def, &stats_mod.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &stats_def, &stats_mod.get())) {
+        return nullptr;
     }
-
     auto *state = get_state(stats_mod.get());
-    if (state == nullptr) {
-        throw py::error_already_set();
-    }
-
-    if (!add_int_enum(stats_mod.get(), "StatsType", stats_type_members, &state->stats_type_enum,
-                      state->stats_type_vals)) {
-        throw py::error_already_set();
-    }
-
-    if (!add_type(stats_mod.get(), "_StatsIter", &py_stats_iter_spec, &state->stats_iter_type) ||
+    if (state == nullptr ||
+        !add_int_enum(stats_mod.get(), "StatsType", stats_type_members, &state->stats_type_enum,
+                      state->stats_type_vals) ||
+        !add_type(stats_mod.get(), "_StatsIter", &py_stats_iter_spec, &state->stats_iter_type) ||
         !add_type(stats_mod.get(), "StatsView", &py_stats_view_spec, &state->stats_view_type) ||
         !add_type(stats_mod.get(), "Stats", &py_stats_spec, &state->stats_type, state->stats_view_type) ||
         !add_type(stats_mod.get(), "StatsArrayView", &py_stats_array_view_spec, &state->stats_array_view_type) ||
@@ -1628,9 +1688,22 @@ void register_stats(pybind11::module &m) {
                   state->stats_array_view_type) ||
         !add_type(stats_mod.get(), "StatsMapView", &py_stats_map_view_spec, &state->stats_map_view_type) ||
         !add_type(stats_mod.get(), "StatsMap", &py_stats_map_spec, &state->stats_map_type,
-                  state->stats_map_view_type)) {
-        throw py::error_already_set();
+                  state->stats_map_view_type) ||
+        !register_abc(state->stats_array_view_type, "Sequence") || !register_abc(state->stats_array_type, "Sequence") ||
+        !register_abc(state->stats_map_view_type, "Mapping") || !register_abc(state->stats_map_type, "Mapping")) {
+        return nullptr;
     }
+    return stats_mod.release();
+}
+
+auto link_stats(PyObject *mod) -> bool {
+    static constexpr auto imports = std::array{
+        TypeImport<StatsModuleState>{&StatsModuleState::keys_view_type, &py_keys_view_type},
+        TypeImport<StatsModuleState>{&StatsModuleState::values_view_type, &py_values_view_type},
+        TypeImport<StatsModuleState>{&StatsModuleState::items_view_type, &py_items_view_type},
+    };
+    auto *state = get_state(mod);
+    return state != nullptr && import_types(state, imports);
 }
 
 auto py_stats_new(PyObject *owner, void const *valid, PyObject *type, clingo_stats_t *stats, uint64_t key)

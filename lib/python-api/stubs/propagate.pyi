@@ -68,7 +68,6 @@ __all__: list[str] = [
     "PropagateInit",
     "Propagator",
     "Trail",
-    "TrailView",
     "UndoMode",
     "WeightConstraintType",
 ]
@@ -131,78 +130,7 @@ class UndoMode(IntEnum):
     Call `clingo.propagate.Propagator.undo` for non-empty changes only.
     """
 
-class TrailView:
-    """
-    Provides access to a subrange of literals in the solver's trail.
-
-    This provides a read-only sequence interface to access the solver literals in
-    the view. The view is only valid during the propagator callback in which it was
-    obtained.
-    """
-
-    def __contains__(self, value: int, /) -> bool:
-        """
-        Check whether the view contains the given literal.
-
-        Args:
-            value: The literal to look up.
-
-        Returns:
-            Whether the literal is contained.
-        """
-
-    @overload
-    def __getitem__(self, index: int, /) -> int:
-        """
-        Get the literal at the given index.
-
-        Args:
-            index: The index of the literal.
-
-        Returns:
-            The literal at the given index.
-        """
-
-    @overload
-    def __getitem__(self, index: slice, /) -> TrailView:
-        """
-        Get a view on the literals in the given slice.
-
-        Args:
-            index: The slice of literals.
-
-        Returns:
-            A view on the literals in the given slice.
-        """
-
-    def __getitem__(self, index: int | slice, /) -> int | TrailView:
-        """
-        Get the literal at the given index or a view on the given slice.
-
-        Args:
-            index: The index of the literal or the slice of literals.
-
-        Returns:
-            The literal at the given index or a view on the selected literals.
-        """
-
-    def __iter__(self) -> Iterator[int]:
-        """
-        Get an iterator over the literals in the view.
-
-        Returns:
-            An iterator over the literals in the view.
-        """
-
-    def __len__(self) -> int:
-        """
-        Get the number of literals in the view.
-
-        Returns:
-            The number of literals in the view.
-        """
-
-class Trail:
+class Trail(Sequence[int]):
     """
     Provides access to literals in the solver's trail.
 
@@ -220,7 +148,7 @@ class Trail:
     was obtained.
     """
 
-    def __contains__(self, value: int, /) -> bool:
+    def __contains__(self, value: object, /) -> bool:
         """
         Check whether the trail contains the given literal.
 
@@ -244,7 +172,7 @@ class Trail:
         """
 
     @overload
-    def __getitem__(self, index: slice, /) -> TrailView:
+    def __getitem__(self, index: slice, /) -> Sequence[int]:
         """
         Get a view on the literals in the given slice.
 
@@ -255,7 +183,7 @@ class Trail:
             A view on the literals in the given slice.
         """
 
-    def __getitem__(self, index: int | slice, /) -> int | TrailView:
+    def __getitem__(self, index: int | slice, /) -> int | Sequence[int]:
         """
         Get the literal at the given index or a view on the given slice.
 
@@ -282,6 +210,33 @@ class Trail:
             The number of literals in the trail.
         """
 
+    def count(self, value: object, /) -> int:
+        """
+        Count the occurrences of the given value in the trail.
+
+        Args:
+            value: The value to count.
+
+        Returns:
+            The number of occurrences.
+        """
+
+    def index(self, value: object, start: int = 0, stop: int | None = None, /) -> int:
+        """
+        Get the index of the first occurrence of the given value in the trail.
+
+        Args:
+            value: The value to look up.
+            start: The index to start the search at.
+            stop: The index to stop the search at.
+
+        Returns:
+            The index of the value.
+
+        Raises:
+            ValueError: If the value is not contained.
+        """
+
     def begin(self, level: int) -> int:
         """
         Get the index of the first literal on the given level.
@@ -306,7 +261,7 @@ class Trail:
             The index after the last literal.
         """
 
-    def level(self, level: int) -> TrailView:
+    def level(self, level: int) -> Sequence[int]:
         """
         Get the literals assigned at the given decision level.
 
@@ -320,7 +275,7 @@ class Trail:
             A view on the literals of the level.
         """
 
-class Assignment:
+class Assignment(Sequence[int]):
     """
     Provides information about the current state of literals in the solver.
 
@@ -344,7 +299,7 @@ class Assignment:
     was obtained.
     """
 
-    def __contains__(self, value: int, /) -> bool:
+    def __contains__(self, value: object, /) -> bool:
         """
         Check whether the given solver literal is part of the assignment.
 
@@ -407,6 +362,33 @@ class Assignment:
 
         Returns:
             The number of positive solver literals in the assignment.
+        """
+
+    def count(self, value: object, /) -> int:
+        """
+        Count the occurrences of the given value in the assignment.
+
+        Args:
+            value: The value to count.
+
+        Returns:
+            The number of occurrences.
+        """
+
+    def index(self, value: object, start: int = 0, stop: int | None = None, /) -> int:
+        """
+        Get the index of the first occurrence of the given value in the assignment.
+
+        Args:
+            value: The value to look up.
+            start: The index to start the search at.
+            stop: The index to stop the search at.
+
+        Returns:
+            The index of the value.
+
+        Raises:
+            ValueError: If the value is not contained.
         """
 
     def decision(self, level: int) -> int:

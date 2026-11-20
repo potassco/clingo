@@ -27,9 +27,11 @@ def _load_fake_theory():
     """
     Load the fake theory plugin built by CMake.
     """
-    path = os.environ.get(
-        "PYCLINGO_FAKE_THEORY", "./build/debug/bin/python/fake_theory.so"
-    )
+    path = os.environ.get("PYCLINGO_FAKE_THEORY")
+    if path is None:
+        path = "./build/debug/bin/python/fake_theory.so"
+        if not os.path.exists(path):
+            pytest.skip("the fake theory plugin is not available")
     return ctypes.CDLL(path)
 
 

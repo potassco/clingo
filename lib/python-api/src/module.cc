@@ -1,5 +1,6 @@
 #include "clingo.hh"
 
-PYBIND11_MODULE(clingo, m) {
-    PyClingo::register_clingo(m);
+// NOLINTNEXTLINE
+PyMODINIT_FUNC PyInit_clingo() {
+    return PyClingo::init_clingo();
 }

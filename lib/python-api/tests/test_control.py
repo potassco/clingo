@@ -2,8 +2,10 @@
 Unit tests for clingo.control module.
 """
 
+from collections.abc import Mapping
 from textwrap import dedent
 
+import pytest
 from clingo import ast
 from clingo.control import Control
 from clingo.core import Library
@@ -63,6 +65,31 @@ class TestControl:
         """
         assert self._lib is not None
         return self._lib
+
+    def test_const_map(self):
+        """
+        Test the mapping protocol of the constant map.
+        """
+        ctl = Control(self.lib)
+        ctl.parse_string("#const n=1. #const m=f(x).")
+        ctl.ground()
+        consts = ctl.const_map
+        num = Number(self.lib, 1)
+        fun = Function(self.lib, "f", [Function(self.lib, "x")])
+        assert isinstance(consts, Mapping)
+        assert consts.keys() >= {"n", "m"}
+        assert ("n", num) in consts.items()
+        assert ("n", fun) not in consts.items()
+        assert fun in consts.values()
+        assert 1 not in consts
+        assert consts == dict(consts)
+        with pytest.raises(TypeError):
+            hash(consts)
+        match consts:
+            case {"n": n, "m": m}:
+                assert n == num and m == fun
+            case _:
+                pytest.fail("mapping pattern did not match")
 
     def test_start_ground(self):
         """

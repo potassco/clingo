@@ -1,9 +1,9 @@
 #pragma once
 
+#include <Python.h>
+
 #include <clingo/control.h>
 #include <clingo/solve.h>
-
-#include <pybind11/pybind11.h>
 
 #include <span>
 
@@ -50,6 +50,9 @@ auto py_solve_start(PyObject *type, clingo_control_t *ctl, PyObject *owner,
 auto py_solve(PyObject *type, clingo_control_t *ctl, PyObject *owner, std::span<clingo_literal_t const> assumptions,
               PyObject *on_model, PyObject *on_unsat, PyObject *on_stats, PyObject *on_finish) -> PyObject *;
 
-void register_solve(pybind11::module &m);
+//! Create the clingo.solve module with its own types and functions (first registration phase).
+auto create_solve(PyObject *parent) -> PyObject *;
+//! Store the types of other modules in the state of the clingo.solve module (second registration phase).
+auto link_solve(PyObject *mod) -> bool;
 
 } // namespace PyClingo

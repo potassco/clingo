@@ -39,7 +39,7 @@ option only basic stats are reported.
 
 import enum
 import typing
-from collections.abc import Iterator
+from collections.abc import ItemsView, Iterator, KeysView, Mapping, Sequence, ValuesView
 
 __all__: list[str] = [
     "Stats",
@@ -76,7 +76,7 @@ class StatsView:
     Class representing read-only solver stats.
     """
 
-    def __contains__(self, key: str, /) -> bool:
+    def __contains__(self, key: object, /) -> bool:
         """
         Check whether the given key is in the element, which must be a map.
 
@@ -85,6 +85,17 @@ class StatsView:
 
         Returns:
             True if the key is in the map, False otherwise.
+        """
+
+    def __eq__(self, other: object, /) -> bool:
+        """
+        Check whether the view refers to the same statistics entry as the given object.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether both refer to the same entry.
         """
 
     def __getitem__(self, key: int | str, /) -> StatsView:
@@ -99,6 +110,14 @@ class StatsView:
 
         Returns:
             The value associated with the given key.
+        """
+
+    def __hash__(self) -> int:
+        """
+        Compute a hash for the view.
+
+        Returns:
+            The hash value.
         """
 
     def __iter__(self) -> Iterator[str | StatsView]:
@@ -217,22 +236,34 @@ class Stats(StatsView):
         Set the value of the stats object.
         """
 
-class StatsArrayView:
+class StatsArrayView(Sequence[StatsView]):
     """
     Class representing a read-only array of stats.
 
     This provides a read-only sequence interface.
     """
 
+    @typing.overload
     def __getitem__(self, index: int, /) -> StatsView:
         """
-        Get the element at the given index.
+        Get the value at the given index.
+        """
+
+    @typing.overload
+    def __getitem__(self, index: slice, /) -> Sequence[StatsView]:
+        """
+        Get the values in the given slice.
+        """
+
+    def __getitem__(self, index: int | slice, /) -> StatsView | Sequence[StatsView]:
+        """
+        Get the value at the given index or the values in the given slice.
 
         Args:
-            index: The index of the element to return.
+            index: The index or slice to look up.
 
         Returns:
-            The element at the given index.
+            The value at the given index or the values in the slice.
         """
 
     def __iter__(self) -> Iterator[StatsView]:
@@ -251,6 +282,33 @@ class StatsArrayView:
             The length of the array.
         """
 
+    def count(self, value: object, /) -> int:
+        """
+        Count the occurrences of the given value in the array.
+
+        Args:
+            value: The value to count.
+
+        Returns:
+            The number of occurrences.
+        """
+
+    def index(self, value: object, start: int = 0, stop: int | None = None, /) -> int:
+        """
+        Get the index of the first occurrence of the given value in the array.
+
+        Args:
+            value: The value to look up.
+            start: The index to start the search at.
+            stop: The index to stop the search at.
+
+        Returns:
+            The index of the value.
+
+        Raises:
+            ValueError: If the value is not contained.
+        """
+
 class StatsArray(StatsArrayView):
     """
     Class representing an array of stats.
@@ -263,15 +321,27 @@ class StatsArray(StatsArrayView):
     top-level statistics object.
     """
 
+    @typing.overload
     def __getitem__(self, index: int, /) -> Stats:
         """
-        Get the element at the given index.
+        Get the value at the given index.
+        """
+
+    @typing.overload
+    def __getitem__(self, index: slice, /) -> list[Stats]:
+        """
+        Get the values in the given slice.
+        """
+
+    def __getitem__(self, index: int | slice, /) -> Stats | list[Stats]:
+        """
+        Get the value at the given index or the values in the given slice.
 
         Args:
-            index: The index of the element to return.
+            index: The index or slice to look up.
 
         Returns:
-            The element at the given index.
+            The value at the given index or the values in the slice.
         """
 
     def __iter__(self) -> Iterator[Stats]:
@@ -291,6 +361,33 @@ class StatsArray(StatsArrayView):
             value: The value to set the element to.
         """
 
+    def count(self, value: object, /) -> int:
+        """
+        Count the occurrences of the given value in the array.
+
+        Args:
+            value: The value to count.
+
+        Returns:
+            The number of occurrences.
+        """
+
+    def index(self, value: object, start: int = 0, stop: int | None = None, /) -> int:
+        """
+        Get the index of the first occurrence of the given value in the array.
+
+        Args:
+            value: The value to look up.
+            start: The index to start the search at.
+            stop: The index to stop the search at.
+
+        Returns:
+            The index of the value.
+
+        Raises:
+            ValueError: If the value is not contained.
+        """
+
     def append(self, value: object, /) -> None:
         """
         Append the given value to the array.
@@ -307,11 +404,28 @@ class StatsArray(StatsArrayView):
             values: An iterable of values to append.
         """
 
-class StatsMapView:
+class StatsMapView(Mapping[str, StatsView]):
     """
     Class representing a read-only map of stats.
 
     This class provides a read-only mapping interface.
+    """
+
+    def __eq__(self, other: object, /) -> bool:
+        """
+        Check whether the map is equal to the given object.
+
+        The map is equal to another mapping with the same items.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the map is equal to the object.
+        """
+    __hash__: typing.ClassVar[None]  # type: ignore[assignment]
+    """
+    The map is not hashable because it compares by value.
     """
 
     def __getitem__(self, key: str, /) -> StatsView:
@@ -341,7 +455,7 @@ class StatsMapView:
             The length of the map.
         """
 
-    def __contains__(self, key: str, /) -> bool:
+    def __contains__(self, key: object, /) -> bool:
         """
         Check whether the map contains the given key.
 
@@ -353,7 +467,7 @@ class StatsMapView:
         """
 
     @typing.overload
-    def get(self, key: str, /) -> StatsView | None:
+    def get(self, key: str, default: None = None) -> StatsView | None:
         """
         Get the value for `key` if present, otherwise return `None`.
 
@@ -366,7 +480,7 @@ class StatsMapView:
         """
 
     @typing.overload
-    def get(self, key: str, default: _T) -> StatsView | _T:
+    def get(self, key: str, default: StatsView | _T) -> StatsView | _T:
         """
         Get the value for `key` if present, otherwise return `default`.
 
@@ -392,25 +506,28 @@ class StatsMapView:
                 is not found.
         """
 
-    def items(self) -> Iterator[tuple[str, StatsView]]:
+    def items(self) -> ItemsView[str, StatsView]:
         """
-        Get an iterator over the items of the map.
-        """
-
-    def keys(self) -> Iterator[str]:
-        """
-        Get an iterator over the keys of the map.
+        Get a view on the items of the map.
 
         Returns:
-            An iterator over the keys of the map.
+            A view on the items of the map.
         """
 
-    def values(self) -> Iterator[StatsView]:
+    def keys(self) -> KeysView[str]:
         """
-        Get an iterator over the values of the map.
+        Get a view on the keys of the map.
 
         Returns:
-            An iterator over the values of the map.
+            A view on the keys of the map.
+        """
+
+    def values(self) -> ValuesView[StatsView]:
+        """
+        Get a view on the values of the map.
+
+        Returns:
+            A view on the values of the map.
         """
 
 class StatsMap(StatsMapView):
@@ -472,7 +589,7 @@ class StatsMap(StatsMapView):
                 is not found.
         """
 
-    def get(self, key: str, default: _T | None = None) -> StatsView | _T | None:
+    def get(self, key: str, default: _T | None = None) -> Stats | _T | None:
         """
         Get the value for `key` if present, otherwise return `default`.
 
@@ -497,18 +614,18 @@ class StatsMap(StatsMapView):
             The newly inserted value or the existing value.
         """
 
-    def items(self) -> Iterator[tuple[str, Stats]]:
+    def items(self) -> ItemsView[str, Stats]:
         """
-        Get an iterator over the items of the map.
+        Get a view on the items of the map.
 
         Returns:
-            An iterator over the items of the map.
+            A view on the items of the map.
         """
 
-    def values(self) -> Iterator[Stats]:
+    def values(self) -> ValuesView[Stats]:
         """
-        Get an iterator over the values of the map.
+        Get a view on the values of the map.
 
         Returns:
-            An iterator over the values of the map.
+            A view on the values of the map.
         """

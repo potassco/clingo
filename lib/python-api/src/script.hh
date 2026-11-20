@@ -1,13 +1,16 @@
 #pragma once
 
-#include <clingo/core.h>
+#include <Python.h>
 
-#include <pybind11/pybind11.h>
+#include <clingo/core.h>
 
 namespace PyClingo {
 
 auto register_python(clingo_lib_t *lib) -> bool;
 
-void register_script(pybind11::module &m);
+//! Create the clingo.script module with its own types and functions (first registration phase).
+auto create_script(PyObject *parent) -> PyObject *;
+//! Store the types of other modules in the state of the clingo.script module (second registration phase).
+auto link_script(PyObject *mod) -> bool;
 
 } // namespace PyClingo

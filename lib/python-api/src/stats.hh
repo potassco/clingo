@@ -1,8 +1,8 @@
 #pragma once
 
-#include <clingo/stats.h>
+#include <Python.h>
 
-#include <pybind11/pybind11.h>
+#include <clingo/stats.h>
 
 #include <cstdint>
 
@@ -14,7 +14,10 @@ enum class StatsType : uint8_t {
     map = clingo_stats_type_map,
 };
 
-void register_stats(pybind11::module &m);
+//! Create the clingo.stats module with its own types and functions (first registration phase).
+auto create_stats(PyObject *parent) -> PyObject *;
+//! Store the types of other modules in the state of the clingo.stats module (second registration phase).
+auto link_stats(PyObject *mod) -> bool;
 
 auto py_stats_type() -> PyObject *;
 auto py_stats_view_type() -> PyObject *;

@@ -2,6 +2,8 @@
 Unit tests for the clingo.stats module.
 """
 
+from collections.abc import ItemsView, KeysView, Mapping, Sequence
+
 import pytest
 from clingo.control import Control
 from clingo.core import Library
@@ -94,6 +96,30 @@ class TestStats:
         for x in costs.array:
             assert isinstance(x, StatsView)
 
+        # protocols
+        solvers = stats["solving"]["solvers"]
+        assert solvers == stats["solving"]["solvers"]
+        assert hash(solvers) == hash(stats["solving"]["solvers"])
+        assert solvers != choices
+        assert 1 not in stats
+        smap = solvers.map
+        assert isinstance(smap, Mapping)
+        assert isinstance(smap.keys(), KeysView)
+        assert isinstance(smap.items(), ItemsView)
+        smap_keys = smap.keys()
+        assert "choices" in smap_keys and 1 not in smap
+        assert smap_keys == set(smap)
+        assert ("choices", choices) in smap.items()
+        assert smap == stats["solving"]["solvers"].map
+        assert smap != {}
+        with pytest.raises(TypeError):
+            hash(smap)
+        arr = costs.array
+        assert isinstance(arr, Sequence)
+        assert arr[-1] == arr[0]
+        assert arr[:] == [arr[0]] and arr[1:] == []
+        assert arr.index(arr[0]) == 0 and arr.count(arr[0]) == 1
+
     def test_stats(self):
         """
         Test mutable stats API.
@@ -135,6 +161,12 @@ class TestStats:
 
             assert step["map"]["val"].value == 20.0
             assert step["map"]["arr"].nestify() == [2.0, 4.0, 6.0, {"nested": 4711.0}]
+            arr = step["map"]["arr"].array
+            assert isinstance(arr, Sequence)
+            assert [x.value for x in arr[:3]] == [2.0, 4.0, 6.0]
+            assert [x.value for x in arr[-2::-1]] == [6.0, 4.0, 2.0]
+            assert arr.index(arr[2]) == 2 and arr.count(arr[2]) == 1
+            assert dict(step["map"].map.items()) == step["map"].map
 
             step.map["tested"] = 1.0
             accu.map["tested"] = 1.0

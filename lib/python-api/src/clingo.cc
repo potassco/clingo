@@ -13,142 +13,111 @@
 #include "stats.hh"
 #include "symbol.hh"
 #include "theory.hh"
+#include "util.hh"
 
-#include <pybind11/pybind11.h>
+#include <array>
 
 namespace PyClingo {
 
-void register_clingo(pybind11::module &m) {
-    m.doc() = R"doc(Module providing functions and classes to control the grounding and solving
-process of Answer Set Programming (ASP).
+namespace {
 
-# Introduction
+//! The registration functions of a submodule.
+//!
+//! Modules are registered in two phases. First, all modules are created with
+//! their own types. Then, the types imported from other modules are stored in
+//! the module states. This way, modules can import each other's types
+//! independently of the order in which they are created.
+struct Submodule {
+    //! Create the module (returns a new reference).
+    PyObject *(*create)(PyObject *parent);
+    //! Import types of other modules (nullptr if the module imports no types).
+    bool (*link)(PyObject *mod);
+};
 
-This module offers a comprehensive set of tools for interacting with the clingo
-ASP solver, allowing users to control grounding and solving processes
-programmatically.
+constexpr auto submodules = std::array{
+    Submodule{create_core, nullptr},         Submodule{create_symbol, link_symbol},
+    Submodule{create_ast, link_ast},         Submodule{create_base, link_base},
+    Submodule{create_backend, link_backend}, Submodule{create_ground, link_ground},
+    Submodule{create_stats, link_stats},     Submodule{create_solve, link_solve},
+    Submodule{create_config, nullptr},       Submodule{create_propagate, link_propagate},
+    Submodule{create_control, link_control}, Submodule{create_script, link_script},
+    Submodule{create_app, link_app},         Submodule{create_theory, link_theory},
+};
 
-# Key Concepts
+//! Remove the clingo submodules from sys.modules keeping the current error.
+//!
+//! This makes sure that a failed import does not leave behind partially
+//! initialized modules.
+void remove_submodules() {
+    PyObject *type = nullptr;
+    PyObject *value = nullptr;
+    PyObject *trace = nullptr;
+    PyErr_Fetch(&type, &value, &trace);
+    auto *modules = PyImport_GetModuleDict();
+    auto prefix = steal(PyUnicode_FromString("clingo."));
+    auto keys = steal(modules != nullptr ? PyDict_Keys(modules) : nullptr);
+    if (prefix.get() != nullptr && keys.get() != nullptr) {
+        auto size = PyList_Size(keys.get());
+        for (Py_ssize_t i = 0; i < size; ++i) {
+            auto *key = PyList_GetItem(keys.get(), i);
+            if (PyUnicode_Check(key) != 0 && PyUnicode_Tailmatch(key, prefix.get(), 0, PY_SSIZE_T_MAX, -1) == 1 &&
+                PyDict_DelItem(modules, key) < 0) {
+                break;
+            }
+        }
+    }
+    PyErr_Clear();
+    PyErr_Restore(type, value, trace);
+}
 
-## Terms
+//! Create and link the submodules of the clingo module.
+//!
+//! The module uses multi-phase initialization so that it is already in
+//! sys.modules when this function runs. Otherwise, importing a submodule while
+//! linking would import the clingo module again.
+auto clingo_exec(PyObject *clingo) -> int {
+    std::array<PyGuard, submodules.size()> mods;
+    for (size_t i = 0; i < submodules.size(); ++i) {
+        mods.at(i) = steal(submodules.at(i).create(clingo));
+        if (mods.at(i).get() == nullptr) {
+            remove_submodules();
+            return -1;
+        }
+    }
+    for (size_t i = 0; i < submodules.size(); ++i) {
+        if (auto *link = submodules.at(i).link; link != nullptr && !link(mods.at(i).get())) {
+            remove_submodules();
+            return -1;
+        }
+    }
+    // TODO: The modules could be loaded lazily by installing a finder in
+    // sys.meta_path. Its loader would create a module in create_module() and
+    // link it in exec_module().
+    return 0;
+}
 
-Terms without variables and interpreted functions are called symbols in the
-following. They are wrapped in the `clingo.symbol.Symbol` class.
+auto clingo_slots = std::array{
+    PyModuleDef_Slot{Py_mod_exec, reinterpret_cast<void *>(clingo_exec)},
+    PyModuleDef_Slot{0, nullptr},
+};
 
-## Symbolic Atoms and Literals
+// NOTE: the documentation of the package is maintained in the stubs
+PyModuleDef clingo_def = {
+    PyModuleDef_HEAD_INIT,
+    "clingo",
+    PyDoc_STR("Functions and classes to control the grounding and solving process of Answer Set Programming."),
+    0,
+    nullptr,
+    clingo_slots.data(),
+    nullptr,
+    nullptr,
+    nullptr,
+};
 
-*Symbolic atoms* without variables and interpreted functions, which appear in
-ground logic programs, are captured using the `clingo.symbol.Symbol` class.
-They must be of type `clingo.symbol.SymbolType.Function`. Furthermore, some
-functions accept *symbolic literals*, which are represented as pairs of symbols
-and Booleans. The Boolean stands for the sign of the literal (`True` for
-positive and `False` for negative).
+} // namespace
 
-## Program Literals
-
-When passing a ground logic program to a solver, clingo does not use a human
-readable textual representation but the aspif format. The literals in this
-format are called *program literals*. They are non-zero integers associated
-with symbolic atoms, theory atoms, and also without any association if they are
-used to translate complex language constructs not directly representable in
-aspif format. The sign of a program literal is used to represent default
-negation. Symbolic and theory atoms can be mapped to program literals using the
-`clingo.base` module. Note that symbolic and theory atoms can share the same
-program literals. Finally, the `clingo.backend` module can also be used to
-introduce fresh symbolic atoms and program literals.
-
-## Solver Literals
-
-Before solving, programs in aspif format are translated to an internal solver
-representation, where program literals are again mapped to non-zero integers,
-so called *solver literals*. The `clingo.propagate.PropagateInit.solver_literal`
-function can be used to map program literals to solver literals. Note that
-different program literals can share the same solver literal.
-
-# Embedded Python Code
-
-If the clingo application is built with Python support, clingo will also be
-able to execute Python code embedded in logic programs. Functions defined in a
-Python script block are callable during the instantiation process using
-`@`-syntax. The default grounding/solving process can be customized if a main
-function is provided.
-
-# Examples
-
-The first example shows how to use Python code from clingo:
-
-```python
-#script (python)
-
-from typing import Sequence
-from clingo.core import Library
-from clingo.control import Control
-from clingo.symbol import Number, Symbol
-
-Parts = Sequence[Sequence[tuple[str, Sequence[Symbol]]]]
-
-def f(lib: Library, x: Symbol):
-    return Number(lib, x.number)
-
-def main(lib: Library, ctl: Control, parts: Parts):
-    for part in parts:
-        ctl.ground(part)
-        ctl.solve()
-
-#end.
-
-1 {p(1..2)} 1.
-q(@f(X)) :- p(X).
-```
-
-The second example shows how to use the `clingo` module from Python. Note the
-use of a context object here. In fact, it is not possible (by default) to call
-functions from the main scope. See the `clingo.script` module for more
-information.
-
-```python
->>> from clingo.core import Library
->>> from clingo.control import Control
->>> from clingo.symbol import Number, Symbol
-...
->>> class Context:
-...     def __init__(self, lib: Library) -> None:
-...         self.lib = lib
-...     def f(self, x: Symbol):
-...         return Number(self.lib, x.number + 1)
-...
->>> with Library() as lib:
-...     ctl = Control(lib, ["0"])
-...     ctl.parse_string("1 {p(1..2)} 1. q(@f(X)) :- p(X).")
-...     ctl.ground(context=Context(lib))
-...     ctl.solve(on_model=print)
-```
-)doc";
-    PyClingo::register_core(m);
-    PyClingo::register_symbol(m);
-    PyClingo::register_ast(m);
-    PyClingo::register_base(m);
-    PyClingo::register_backend(m);
-    PyClingo::register_ground(m);
-    PyClingo::register_stats(m);
-    PyClingo::register_solve(m);
-    PyClingo::register_config(m);
-    PyClingo::register_propagate(m);
-    PyClingo::register_control(m);
-    PyClingo::register_script(m);
-    PyClingo::register_app(m);
-    PyClingo::register_theory(m);
-
-    // TODO: Add lazy loading for the modules registered here:
-    // - Install a finder in sys.meta_path that recognizes these module names.
-    // - Implement the importlib.abc.MetaPathFinder interface:
-    //   - In find_spec(), return a spec for a registered module, created with
-    //     importlib.util.spec_from_loader(name, loader, ...).
-    // - Implement the importlib.abc.Loader interface:
-    //   - In create_module(), create the module and register its independent types
-    //     and functions.
-    //   - In exec_module(), initialize module state that depends on other modules,
-    //     such as cached types imported from those modules.
+auto init_clingo() -> PyObject * {
+    return PyModuleDef_Init(&clingo_def);
 }
 
 } // namespace PyClingo

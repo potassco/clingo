@@ -63,7 +63,7 @@ auto py_config_checked(PyObject *obj) -> PyConfigObject * {
 auto py_config_alloc(PyObject *owner, void const *valid, PyObject *keeper, PyObject *type, clingo_config_t *config,
                      clingo_id_t key) -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
-    auto *obj = to->tp_alloc(to, 0);
+    auto *obj = PyType_GenericAlloc(to, 0);
     if (obj == nullptr) {
         return nullptr;
     }
@@ -799,20 +799,16 @@ auto py_config_get(PyObject *type, PyObject *obj, clingo_config_t **config, clin
     return true;
 }
 
-void register_config(pybind11::module &m) {
+auto create_config(PyObject *parent) -> PyObject * {
     auto config_mod = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &config_def, &config_mod.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &config_def, &config_mod.get())) {
+        return nullptr;
     }
-
     auto *state = get_state(config_mod.get());
-    if (state == nullptr) {
-        throw py::error_already_set();
+    if (state == nullptr || !add_type(config_mod.get(), "Config", &py_config_spec, &state->config_type)) {
+        return nullptr;
     }
-
-    if (!add_type(config_mod.get(), "Config", &py_config_spec, &state->config_type)) {
-        throw py::error_already_set();
-    }
+    return config_mod.release();
 }
 
 } // namespace PyClingo

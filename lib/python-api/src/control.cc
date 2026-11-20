@@ -5,6 +5,7 @@
 #include "ast.hh"
 #include "backend.hh"
 #include "base.hh"
+#include "collection.hh"
 #include "config.hh"
 #include "core.hh"
 #include "ground.hh"
@@ -23,6 +24,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstdio>
 #include <span>
 #include <tuple>
 #include <utility>
@@ -61,6 +63,9 @@ struct ControlModuleState {
     PyObject *const_map_type{nullptr};
     PyObject *const_map_iter_type{nullptr};
     PyObject *control_type{nullptr};
+    PyObject *keys_view_type{nullptr};
+    PyObject *values_view_type{nullptr};
+    PyObject *items_view_type{nullptr};
     //! The address of this member is the tag under which control objects are registered as owners.
     char owner_tag{0};
 };
@@ -73,7 +78,8 @@ constexpr auto state_members = std::array{
     &ControlModuleState::propagator_type,   &ControlModuleState::program_type,
     &ControlModuleState::backend_module,    &ControlModuleState::mode_enum,
     &ControlModuleState::const_map_type,    &ControlModuleState::const_map_iter_type,
-    &ControlModuleState::control_type,
+    &ControlModuleState::control_type,      &ControlModuleState::keys_view_type,
+    &ControlModuleState::values_view_type,  &ControlModuleState::items_view_type,
 };
 
 struct PyControlObject {
@@ -139,6 +145,26 @@ auto get_state_from_type(PyTypeObject *type) -> ControlModuleState * {
 
 auto state_of(PyObject *self) -> ControlModuleState * {
     return get_state_from_type(Py_TYPE(self));
+}
+
+//! Get the view type of the given kind for a mapping of this module (borrowed reference).
+auto view_type(PyObject *mapping, ViewKind kind) -> PyObject * {
+    auto *state = state_of(mapping);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    switch (kind) {
+        case ViewKind::keys: {
+            return state->keys_view_type;
+        }
+        case ViewKind::values: {
+            return state->values_view_type;
+        }
+        case ViewKind::items: {
+            break;
+        }
+    }
+    return state->items_view_type;
 }
 
 auto alloc_object(PyObject *type) -> PyObject * {
@@ -1240,17 +1266,19 @@ auto py_const_map_iter(PyObject *self) -> PyObject * {
     return const_map_iter_new(self, IterType::keys);
 }
 
-auto py_const_map_keys(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+auto const_map_keys(PyObject *self) -> PyObject * {
     return const_map_iter_new(self, IterType::keys);
 }
 
-auto py_const_map_values(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+auto const_map_values(PyObject *self) -> PyObject * {
     return const_map_iter_new(self, IterType::values);
 }
 
-auto py_const_map_items(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+auto const_map_items(PyObject *self) -> PyObject * {
     return const_map_iter_new(self, IterType::items);
 }
+
+using ConstMapProtocol = MappingProtocol<view_type, const_map_keys, const_map_values, const_map_items>;
 
 void py_const_map_dealloc(PyObject *self) {
     Py_CLEAR(const_map_cast(self)->owner);
@@ -1266,21 +1294,21 @@ auto py_const_map_methods = std::array{
     },
     PyMethodDef{
         "keys",
-        py_const_map_keys,
+        ConstMapProtocol::keys,
         METH_NOARGS,
-        PyDoc_STR("Get an iterator over the keys."),
+        PyDoc_STR("Get a view on the keys."),
     },
     PyMethodDef{
         "values",
-        py_const_map_values,
+        ConstMapProtocol::values,
         METH_NOARGS,
-        PyDoc_STR("Get an iterator over the values."),
+        PyDoc_STR("Get a view on the values."),
     },
     PyMethodDef{
         "items",
-        py_const_map_items,
+        ConstMapProtocol::items,
         METH_NOARGS,
-        PyDoc_STR("Get an iterator over the items."),
+        PyDoc_STR("Get a view on the items."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
@@ -1289,6 +1317,7 @@ auto py_const_map_slots = std::array{
     PyType_Slot{Py_tp_doc, const_cast<char *>("The map of constants defined by #const directives.")}, // NOLINT
     PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_const_map_dealloc)},
     PyType_Slot{Py_tp_methods, py_const_map_methods.data()},
+    PyType_Slot{Py_tp_richcompare, reinterpret_cast<void *>(ConstMapProtocol::richcompare)},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_const_map_iter)},
     PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_const_map_len)},
     PyType_Slot{Py_mp_subscript, reinterpret_cast<void *>(py_const_map_subscript)},
@@ -1407,30 +1436,6 @@ PyModuleDef control_def = {
     control_module_free,
 };
 
-auto import_types(ControlModuleState *state) -> bool {
-    static constexpr auto types = std::array{
-        std::pair{&ControlModuleState::lib_type, &py_library_type},
-        std::pair{&ControlModuleState::symbol_type, &py_symbol_type},
-        std::pair{&ControlModuleState::base_type, &py_base_type},
-        std::pair{&ControlModuleState::config_type, &py_config_type},
-        std::pair{&ControlModuleState::stats_type, &py_stats_view_type},
-        std::pair{&ControlModuleState::ground_handle_type, &py_ground_handle_type},
-        std::pair{&ControlModuleState::solve_handle_type, &py_solve_handle_type},
-        std::pair{&ControlModuleState::backend_manager_type, &py_backend_manager_type},
-        std::pair{&ControlModuleState::propagator_type, &py_propagator_type},
-        std::pair{&ControlModuleState::program_type, &py_ast_program_type},
-    };
-    // NOLINTNEXTLINE(readability-use-anyofallof)
-    for (auto [member, get] : types) {
-        state->*member = get();
-        if (state->*member == nullptr) {
-            return false;
-        }
-    }
-    state->backend_module = PyImport_ImportModule("clingo.backend");
-    return state->backend_module != nullptr;
-}
-
 } // namespace
 
 auto py_control_type() -> PyObject * {
@@ -1456,22 +1461,6 @@ auto py_control_get(PyObject *type, PyObject *obj) -> clingo_control_t * {
         return nullptr;
     }
     return control_get(obj);
-}
-
-auto py_control_get_any(PyObject *obj) -> clingo_control_t * {
-    auto *type = Py_TYPE(obj);
-    if (PyType_HasFeature(type, Py_TPFLAGS_HEAPTYPE) != 0) {
-        auto *mod = PyType_GetModule(type);
-        if (mod == nullptr) {
-            // NOTE: the type was not created from a module
-            PyErr_Clear();
-        } else if (PyModule_GetDef(mod) == &control_def) {
-            auto *state = get_state(mod);
-            return state != nullptr ? py_control_get(state->control_type, obj) : nullptr;
-        }
-    }
-    PyErr_SetString(PyExc_TypeError, "expected clingo.control.Control");
-    return nullptr;
 }
 
 auto py_control_begin(PyObject *type, PyObject *library, clingo_control_t *ctl, ControlRef ref_type) -> PyObject * {
@@ -1515,19 +1504,44 @@ void py_control_end(PyObject *obj, ControlRef ref_type) noexcept {
     }
 }
 
-void register_control(pybind11::module &m) {
+auto create_control(PyObject *parent) -> PyObject * {
     auto control_mod = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &control_def, &control_mod.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &control_def, &control_mod.get())) {
+        return nullptr;
     }
     auto *state = get_state(control_mod.get());
-    if (state == nullptr || !import_types(state) ||
-        !add_int_enum(control_mod.get(), "ControlMode", mode_members, &state->mode_enum, {}) ||
+    if (state == nullptr || !add_int_enum(control_mod.get(), "ControlMode", mode_members, &state->mode_enum, {}) ||
         !add_type(control_mod.get(), "_ConstMapIter", &py_const_map_iter_spec, &state->const_map_iter_type) ||
         !add_type(control_mod.get(), "ConstMap", &py_const_map_spec, &state->const_map_type) ||
-        !add_type(control_mod.get(), "Control", &py_control_spec, &state->control_type)) {
-        throw py::error_already_set();
+        !add_type(control_mod.get(), "Control", &py_control_spec, &state->control_type) ||
+        !register_abc(state->const_map_type, "Mapping")) {
+        return nullptr;
     }
+    return control_mod.release();
+}
+
+auto link_control(PyObject *mod) -> bool {
+    static constexpr auto imports = std::array{
+        TypeImport<ControlModuleState>{&ControlModuleState::lib_type, &py_library_type},
+        TypeImport<ControlModuleState>{&ControlModuleState::symbol_type, &py_symbol_type},
+        TypeImport<ControlModuleState>{&ControlModuleState::base_type, &py_base_type},
+        TypeImport<ControlModuleState>{&ControlModuleState::config_type, &py_config_type},
+        TypeImport<ControlModuleState>{&ControlModuleState::stats_type, &py_stats_view_type},
+        TypeImport<ControlModuleState>{&ControlModuleState::ground_handle_type, &py_ground_handle_type},
+        TypeImport<ControlModuleState>{&ControlModuleState::solve_handle_type, &py_solve_handle_type},
+        TypeImport<ControlModuleState>{&ControlModuleState::backend_manager_type, &py_backend_manager_type},
+        TypeImport<ControlModuleState>{&ControlModuleState::propagator_type, &py_propagator_type},
+        TypeImport<ControlModuleState>{&ControlModuleState::program_type, &py_ast_program_type},
+        TypeImport<ControlModuleState>{&ControlModuleState::keys_view_type, &py_keys_view_type},
+        TypeImport<ControlModuleState>{&ControlModuleState::values_view_type, &py_values_view_type},
+        TypeImport<ControlModuleState>{&ControlModuleState::items_view_type, &py_items_view_type},
+    };
+    auto *state = get_state(mod);
+    if (state == nullptr || !import_types(state, imports)) {
+        return false;
+    }
+    state->backend_module = PyImport_ImportModule("clingo.backend");
+    return state->backend_module != nullptr;
 }
 
 } // namespace PyClingo

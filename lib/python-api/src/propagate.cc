@@ -3,6 +3,7 @@
 #include "propagate.hh"
 
 #include "base.hh"
+#include "collection.hh"
 #include "core.hh"
 #include "util.hh"
 
@@ -590,6 +591,8 @@ void py_assignment_dealloc(PyObject *self) {
 }
 
 auto py_assignment_methods = std::array{
+    PyMethodDef{"index", py_sequence_index, METH_VARARGS, PyDoc_STR("Get the first index of a value.")},
+    PyMethodDef{"count", py_sequence_count, METH_O, PyDoc_STR("Count the occurrences of a value.")},
     PyMethodDef{
         "decision",
         method_cast(py_assignment_decision),
@@ -833,6 +836,8 @@ auto py_trail_end(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObj
 }
 
 auto py_trail_methods = std::array{
+    PyMethodDef{"index", py_sequence_index, METH_VARARGS, PyDoc_STR("Get the first index of a value.")},
+    PyMethodDef{"count", py_sequence_count, METH_O, PyDoc_STR("Count the occurrences of a value.")},
     PyMethodDef{
         "level",
         method_cast(py_trail_level),
@@ -928,9 +933,16 @@ void py_view_dealloc(PyObject *self) {
     free_object(self);
 }
 
+auto py_view_methods = std::array{
+    PyMethodDef{"index", py_sequence_index, METH_VARARGS, PyDoc_STR("Get the first index of a value.")},
+    PyMethodDef{"count", py_sequence_count, METH_O, PyDoc_STR("Count the occurrences of a value.")},
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
 auto py_view_slots = std::array{
     PyType_Slot{Py_tp_doc, const_cast<char *>("A view on a subrange of the solver's trail.")}, // NOLINT
     PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_view_dealloc)},
+    PyType_Slot{Py_tp_methods, py_view_methods.data()},
     PyType_Slot{Py_sq_length, reinterpret_cast<void *>(py_view_len)},
     PyType_Slot{Py_sq_item, reinterpret_cast<void *>(py_view_item)},
     PyType_Slot{Py_mp_length, reinterpret_cast<void *>(py_view_len)},
@@ -939,7 +951,7 @@ auto py_view_slots = std::array{
 };
 
 auto py_view_spec = PyType_Spec{
-    "clingo.propagate.TrailView", sizeof(PyTrailViewObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.propagate._TrailView", sizeof(PyTrailViewObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
     py_view_slots.data(),
 };
 
@@ -2009,36 +2021,38 @@ auto py_register_propagator(PyObject *type, clingo_control_t *ctl, PyObject *kee
     return true;
 }
 
-void register_propagate(pybind11::module &m) {
+auto create_propagate(PyObject *parent) -> PyObject * {
     auto propagate_mod = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &propagate_def, &propagate_mod.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &propagate_def, &propagate_mod.get())) {
+        return nullptr;
     }
-
     auto *state = get_state(propagate_mod.get());
-    if (state == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->base_type = py_base_type();
-    if (state->base_type == nullptr || !intern_names(state)) {
-        throw py::error_already_set();
-    }
-
     auto *mod = propagate_mod.get();
-    if (!add_int_enum(mod, "WeightConstraintType", weight_constraint_type_members, &state->weight_constraint_type_enum,
+    if (state == nullptr || !intern_names(state) ||
+        !add_int_enum(mod, "WeightConstraintType", weight_constraint_type_members, &state->weight_constraint_type_enum,
                       {}) ||
         !add_int_enum(mod, "CheckMode", check_mode_members, &state->check_mode_enum, {}) ||
         !add_int_enum(mod, "UndoMode", undo_mode_members, &state->undo_mode_enum, {}) ||
-        !add_type(mod, "TrailView", &py_view_spec, &state->trail_view_type) ||
+        !add_type(mod, "_TrailView", &py_view_spec, &state->trail_view_type) ||
         !add_type(mod, "Trail", &py_trail_spec, &state->trail_type) ||
         !add_type(mod, "Assignment", &py_assignment_spec, &state->assignment_type) ||
         !add_type(mod, "PropagateControl", &py_control_spec, &state->control_type) ||
         !add_type(mod, "PropagateInit", &py_init_spec, &state->init_type, state->control_type) ||
         !add_type(mod, "Propagator", &py_propagator_spec, &state->propagator_type) ||
-        !add_type(mod, "_PropagatorHandle", &py_handle_spec, &state->handle_type)) {
-        throw py::error_already_set();
+        !add_type(mod, "_PropagatorHandle", &py_handle_spec, &state->handle_type) ||
+        !register_abc(state->trail_view_type, "Sequence") || !register_abc(state->trail_type, "Sequence") ||
+        !register_abc(state->assignment_type, "Sequence")) {
+        return nullptr;
     }
+    return propagate_mod.release();
+}
+
+auto link_propagate(PyObject *mod) -> bool {
+    static constexpr auto imports = std::array{
+        TypeImport<PropagateModuleState>{&PropagateModuleState::base_type, &py_base_type},
+    };
+    auto *state = get_state(mod);
+    return state != nullptr && import_types(state, imports);
 }
 
 } // namespace PyClingo

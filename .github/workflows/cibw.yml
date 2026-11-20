@@ -33,12 +33,14 @@ jobs:
 
   build_wheels:
     needs: [build_sdist]
-    name: Build ${{ matrix.python }}-${{ matrix.target.tag }}
+    name: Build ${{ matrix.python.name }}-${{ matrix.target.tag }}
     runs-on: ${{ matrix.target.os }}
     strategy:
       fail-fast: false
       matrix:
-        python: [cp312, cp313, cp314, cp315]
+        # the abi3 wheel is built with the oldest CPython and tested with all later ones
+        python:
+          - { name: cp311-abi3, build: "cp3*" }
         target:
           - { tag: manylinux_x86_64, os: ubuntu-latest }
           - { tag: manylinux_aarch64, os: ubuntu-latest }
@@ -48,7 +50,7 @@ jobs:
           - { tag: macosx_arm64, os: macos-latest }
           - { tag: macosx_x86_64, os: macos-15-intel }
         include:
-          - python: pp312
+          - python: { name: pp312, build: pp312 }
             target: { tag: manylinux_x86_64, os: ubuntu-latest }
 
     steps:
@@ -81,7 +83,7 @@ jobs:
         with:
           package-dir: ${{ steps.sdist.outputs.path }}
         env:
-          CIBW_BUILD: ${{ matrix.python }}-${{ matrix.target.tag }}
+          CIBW_BUILD: ${{ matrix.python.build }}-${{ matrix.target.tag }}
           CIBW_ENABLE: all
           CIBW_ARCHS: all
           CIBW_ENVIRONMENT: "PIP_EXTRA_INDEX_URL=${{ inputs.wip && 'https://test.pypi.org/simple/' || '' }}"
@@ -89,7 +91,7 @@ jobs:
 
       - uses: actions/upload-artifact@v7
         with:
-          name: cibw-${{ matrix.python }}-${{ matrix.target.tag }}
+          name: cibw-${{ matrix.python.name }}-${{ matrix.target.tag }}
           path: ./wheelhouse/*.whl
 
   upload_pypi:

@@ -2,8 +2,10 @@
 Unit tests for clingo.base module.
 """
 
+from collections.abc import ItemsView, KeysView, Mapping, Sequence, ValuesView
 from textwrap import dedent
 
+import pytest
 from clingo.base import TheoryTermType
 from clingo.control import Control
 from clingo.core import Library
@@ -99,6 +101,62 @@ class TestBase:
 
         assert base_p[fun_p].literal > 0
 
+    def test_mapping_protocol(self):
+        """
+        Test the mapping protocol of atom and term bases.
+        """
+        self.ctl.parse_string(dedent("""\
+                p(1).
+                { p(2) }.
+                q(1).
+                #show r : p(2).
+                """))
+        self.ctl.ground()
+
+        base = self.ctl.base
+        sig_p, sig_q, sig_x = ("p", 1, True), ("q", 1, True), ("x", 0, True)
+        assert isinstance(base, Mapping)
+        assert isinstance(base[sig_p], Mapping)
+        assert isinstance(base.terms, Mapping)
+        with pytest.raises(TypeError):
+            hash(base)
+
+        keys, values, items = base.keys(), base.values(), base.items()
+        assert isinstance(keys, KeysView)
+        assert isinstance(values, ValuesView)
+        assert isinstance(items, ItemsView)
+        assert len(keys) == len(values) == len(items) == 2
+        assert sig_p in keys and sig_x not in keys
+        assert keys == {sig_p, sig_q}
+        assert keys & {sig_p, sig_x} == {sig_p}
+        assert {sig_x} | keys == {sig_p, sig_q, sig_x}
+        assert keys - [sig_p] == {sig_q}
+        assert keys ^ {sig_p, sig_x} == {sig_q, sig_x}
+        assert keys.isdisjoint([sig_x])
+        assert (sig_p, base[sig_p]) in items
+        assert (sig_q, base[sig_p]) not in items
+        assert (sig_x, base[sig_p]) not in items
+        assert base[sig_q] in values
+
+        atoms = base[sig_p]
+        fun_p = Function(self.lib, "p", [Number(self.lib, 1)])
+        atom_keys = atoms.keys()
+        assert {str(sym) for sym in atom_keys} == {"p(1)", "p(2)"}
+        assert fun_p in atom_keys
+        assert (fun_p, atoms[fun_p]) in atoms.items()
+        assert 1 not in atoms
+        assert atoms == dict(atoms.items())
+        assert atoms == base[("p", 1)]
+        assert atoms != base[sig_q]
+        assert base == self.ctl.base
+        assert base != {}
+
+        terms = base.terms
+        fun_r = Function(self.lib, "r")
+        assert terms.keys() == {fun_r}
+        assert [str(sym) for sym, _ in terms.items()] == ["r"]
+        assert "r" not in terms
+
     def test_term_base(self):
         """
         Test term bases.
@@ -151,6 +209,18 @@ class TestBase:
         assert len(base) == 1
         atom = base[0]
         assert str(atom) == '&p { ((+f(1,"x",[1,2],(2,3),{4,5}))-y) }'
+        assert isinstance(base, Sequence)
+        assert base[-1] == atom
+        assert base[:] == [atom] and base[1:] == [] and base[::-1] == [atom]
+        assert base.index(atom) == 0 and base.count(atom) == 1
+        assert list(reversed(base)) == [atom]
+        with pytest.raises(IndexError):
+            _ = base[1]
+        match base:
+            case [only]:
+                assert only == atom
+            case _:
+                pytest.fail("sequence pattern did not match")
         assert atom.name.type == TheoryTermType.Symbol
         assert atom.name.name == "p"
         assert str(atom.name) == "p"

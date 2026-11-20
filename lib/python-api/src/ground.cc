@@ -115,7 +115,7 @@ auto eval_context(GroundModuleState *state, PyObject *ctx, char const *name, siz
         }
         return false;
     }
-    auto n = PyTuple_GET_SIZE(seq.get());
+    auto n = PyTuple_Size(seq.get());
     if (!out.alloc(static_cast<size_t>(n))) {
         return false;
     }
@@ -487,26 +487,26 @@ auto py_ground_start(PyObject *type, clingo_control_t *ctl, PyObject *owner, cli
     return obj.release();
 }
 
-void register_ground(pybind11::module &m) {
+auto create_ground(PyObject *parent) -> PyObject * {
     auto ground_mod = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &ground_def, &ground_mod.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &ground_def, &ground_mod.get())) {
+        return nullptr;
     }
-
     auto *state = get_state(ground_mod.get());
-    if (state == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->symbol_type = py_symbol_type();
-    if (state->symbol_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    if (!add_int_enum(ground_mod.get(), "GroundResult", ground_result_members, &state->ground_result_enum, {}) ||
+    if (state == nullptr ||
+        !add_int_enum(ground_mod.get(), "GroundResult", ground_result_members, &state->ground_result_enum, {}) ||
         !add_type(ground_mod.get(), "GroundHandle", &py_handle_spec, &state->handle_type)) {
-        throw py::error_already_set();
+        return nullptr;
     }
+    return ground_mod.release();
+}
+
+auto link_ground(PyObject *mod) -> bool {
+    static constexpr auto imports = std::array{
+        TypeImport<GroundModuleState>{&GroundModuleState::symbol_type, &py_symbol_type},
+    };
+    auto *state = get_state(mod);
+    return state != nullptr && import_types(state, imports);
 }
 
 } // namespace PyClingo

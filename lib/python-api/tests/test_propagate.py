@@ -2,6 +2,7 @@
 Unit tests for clingo.propagate module.
 """
 
+import collections.abc
 from threading import Barrier
 from typing import Optional, Sequence
 
@@ -314,6 +315,10 @@ class PropagateControlPropagator(Propagator):
         self._lit_a = init.solver_literal(a.literal)
         assert self._lit_a in ass
         assert -self._lit_a in ass
+        assert isinstance(ass, collections.abc.Sequence)
+        assert ass[:1] == [ass[0]] and ass[-1] == ass[len(ass) - 1]
+        assert ass.index(ass[0]) == 0 and ass.count(ass[0]) == 1
+        assert "a" not in ass
         init.add_watch(-self._lit_a)
 
     def propagate(
@@ -334,6 +339,20 @@ class PropagateControlPropagator(Propagator):
         assert len(list(trail)) >= 1
         assert trail[trail.begin(lvl)] == -self._lit_a
         assert list(trail[trail.begin(lvl) : trail.end(lvl)]) == [-self._lit_a]
+        view = trail.level(lvl)
+        assert isinstance(trail, collections.abc.Sequence)
+        assert isinstance(view, collections.abc.Sequence)
+        assert type(view).__name__ == "_TrailView"
+        assert list(view) == [-self._lit_a] and list(view[::-1]) == [-self._lit_a]
+        assert view.index(-self._lit_a) == 0 and view.count(-self._lit_a) == 1
+        assert trail.index(-self._lit_a) == trail.begin(lvl)
+        assert trail.count(-self._lit_a) == 1
+        assert list(trail[::-1]) == list(reversed(trail))
+        match view:
+            case [lit]:
+                assert lit == -self._lit_a
+            case _:
+                assert False, "sequence pattern did not match"
         assert assignment.decision(lvl) == -self._lit_a
         assert assignment.thread_id == 0
         assert control.has_watch(-self._lit_a)

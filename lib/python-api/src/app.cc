@@ -896,35 +896,29 @@ auto py_app_options_check(PyObject *type, PyObject *obj) -> clingo_options_t * {
     return o->opts;
 }
 
-void register_app(pybind11::module &m) {
+auto create_app(PyObject *parent) -> PyObject * {
     auto app_mod = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &app_def, &app_mod.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &app_def, &app_mod.get())) {
+        return nullptr;
     }
-
     auto *state = get_state(app_mod.get());
-    if (state == nullptr) {
-        throw py::error_already_set();
-    }
-    state->lib_type = py_library_type();
-    if (state->lib_type == nullptr) {
-        throw py::error_already_set();
-    }
-    state->control_type = py_control_type();
-    if (state->control_type == nullptr) {
-        throw py::error_already_set();
-    }
-    state->model_type = py_model_type();
-    if (state->model_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    if (!add_type(app_mod.get(), "Flag", &py_flag_spec, &state->flag_type) ||
+    if (state == nullptr || !add_type(app_mod.get(), "Flag", &py_flag_spec, &state->flag_type) ||
         !add_type(app_mod.get(), "AppOptions", &py_options_spec, &state->options_type) ||
         !add_type(app_mod.get(), "_AppRun", &py_run_spec, &state->run_type) ||
         !add_type(app_mod.get(), "App", &py_app_spec, &state->app_type)) {
-        throw py::error_already_set();
+        return nullptr;
     }
+    return app_mod.release();
+}
+
+auto link_app(PyObject *mod) -> bool {
+    static constexpr auto imports = std::array{
+        TypeImport<AppModuleState>{&AppModuleState::lib_type, &py_library_type},
+        TypeImport<AppModuleState>{&AppModuleState::control_type, &py_control_type},
+        TypeImport<AppModuleState>{&AppModuleState::model_type, &py_model_type},
+    };
+    auto *state = get_state(mod);
+    return state != nullptr && import_types(state, imports);
 }
 
 } // namespace PyClingo

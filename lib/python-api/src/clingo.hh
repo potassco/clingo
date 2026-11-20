@@ -1,9 +1,13 @@
 #pragma once
 
-#include <pybind11/pybind11.h>
+#include <Python.h>
 
 namespace PyClingo {
 
-void register_clingo(pybind11::module &m);
+//! Initialize the clingo module (multi-phase initialization).
+//!
+//! The function returns the module definition; the submodules are created when
+//! the import system executes the module.
+auto init_clingo() -> PyObject *;
 
-}
+} // namespace PyClingo

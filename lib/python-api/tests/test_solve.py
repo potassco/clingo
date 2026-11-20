@@ -111,7 +111,7 @@ class TestSolve:
             return Function(self.lib, name, [])
 
         atoms = [lit("b"), lit("c"), lit("d")]
-        a = next(ctl.base[("a", 0)].values()).literal
+        a = next(iter(ctl.base[("a", 0)].values())).literal
         i = 0
 
         with ctl.start_solve(yield_=True) as hnd:
@@ -178,7 +178,7 @@ class TestSolve:
         ctl.ground()
 
         def lit(name: str) -> int:
-            return next(ctl.base[(name, 0)].values()).literal
+            return next(iter(ctl.base[(name, 0)].values())).literal
 
         with ctl.start_solve(yield_=True) as hnd:
             it = iter(hnd)

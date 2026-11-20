@@ -1,13 +1,14 @@
 #pragma once
 
-#include <clingo/core.h>
+// NOTE: Python.h has to be included before any standard headers
+#include <Python.h>
 
-// NOTE: needed for module registration until clingo.cc is ported
-#include <pybind11/pybind11.h>
+#include <clingo/core.h>
 
 #include <algorithm>
 #include <array>
 #include <concepts>
+#include <cstddef>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -20,8 +21,6 @@
 #include <utility>
 
 namespace PyClingo {
-
-namespace py = pybind11;
 
 //! Check whether the pointer stored at the given address is not null.
 //!
@@ -169,7 +168,34 @@ auto add_int_enum(PyObject *module, char const *enum_name, std::span<IntEnumMemb
 auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **store, PyObject *base = nullptr)
     -> bool;
 
+//! Create a submodule, add it to the parent module and register it in sys.modules.
 auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool;
+
+//! Register a type with an abstract base class from collections.abc.
+//!
+//! Registering with Sequence or Mapping sets Py_TPFLAGS_SEQUENCE or
+//! Py_TPFLAGS_MAPPING, which are not part of the limited API, so that
+//! instances match sequence or mapping patterns.
+auto register_abc(PyObject *type, char const *abc) -> bool;
+
+//! A state member and a function returning a new reference to the type to store in it.
+template <class State> using TypeImport = std::pair<PyObject * State::*, PyObject *(*)()>;
+
+//! Store types of other modules in a module state.
+//!
+//! This is the second registration phase. It runs after all modules have been
+//! created, so the order in which modules are created does not matter.
+template <class State, std::size_t N>
+auto import_types(State *state, std::array<TypeImport<State>, N> const &imports) -> bool {
+    // NOLINTNEXTLINE(readability-use-anyofallof)
+    for (auto [member, get] : imports) {
+        state->*member = get();
+        if (state->*member == nullptr) {
+            return false;
+        }
+    }
+    return true;
+}
 
 inline void free_object(PyObject *self) {
     auto *type = Py_TYPE(self);

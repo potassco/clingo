@@ -84,7 +84,7 @@ auto cast_symbol(PyObject *self) -> PySymbolObject * {
 }
 
 auto check_symbol(PyObject *obj, PyObject *symbol_type) -> PySymbolObject * {
-    if (!Py_IS_TYPE(obj, reinterpret_cast<PyTypeObject *>(symbol_type))) {
+    if (Py_IS_TYPE(obj, reinterpret_cast<PyTypeObject *>(symbol_type)) == 0) {
         return nullptr;
     }
     return cast_symbol(obj);
@@ -252,7 +252,7 @@ auto py_symbol_hash(PyObject *self) -> Py_hash_t {
 }
 
 auto py_symbol_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
-    if (!PyObject_TypeCheck(b, Py_TYPE(a))) {
+    if (PyObject_TypeCheck(b, Py_TYPE(a)) == 0) {
         Py_RETURN_NOTIMPLEMENTED;
     }
 
@@ -909,38 +909,34 @@ PyModuleDef symbol_def = {
 
 } // namespace
 
-void register_symbol(pybind11::module &m) {
-    // TODO: this is going to be the return value at some point
+auto create_symbol(PyObject *parent) -> PyObject * {
     auto symbol = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &symbol_def, &symbol.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &symbol_def, &symbol.get())) {
+        return nullptr;
     }
-
     auto *state = get_symbol_module_state(symbol.get());
-    if (state == nullptr) {
-        throw py::error_already_set();
+    if (state == nullptr ||
+        !add_int_enum(symbol.get(), "SymbolType", symbol_type_members, &state->symbol_type_enum, state->vals) ||
+        !add_type(symbol.get(), "Symbol", &py_symbol_spec, &state->symbol_type)) {
+        return nullptr;
     }
-    state->lib_type = py_library_type();
-    if (state->lib_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    if (!add_int_enum(symbol.get(), "SymbolType", symbol_type_members, &state->symbol_type_enum, state->vals)) {
-        throw py::error_already_set();
-    }
-
-    if (!add_type(symbol.get(), "Symbol", &py_symbol_spec, &state->symbol_type)) {
-        throw py::error_already_set();
-    }
-
     auto inf = steal(py_symbol_new(state->symbol_type, clingo_symbol_create_infimum(), false));
     if (inf.get() == nullptr || PyModule_AddObjectRef(symbol.get(), "Infimum", inf.get()) < 0) {
-        throw py::error_already_set();
+        return nullptr;
     }
     auto sup = steal(py_symbol_new(state->symbol_type, clingo_symbol_create_supremum(), false));
     if (sup.get() == nullptr || PyModule_AddObjectRef(symbol.get(), "Supremum", sup.get()) < 0) {
-        throw py::error_already_set();
+        return nullptr;
     }
+    return symbol.release();
+}
+
+auto link_symbol(PyObject *mod) -> bool {
+    static constexpr auto imports = std::array{
+        TypeImport<SymbolModuleState>{&SymbolModuleState::lib_type, &py_library_type},
+    };
+    auto *state = get_symbol_module_state(mod);
+    return state != nullptr && import_types(state, imports);
 }
 
 auto py_symbol_type() -> PyObject * {

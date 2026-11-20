@@ -6,24 +6,24 @@ readme = { file = "README.md", content-type = "text/markdown" }
 authors = [{ name = "Roland Kaminski", email = "kaminski@cs.uni-potsdam.de" }]
 requires-python = ">=3.11"
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
-  "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python :: 3",
-  "Topic :: Software Development :: Libraries",
-  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 keywords = [
-  "artificial intelligence",
-  "logic programming",
-  "answer set programming",
-  "constraint solving",
-  "AI",
-  "ASP",
-  "SAT",
-  "Potassco",
-  "clingo",
-  "solver",
+    "artificial intelligence",
+    "logic programming",
+    "answer set programming",
+    "constraint solving",
+    "AI",
+    "ASP",
+    "SAT",
+    "Potassco",
+    "clingo",
+    "solver",
 ]
 
 [project.urls]
@@ -35,7 +35,7 @@ Documentation = "https://github.com/potassco/guide"
 pyclingo = "clingo.app:_pyclingo"
 
 [build-system]
-requires = ["scikit-build-core>=1.0", "pybind11", "re2c"]
+requires = ["scikit-build-core>=1.0", "re2c"]
 build-backend = "scikit_build_core.build"
 
 [[tool.dynamic-metadata]]
@@ -45,6 +45,7 @@ provider = { path = "scripts", module = "meta" }
 include = [".git_hash"]
 
 [tool.scikit-build.wheel]
+py-api = "cp311"
 exclude = ["include/amc/*", "bin/*", "share/*"]
 
 [tool.pytest.ini_options]
@@ -59,6 +60,11 @@ min-public-methods = 1
 
 [tool.cibuildwheel]
 enable = ["pypy"]
+# the stable ABI does not cover free-threaded builds
+skip = ["cp3??t-*"]
+test-requires = ["pytest"]
+test-sources = ["lib/python-api/tests"]
+test-command = "python -m pytest lib/python-api/tests"
 
 [tool.cibuildwheel.linux]
 archs = ["auto", "aarch64", "ppc64le"]

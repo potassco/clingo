@@ -1385,7 +1385,7 @@ auto py_model_new(PyObject *type, clingo_model_t const *model, bool is_mutable) 
 
 auto py_model_get(PyObject *type, PyObject *obj, bool mut) -> clingo_model_t * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
-    if (!PyObject_TypeCheck(obj, to)) {
+    if (PyObject_TypeCheck(obj, to) == 0) {
         PyErr_SetString(PyExc_TypeError, "object is not a Model");
         return nullptr;
     }
@@ -1459,39 +1459,31 @@ auto py_solve(PyObject *type, clingo_control_t *ctl, PyObject *owner, std::span<
     return result_new(state, res);
 }
 
-void register_solve(pybind11::module &m) {
+auto create_solve(PyObject *parent) -> PyObject * {
     auto solve_mod = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &solve_def, &solve_mod.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &solve_def, &solve_mod.get())) {
+        return nullptr;
     }
-
     auto *state = get_state(solve_mod.get());
-    if (state == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->symbol_type = py_symbol_type();
-    if (state->symbol_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->base_type = py_base_type();
-    if (state->base_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->stats_type = py_stats_type();
-    if (state->stats_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    if (!add_int_enum(solve_mod.get(), "ModelType", model_type_members, &state->model_type_enum, {}) ||
+    if (state == nullptr ||
+        !add_int_enum(solve_mod.get(), "ModelType", model_type_members, &state->model_type_enum, {}) ||
         !add_type(solve_mod.get(), "SolveControl", &py_control_spec, &state->control_type) ||
         !add_type(solve_mod.get(), "Model", &py_model_spec, &state->model_type) ||
         !add_type(solve_mod.get(), "SolveResult", &py_result_spec, &state->result_type) ||
         !add_type(solve_mod.get(), "SolveHandle", &py_handle_spec, &state->handle_type)) {
-        throw py::error_already_set();
+        return nullptr;
     }
+    return solve_mod.release();
+}
+
+auto link_solve(PyObject *mod) -> bool {
+    static constexpr auto imports = std::array{
+        TypeImport<SolveModuleState>{&SolveModuleState::symbol_type, &py_symbol_type},
+        TypeImport<SolveModuleState>{&SolveModuleState::base_type, &py_base_type},
+        TypeImport<SolveModuleState>{&SolveModuleState::stats_type, &py_stats_type},
+    };
+    auto *state = get_state(mod);
+    return state != nullptr && import_types(state, imports);
 }
 
 } // namespace PyClingo

@@ -114,7 +114,7 @@ auto parse_sequence(PyObject *obj, PyBuffer<T> *out, char const *what, F &&fun) 
         return false;
     }
 
-    auto n = PyTuple_GET_SIZE(seq.get());
+    auto n = PyTuple_Size(seq.get());
     if (n < 0) {
         return false;
     }
@@ -126,7 +126,7 @@ auto parse_sequence(PyObject *obj, PyBuffer<T> *out, char const *what, F &&fun) 
 
     auto *it = out->data();
     for (Py_ssize_t i = 0; i < n; ++i) {
-        auto *item = PyTuple_GET_ITEM(seq.get(), i); // borrowed, tuple-owned
+        auto *item = PyTuple_GetItem(seq.get(), i); // borrowed, tuple-owned
         if (!std::invoke(fun, item, it++)) {
             return false;
         }
@@ -156,13 +156,15 @@ auto parse_weighted_literals(PyObject *obj, PyBuffer<clingo_weighted_literal_t> 
             if (pair.get() == nullptr) {
                 return false;
             }
-            if (PySequence_Fast_GET_SIZE(pair.get()) != 2) {
+            if (PySequence_Size(pair.get()) != 2) {
                 PyErr_SetString(PyExc_TypeError, "weighted literal must be a pair (literal, weight)");
                 return false;
             }
-            auto **items = PySequence_Fast_ITEMS(pair.get());
-            auto lit_obj = borrow(items[0]);
-            auto weight_obj = borrow(items[1]);
+            auto lit_obj = steal(PySequence_GetItem(pair.get(), 0));
+            auto weight_obj = steal(lit_obj.get() != nullptr ? PySequence_GetItem(pair.get(), 1) : nullptr);
+            if (weight_obj.get() == nullptr) {
+                return false;
+            }
             if (!parse_num(lit_obj.get(), &val->literal, "literal")) {
                 return false;
             }
@@ -183,7 +185,7 @@ auto py_list_from_atoms(clingo_atom_t const *data, size_t n) -> PyObject * {
         if (v == nullptr) {
             return nullptr;
         }
-        PyList_SET_ITEM(out.get(), static_cast<Py_ssize_t>(i), v);
+        PyList_SetItem(out.get(), static_cast<Py_ssize_t>(i), v);
     }
     return out.release();
 }
@@ -198,7 +200,7 @@ auto py_list_from_literals(clingo_literal_t const *data, size_t n) -> PyObject *
         if (v == nullptr) {
             return nullptr;
         }
-        PyList_SET_ITEM(out.get(), static_cast<Py_ssize_t>(i), v);
+        PyList_SetItem(out.get(), static_cast<Py_ssize_t>(i), v);
     }
     return out.release();
 }
@@ -221,7 +223,7 @@ auto py_list_from_weighted_literals(clingo_weighted_literal_t const *data, size_
         if (pair.get() == nullptr) {
             return nullptr;
         }
-        PyList_SET_ITEM(out.get(), static_cast<Py_ssize_t>(i), pair.release());
+        PyList_SetItem(out.get(), static_cast<Py_ssize_t>(i), pair.release());
     }
     return out.release();
 }
@@ -616,7 +618,7 @@ auto py_backend_cast(PyObject *obj) -> PyBackendObject * {
 
 auto py_backend_new(PyObject *type, clingo_backend_t *backend, PyObject *owner) -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
-    auto *obj = to->tp_alloc(to, 0);
+    auto *obj = PyType_GenericAlloc(to, 0);
     if (obj == nullptr) {
         return nullptr;
     }
@@ -1102,13 +1104,15 @@ auto py_backend_theory_atom(PyObject *self, PyObject *args, PyObject *kwargs) ->
         if (guard_seq.get() == nullptr) {
             return nullptr;
         }
-        if (PySequence_Fast_GET_SIZE(guard_seq.get()) != 2) {
+        if (PySequence_Size(guard_seq.get()) != 2) {
             PyErr_SetString(PyExc_TypeError, "guard must be a pair (operator, term_id) or None");
             return nullptr;
         }
-        auto **items = PySequence_Fast_ITEMS(guard_seq.get());
-        auto op_obj = borrow(items[0]);
-        auto term_obj = borrow(items[1]);
+        auto op_obj = steal(PySequence_GetItem(guard_seq.get(), 0));
+        auto term_obj = steal(op_obj.get() != nullptr ? PySequence_GetItem(guard_seq.get(), 1) : nullptr);
+        if (term_obj.get() == nullptr) {
+            return nullptr;
+        }
 
         if (PyUnicode_Check(op_obj.get()) == 0) {
             PyErr_SetString(PyExc_TypeError, "guard operator must be a string");
@@ -1416,7 +1420,7 @@ PyModuleDef backend_def = {
 
 auto py_backend_manager_new(PyObject *type, clingo_control_t *ctl, PyObject *owner) -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
-    auto *obj = to->tp_alloc(to, 0);
+    auto *obj = PyType_GenericAlloc(to, 0);
     if (obj == nullptr) {
         return nullptr;
     }
@@ -1459,36 +1463,32 @@ auto py_observe(PyObject *module, clingo_control_t *ctl, PyObject *observer, boo
     return true;
 }
 
-void register_backend(pybind11::module &m) {
+auto create_backend(PyObject *parent) -> PyObject * {
     auto backend_mod = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &backend_def, &backend_mod.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &backend_def, &backend_mod.get())) {
+        return nullptr;
     }
-
     auto *state = get_state(backend_mod.get());
-    if (state == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->symbol_type = py_symbol_type();
-    if (state->symbol_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->base_type = py_base_type();
-    if (state->base_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    if (!add_int_enum(backend_mod.get(), "HeuristicType", heuristic_type_members, &state->heuristic_type_enum, {}) ||
+    if (state == nullptr ||
+        !add_int_enum(backend_mod.get(), "HeuristicType", heuristic_type_members, &state->heuristic_type_enum, {}) ||
         !add_int_enum(backend_mod.get(), "ExternalType", external_type_members, &state->external_type_enum, {}) ||
         !add_int_enum(backend_mod.get(), "TheorySequenceType", theory_sequence_type_members,
                       &state->theory_sequence_type_enum, {}) ||
         !add_type(backend_mod.get(), "Observer", &py_observer_spec, &state->observer_type) ||
         !add_type(backend_mod.get(), "Backend", &py_backend_spec, &state->backend_type) ||
         !add_type(backend_mod.get(), "BackendManager", &py_backend_manager_spec, &state->backend_manager_type)) {
-        throw py::error_already_set();
+        return nullptr;
     }
+    return backend_mod.release();
+}
+
+auto link_backend(PyObject *mod) -> bool {
+    static constexpr auto imports = std::array{
+        TypeImport<BackendModuleState>{&BackendModuleState::symbol_type, &py_symbol_type},
+        TypeImport<BackendModuleState>{&BackendModuleState::base_type, &py_base_type},
+    };
+    auto *state = get_state(mod);
+    return state != nullptr && import_types(state, imports);
 }
 
 } // namespace PyClingo

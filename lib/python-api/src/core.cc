@@ -1,6 +1,7 @@
 #define PY_SSIZE_T_CLEAN
 
 #include "core.hh"
+#include "collection.hh"
 #include "util.hh"
 
 #include <array>
@@ -177,13 +178,22 @@ struct CoreModuleState {
     PyObject *library_type{nullptr};
     PyObject *position_type{nullptr};
     PyObject *location_type{nullptr};
+    PyObject *keys_view_type{nullptr};
+    PyObject *values_view_type{nullptr};
+    PyObject *items_view_type{nullptr};
+    //! The collections.abc.Set class (used by the views).
+    PyObject *set_abc{nullptr};
+    //! The collections.abc.Mapping class (used by mappings).
+    PyObject *mapping_abc{nullptr};
     //! The address of this member is the tag under which library objects are registered as owners.
     char owner_tag{0};
 };
 
 constexpr auto state_members = std::array{
-    &CoreModuleState::log_level_enum, &CoreModuleState::message_type_enum, &CoreModuleState::library_type,
-    &CoreModuleState::position_type,  &CoreModuleState::location_type,
+    &CoreModuleState::log_level_enum,   &CoreModuleState::message_type_enum, &CoreModuleState::library_type,
+    &CoreModuleState::position_type,    &CoreModuleState::location_type,     &CoreModuleState::keys_view_type,
+    &CoreModuleState::values_view_type, &CoreModuleState::items_view_type,   &CoreModuleState::set_abc,
+    &CoreModuleState::mapping_abc,
 };
 
 struct PyLibraryObject {
@@ -915,19 +925,52 @@ auto py_location_get(PyObject *type, PyObject *obj) -> clingo_location_t const *
     return location_cast(obj)->loc;
 }
 
-void register_core(pybind11::module &m) {
+auto create_core(PyObject *parent) -> PyObject * {
     auto core_mod = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &core_def, &core_mod.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &core_def, &core_mod.get())) {
+        return nullptr;
     }
     auto *state = get_state(core_mod.get());
     if (state == nullptr || !add_int_enum(core_mod.get(), "LogLevel", log_level_members, &state->log_level_enum, {}) ||
         !add_int_enum(core_mod.get(), "MessageType", message_type_members, &state->message_type_enum, {}) ||
         !add_type(core_mod.get(), "Library", &py_library_spec, &state->library_type) ||
         !add_type(core_mod.get(), "Position", &py_position_spec, &state->position_type) ||
-        !add_type(core_mod.get(), "Location", &py_location_spec, &state->location_type)) {
-        throw py::error_already_set();
+        !add_type(core_mod.get(), "Location", &py_location_spec, &state->location_type) ||
+        !add_view_types(core_mod.get(), &state->keys_view_type, &state->values_view_type, &state->items_view_type)) {
+        return nullptr;
     }
+    auto abc = steal(PyImport_ImportModule("collections.abc"));
+    if (abc.get() == nullptr) {
+        return nullptr;
+    }
+    state->set_abc = PyObject_GetAttrString(abc.get(), "Set");
+    state->mapping_abc = state->set_abc != nullptr ? PyObject_GetAttrString(abc.get(), "Mapping") : nullptr;
+    if (state->mapping_abc == nullptr) {
+        return nullptr;
+    }
+    return core_mod.release();
+}
+
+auto py_keys_view_type() -> PyObject * {
+    return get_type(&CoreModuleState::keys_view_type);
+}
+
+auto py_values_view_type() -> PyObject * {
+    return get_type(&CoreModuleState::values_view_type);
+}
+
+auto py_items_view_type() -> PyObject * {
+    return get_type(&CoreModuleState::items_view_type);
+}
+
+auto py_set_abc(PyTypeObject *type) -> PyObject * {
+    auto *state = get_state_from_type(type);
+    return state != nullptr ? state->set_abc : nullptr;
+}
+
+auto py_mapping_abc(PyTypeObject *type) -> PyObject * {
+    auto *state = get_state_from_type(type);
+    return state != nullptr ? state->mapping_abc : nullptr;
 }
 
 } // namespace PyClingo

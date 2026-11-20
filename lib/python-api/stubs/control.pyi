@@ -20,9 +20,17 @@ SAT
 ```
 """
 
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import (
+    Callable,
+    ItemsView,
+    Iterator,
+    KeysView,
+    Mapping,
+    Sequence,
+    ValuesView,
+)
 from enum import IntEnum
-from typing import Any, TypeVar, overload
+from typing import Any, ClassVar, TypeVar, overload
 
 from clingo.ast import Program
 from clingo.backend import BackendManager, Observer
@@ -61,14 +69,14 @@ class ControlMode(IntEnum):
     Parse, rewrite, ground, and solve the logic program.
     """
 
-class ConstMap:
+class ConstMap(Mapping[str, Symbol]):
     """
     The map of constants defined by `#const` directives.
 
     Implements a mapping from constant names to their values.
     """
 
-    def __contains__(self, key: str, /) -> bool:
+    def __contains__(self, key: object, /) -> bool:
         """
         Check if the map contains the given key.
 
@@ -78,6 +86,23 @@ class ConstMap:
         Returns:
             Whether the key is present in the map.
         """
+
+    def __eq__(self, other: object, /) -> bool:
+        """
+        Check whether the map is equal to the given object.
+
+        The map is equal to another mapping with the same items.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the map is equal to the object.
+        """
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    """
+    The map is not hashable because it compares by value.
+    """
 
     def __getitem__(self, key: str, /) -> Symbol:
         """
@@ -120,7 +145,7 @@ class ConstMap:
         """
 
     @overload
-    def get(self, key: str, default: _T) -> Symbol | _T:
+    def get(self, key: str, default: Symbol | _T) -> Symbol | _T:
         """
         Get the value for the given key or the default if absent.
 
@@ -147,28 +172,28 @@ class ConstMap:
             The value for the given key or the default if absent.
         """
 
-    def items(self) -> Iterator[tuple[str, Symbol]]:
+    def items(self) -> ItemsView[str, Symbol]:
         """
-        Get an iterator over the items in the map.
+        Get a view on the items in the map.
 
         Returns:
-            An iterator over the items in the map.
+            A view on the items in the map.
         """
 
-    def keys(self) -> Iterator[str]:
+    def keys(self) -> KeysView[str]:
         """
-        Get an iterator over the keys in the map.
-
-        Returns:
-            An iterator over the keys in the map.
-        """
-
-    def values(self) -> Iterator[Symbol]:
-        """
-        Get an iterator over the values in the map.
+        Get a view on the keys in the map.
 
         Returns:
-            An iterator over the values in the map.
+            A view on the keys in the map.
+        """
+
+    def values(self) -> ValuesView[Symbol]:
+        """
+        Get a view on the values in the map.
+
+        Returns:
+            A view on the values in the map.
         """
 
 class Control:

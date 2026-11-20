@@ -35,7 +35,7 @@ False
 
 import enum
 import typing
-from collections.abc import Iterator, Sequence
+from collections.abc import ItemsView, Iterator, KeysView, Mapping, Sequence, ValuesView
 
 from clingo.symbol import Symbol
 
@@ -131,14 +131,14 @@ class Atom:
         Get the symbol of the atom.
         """
 
-class AtomBase:
+class AtomBase(Mapping[Symbol, Atom]):
     """
     A class providing information about symbolic atoms.
 
     Implements a mapping from symbols to atoms.
     """
 
-    def __contains__(self, key: Symbol, /) -> bool:
+    def __contains__(self, key: object, /) -> bool:
         """
         Check if the map contains the given key.
 
@@ -148,6 +148,23 @@ class AtomBase:
         Returns:
             Whether the key is present in the map.
         """
+
+    def __eq__(self, other: object, /) -> bool:
+        """
+        Check whether the map is equal to the given object.
+
+        The map is equal to another mapping with the same items.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the map is equal to the object.
+        """
+    __hash__: typing.ClassVar[None]  # type: ignore[assignment]
+    """
+    The map is not hashable because it compares by value.
+    """
 
     def __getitem__(self, key: Symbol, /) -> Atom:
         """
@@ -183,7 +200,7 @@ class AtomBase:
         """
 
     @typing.overload
-    def get(self, key: Symbol, default: _T) -> Atom | _T:
+    def get(self, key: Symbol, default: Atom | _T) -> Atom | _T:
         """
         Get the value for the given key or the default if absent.
         """
@@ -203,28 +220,28 @@ class AtomBase:
             The value for the given key or the default if absent.
         """
 
-    def items(self) -> Iterator[tuple[Symbol, Atom]]:
+    def items(self) -> ItemsView[Symbol, Atom]:
         """
-        Get an iterator over the items in the map.
+        Get a view on the items in the map.
 
         Returns:
-            An iterator over the items in the map.
+            A view on the items in the map.
         """
 
-    def keys(self) -> Iterator[Symbol]:
+    def keys(self) -> KeysView[Symbol]:
         """
-        Get an iterator over the keys in the map.
-
-        Returns:
-            An iterator over the keys in the map.
-        """
-
-    def values(self) -> Iterator[Atom]:
-        """
-        Get an iterator over the values in the map.
+        Get a view on the keys in the map.
 
         Returns:
-            An iterator over the values in the map.
+            A view on the keys in the map.
+        """
+
+    def values(self) -> ValuesView[Atom]:
+        """
+        Get a view on the values in the map.
+
+        Returns:
+            A view on the values in the map.
         """
 
 class Term:
@@ -274,7 +291,7 @@ class Term:
         Get the symbol of the term.
         """
 
-class TermBase:
+class TermBase(Mapping[Symbol, Term]):
     """
     A class providing information about shown terms.
 
@@ -283,7 +300,7 @@ class TermBase:
     Implements a mapping from symbols to terms.
     """
 
-    def __contains__(self, key: Symbol, /) -> bool:
+    def __contains__(self, key: object, /) -> bool:
         """
         Check if the map contains the given key.
 
@@ -293,6 +310,23 @@ class TermBase:
         Returns:
             Whether the key is present in the map.
         """
+
+    def __eq__(self, other: object, /) -> bool:
+        """
+        Check whether the map is equal to the given object.
+
+        The map is equal to another mapping with the same items.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the map is equal to the object.
+        """
+    __hash__: typing.ClassVar[None]  # type: ignore[assignment]
+    """
+    The map is not hashable because it compares by value.
+    """
 
     def __getitem__(self, key: Symbol, /) -> Term:
         """
@@ -328,7 +362,7 @@ class TermBase:
         """
 
     @typing.overload
-    def get(self, key: Symbol, default: _T) -> Term | _T:
+    def get(self, key: Symbol, default: Term | _T) -> Term | _T:
         """
         Get the value for the given key or the default if absent.
         """
@@ -348,28 +382,28 @@ class TermBase:
             The value for the given key or the default if absent.
         """
 
-    def items(self) -> Iterator[tuple[Symbol, Term]]:
+    def items(self) -> ItemsView[Symbol, Term]:
         """
-        Get an iterator over the items in the map.
+        Get a view on the items in the map.
 
         Returns:
-            An iterator over the items in the map.
+            A view on the items in the map.
         """
 
-    def keys(self) -> Iterator[Symbol]:
+    def keys(self) -> KeysView[Symbol]:
         """
-        Get an iterator over the keys in the map.
-
-        Returns:
-            An iterator over the keys in the map.
-        """
-
-    def values(self) -> Iterator[Term]:
-        """
-        Get an iterator over the values in the map.
+        Get a view on the keys in the map.
 
         Returns:
-            An iterator over the values in the map.
+            A view on the keys in the map.
+        """
+
+    def values(self) -> ValuesView[Term]:
+        """
+        Get a view on the values in the map.
+
+        Returns:
+            A view on the values in the map.
         """
 
 class TheoryTerm:
@@ -547,14 +581,14 @@ class TheoryAtom:
         Get the name of a theory atom.
         """
 
-class TheoryBase:
+class TheoryBase(Sequence[TheoryAtom]):
     """
     A class providing information about theory atoms.
 
     Implements a sequence of theory atoms.
     """
 
-    def __contains__(self, value: TheoryAtom, /) -> bool:
+    def __contains__(self, value: object, /) -> bool:
         """
         Check whether the sequence contains the given value.
 
@@ -565,15 +599,27 @@ class TheoryBase:
             Whether the value is present in the sequence.
         """
 
+    @typing.overload
     def __getitem__(self, index: int, /) -> TheoryAtom:
         """
         Get the value at the given index.
+        """
+
+    @typing.overload
+    def __getitem__(self, index: slice, /) -> list[TheoryAtom]:
+        """
+        Get the values in the given slice.
+        """
+
+    def __getitem__(self, index: int | slice, /) -> TheoryAtom | list[TheoryAtom]:
+        """
+        Get the value at the given index or the values in the given slice.
 
         Args:
-            index: The index to look up.
+            index: The index or slice to look up.
 
         Returns:
-            The value at the given index.
+            The value at the given index or the values in the slice.
         """
 
     def __iter__(self) -> Iterator[TheoryAtom]:
@@ -592,7 +638,34 @@ class TheoryBase:
             The size of the sequence.
         """
 
-class Base:
+    def count(self, value: object, /) -> int:
+        """
+        Count the occurrences of the given value in the sequence.
+
+        Args:
+            value: The value to count.
+
+        Returns:
+            The number of occurrences.
+        """
+
+    def index(self, value: object, start: int = 0, stop: int | None = None, /) -> int:
+        """
+        Get the index of the first occurrence of the given value in the sequence.
+
+        Args:
+            value: The value to look up.
+            start: The index to start the search at.
+            stop: The index to stop the search at.
+
+        Returns:
+            The index of the value.
+
+        Raises:
+            ValueError: If the value is not contained.
+        """
+
+class Base(Mapping[tuple[str, int, bool], AtomBase]):
     """
     A class providing information about symbolic and theory atoms and shown terms.
 
@@ -600,9 +673,7 @@ class Base:
     the term and theory bases.
     """
 
-    def __contains__(
-        self, key: tuple[str, int, bool] | tuple[str, int] | Symbol, /
-    ) -> bool:
+    def __contains__(self, key: object, /) -> bool:
         """
         Check if there is an atom base for the given signature or an atom for the given symbol.
 
@@ -616,6 +687,23 @@ class Base:
         Returns:
             Whether the signature or symbol is present in the base.
         """
+
+    def __eq__(self, other: object, /) -> bool:
+        """
+        Check whether the base is equal to the given object.
+
+        The base is equal to another mapping with the same items.
+
+        Args:
+            other: The object to compare with.
+
+        Returns:
+            Whether the base is equal to the object.
+        """
+    __hash__: typing.ClassVar[None]  # type: ignore[assignment]
+    """
+    The base is not hashable because it compares by value.
+    """
 
     @typing.overload
     def __getitem__(self, signature: tuple[str, int, bool], /) -> AtomBase:
@@ -679,7 +767,7 @@ class Base:
         """
 
     @typing.overload
-    def get(self, key: tuple[str, int, bool], default: _T) -> AtomBase | _T:
+    def get(self, key: tuple[str, int, bool], default: AtomBase | _T) -> AtomBase | _T:
         """
         Get the atom base for the given signature or the default if absent.
         """
@@ -691,7 +779,7 @@ class Base:
         """
 
     @typing.overload
-    def get(self, key: tuple[str, int], default: _T) -> AtomBase | _T:
+    def get(self, key: tuple[str, int], default: AtomBase | _T) -> AtomBase | _T:
         """
         Get the atom base for the given (short) signature or the default if absent.
         """
@@ -703,7 +791,7 @@ class Base:
         """
 
     @typing.overload
-    def get(self, key: Symbol, default: _T) -> Atom | _T:
+    def get(self, key: Symbol, default: Atom | _T) -> Atom | _T:
         """
         Get the atom for the given symbol or the default if absent.
         """
@@ -791,28 +879,28 @@ class Base:
             Whether the literal is shown.
         """
 
-    def items(self) -> Iterator[tuple[tuple[str, int, bool], AtomBase]]:
+    def items(self) -> ItemsView[tuple[str, int, bool], AtomBase]:
         """
-        Get an iterator over the items in the map.
+        Get a view on the items in the map.
 
         Returns:
-            An iterator over the items in the map.
+            A view on the items in the map.
         """
 
-    def keys(self) -> Iterator[tuple[str, int, bool]]:
+    def keys(self) -> KeysView[tuple[str, int, bool]]:
         """
-        Get an iterator over the keys in the map.
-
-        Returns:
-            An iterator over the keys in the map.
-        """
-
-    def values(self) -> Iterator[AtomBase]:
-        """
-        Get an iterator over the values in the map.
+        Get a view on the keys in the map.
 
         Returns:
-            An iterator over the values in the map.
+            A view on the keys in the map.
+        """
+
+    def values(self) -> ValuesView[AtomBase]:
+        """
+        Get a view on the values in the map.
+
+        Returns:
+            A view on the values in the map.
         """
 
     @property

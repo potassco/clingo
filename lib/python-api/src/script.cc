@@ -846,31 +846,28 @@ auto register_python(clingo_lib_t *lib) -> bool {
     return clingo_script_register(lib, &external_script, static_cast<void *>(ext.release()));
 }
 
-void register_script(pybind11::module &m) {
+auto create_script(PyObject *parent) -> PyObject * {
     auto script_mod = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &script_def, &script_mod.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &script_def, &script_mod.get())) {
+        return nullptr;
     }
     auto *state = get_state(script_mod.get());
-    if (state == nullptr) {
-        throw py::error_already_set();
-    }
-    state->lib_type = py_library_type();
-    if (state->lib_type == nullptr) {
-        throw py::error_already_set();
-    }
-    state->control_type = py_control_type();
-    if (state->control_type == nullptr) {
-        throw py::error_already_set();
-    }
-    state->symbol_type = py_symbol_type();
-    if (state->symbol_type == nullptr) {
-        throw py::error_already_set();
-    }
-    if (!intern_names(state) || !add_type(script_mod.get(), "Script", &py_script_spec, &state->script_type) ||
+    if (state == nullptr || !intern_names(state) ||
+        !add_type(script_mod.get(), "Script", &py_script_spec, &state->script_type) ||
         !add_type(script_mod.get(), "_ScriptHandle", &py_handle_spec, &state->handle_type)) {
-        throw py::error_already_set();
+        return nullptr;
     }
+    return script_mod.release();
+}
+
+auto link_script(PyObject *mod) -> bool {
+    static constexpr auto imports = std::array{
+        TypeImport<ScriptModuleState>{&ScriptModuleState::lib_type, &py_library_type},
+        TypeImport<ScriptModuleState>{&ScriptModuleState::control_type, &py_control_type},
+        TypeImport<ScriptModuleState>{&ScriptModuleState::symbol_type, &py_symbol_type},
+    };
+    auto *state = get_state(mod);
+    return state != nullptr && import_types(state, imports);
 }
 
 } // namespace PyClingo

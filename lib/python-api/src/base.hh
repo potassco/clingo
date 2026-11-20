@@ -1,15 +1,16 @@
 #pragma once
 
-#include <pybind11/pybind11.h>
+#include <Python.h>
 
 #include "symbol.hh"
 #include <clingo/base.h>
 
 namespace PyClingo {
 
-namespace py = pybind11;
-
-void register_base(py::module &m);
+//! Create the clingo.base module with its own types and functions (first registration phase).
+auto create_base(PyObject *parent) -> PyObject *;
+//! Store the types of other modules in the state of the clingo.base module (second registration phase).
+auto link_base(PyObject *mod) -> bool;
 
 auto py_base_type() -> PyObject *;
 //! Create a `clingo.base.Base` object (new reference).

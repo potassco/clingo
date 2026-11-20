@@ -11,6 +11,8 @@ set(source-group
     "src/base.hh"
     "src/clingo.cc"
     "src/clingo.hh"
+    "src/collection.cc"
+    "src/collection.hh"
     "src/config.cc"
     "src/config.hh"
     "src/control.cc"
@@ -46,12 +48,26 @@ list(FILTER source EXCLUDE REGEX "/(embed|module)\\.cc$")
 add_library(clingo-python STATIC)
 target_sources(clingo-python PRIVATE ${source})
 clingo_target_properties(TARGETS clingo-python FOLDER lib)
-target_compile_definitions(clingo-python PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}")
-target_link_libraries(clingo-python PRIVATE clingo pybind11::pybind11)
+# the bindings use the limited API of Python 3.11 and the corresponding
+# stable ABI if FindPython provides it (Development.SABIModule)
+if(TARGET Python::SABIModule)
+    set(pyclingo_python_target Python::SABIModule)
+    set(pyclingo_sabi USE_SABI 3.11)
+else()
+    set(pyclingo_python_target Python::Module)
+    set(pyclingo_sabi "")
+endif()
+target_compile_definitions(clingo-python
+    PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}"
+    PUBLIC Py_LIMITED_API=0x030b0000)
+target_link_libraries(clingo-python PRIVATE clingo ${pyclingo_python_target})
 
 # the standalone module
-pybind11_add_module(pyclingo "src/module.cc")
-set_target_properties(pyclingo PROPERTIES IMPORT_LIBRARY "pyclingo.lib")
+Python_add_library(pyclingo MODULE WITH_SOABI ${pyclingo_sabi} "src/module.cc")
+set_target_properties(pyclingo PROPERTIES
+    IMPORT_LIBRARY "pyclingo.lib"
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON)
 clingo_target_properties(TARGETS pyclingo FOLDER lib SUBDIR python)
 set_target_properties(pyclingo PROPERTIES OUTPUT_NAME "clingo")
 target_link_libraries(pyclingo PRIVATE clingo clingo-python)
@@ -121,7 +137,7 @@ if(CLINGO_BUILD_APP)
     clingo_target_properties(TARGETS clingo-python-embed FOLDER lib TYPE extra)
     target_include_directories(clingo-python-embed PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
     target_compile_definitions(clingo-python-embed PUBLIC CLINGO_PYTHON_ENABLED)
-    target_link_libraries(clingo-python-embed PRIVATE clingo clingo-python pybind11::embed)
+    target_link_libraries(clingo-python-embed PRIVATE clingo clingo-python Python::Python)
 
     target_compile_definitions(clingo-python PUBLIC CLINGO_PYTHON_EMBED)
 endif()

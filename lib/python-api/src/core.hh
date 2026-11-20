@@ -4,8 +4,6 @@
 
 #include <clingo/core.h>
 
-#include <pybind11/pybind11.h>
-
 #include <string_view>
 
 namespace PyClingo {
@@ -28,7 +26,25 @@ auto py_handle_error() -> std::nullptr_t;
 //! clingo error is set.
 auto report_main_error(bool res, int code, clingo_string_t name) -> bool;
 
-void register_core(pybind11::module &m);
+//! Create the clingo.core module with its own types and functions (first registration phase).
+auto create_core(PyObject *parent) -> PyObject *;
+
+// C API to access the mapping views (see collection.hh).
+
+//! Get the type of keys views (new reference).
+auto py_keys_view_type() -> PyObject *;
+
+//! Get the type of values views (new reference).
+auto py_values_view_type() -> PyObject *;
+
+//! Get the type of items views (new reference).
+auto py_items_view_type() -> PyObject *;
+
+//! Get collections.abc.Set from the state of the clingo.core module owning the type (borrowed reference).
+auto py_set_abc(PyTypeObject *type) -> PyObject *;
+
+//! Get collections.abc.Mapping from the state of the clingo.core module owning the type (borrowed reference).
+auto py_mapping_abc(PyTypeObject *type) -> PyObject *;
 
 // C API to access `clingo.core.Library` objects.
 //

@@ -1,12 +1,15 @@
 #pragma once
 
-#include <clingo/ast.h>
+#include <Python.h>
 
-#include <pybind11/pybind11.h>
+#include <clingo/ast.h>
 
 namespace PyClingo {
 
-void register_ast(pybind11::module &m);
+//! Create the clingo.ast module with its own types and functions (first registration phase).
+auto create_ast(PyObject *parent) -> PyObject *;
+//! Store the types of other modules in the state of the clingo.ast module (second registration phase).
+auto link_ast(PyObject *mod) -> bool;
 
 //! Get the `clingo.ast.AST` type (new reference).
 auto py_ast_type() -> PyObject *;

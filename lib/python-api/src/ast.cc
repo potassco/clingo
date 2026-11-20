@@ -46,6 +46,7 @@ struct ASTModuleState {
     PyObject *lib_type{nullptr};
     PyObject *symbol_type{nullptr};
     PyObject *location_type{nullptr};
+    PyObject *control_type{nullptr};
     //! The base type of all AST types.
     PyObject *ast_type{nullptr};
     //! The AST types indexed by clingo_ast_type_e.
@@ -61,6 +62,7 @@ constexpr auto state_members = std::array{
     &ASTModuleState::lib_type,
     &ASTModuleState::symbol_type,
     &ASTModuleState::location_type,
+    &ASTModuleState::control_type,
     &ASTModuleState::ast_type,
     &ASTModuleState::records,
     &ASTModuleState::enums,
@@ -1410,12 +1412,12 @@ auto parse_cb(clingo_ast_t *ast, void *data) -> bool {
 }
 
 //! Get the optional control argument of the parse functions.
-auto parse_control(PyObject *obj, clingo_control_t **ctl) -> bool {
+auto parse_control(ASTModuleState *state, PyObject *obj, clingo_control_t **ctl) -> bool {
     *ctl = nullptr;
     if (obj == nullptr || obj == Py_None) {
         return true;
     }
-    *ctl = py_control_get_any(obj);
+    *ctl = py_control_get(state->control_type, obj);
     return *ctl != nullptr;
 }
 
@@ -1443,7 +1445,8 @@ auto py_parse_string(PyObject *module, PyObject *const *args, Py_ssize_t nargs, 
     Py_ssize_t size = 0;
     auto const *str = PyUnicode_AsUTF8AndSize(program, &size);
     clingo_control_t *ctl = nullptr;
-    auto *lib = str != nullptr && parse_control(control, &ctl) ? py_library_get(state->lib_type, lib_obj) : nullptr;
+    auto *lib =
+        str != nullptr && parse_control(state, control, &ctl) ? py_library_get(state->lib_type, lib_obj) : nullptr;
     if (lib == nullptr) {
         return nullptr;
     }
@@ -1477,7 +1480,7 @@ auto py_parse_files(PyObject *module, PyObject *const *args, Py_ssize_t nargs, P
         return nullptr;
     }
     clingo_control_t *ctl = nullptr;
-    auto *lib = parse_control(control, &ctl) ? py_library_get(state->lib_type, lib_obj) : nullptr;
+    auto *lib = parse_control(state, control, &ctl) ? py_library_get(state->lib_type, lib_obj) : nullptr;
     if (lib == nullptr) {
         return nullptr;
     }
@@ -1943,22 +1946,6 @@ auto add_types(ASTModuleState *state, PyObject *ast_mod) -> bool {
     return true;
 }
 
-auto import_types(ASTModuleState *state) -> bool {
-    static constexpr auto types = std::array{
-        std::pair{&ASTModuleState::lib_type, &py_library_type},
-        std::pair{&ASTModuleState::symbol_type, &py_symbol_type},
-        std::pair{&ASTModuleState::location_type, &py_location_type},
-    };
-    // NOLINTNEXTLINE(readability-use-anyofallof)
-    for (auto [member, get] : types) {
-        state->*member = get();
-        if (state->*member == nullptr) {
-            return false;
-        }
-    }
-    return true;
-}
-
 auto import_state() -> ASTModuleState * {
     auto mod = steal(PyImport_ImportModule("clingo.ast"));
     if (mod.get() == nullptr) {
@@ -2015,19 +2002,31 @@ auto py_ast_program_get(PyObject *type, PyObject *obj) -> clingo_program_t * {
     return program_get(obj);
 }
 
-void register_ast(pybind11::module &m) {
+auto create_ast(PyObject *parent) -> PyObject * {
     auto ast_mod = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &ast_def, &ast_mod.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &ast_def, &ast_mod.get())) {
+        return nullptr;
     }
     auto *state = get_state(ast_mod.get());
-    if (state == nullptr || !import_types(state) || !add_type(ast_mod.get(), "AST", &py_ast_spec, &state->ast_type) ||
+    if (state == nullptr || !add_type(ast_mod.get(), "AST", &py_ast_spec, &state->ast_type) ||
         !add_types(state, ast_mod.get()) ||
         !add_int_enum(ast_mod.get(), "ProjectionMode", projection_mode_members, &state->projection_mode_enum, {}) ||
         !add_type(ast_mod.get(), "Program", &py_program_spec, &state->program_type) ||
         !add_type(ast_mod.get(), "RewriteContext", &py_context_spec, &state->rewrite_context_type)) {
-        throw py::error_already_set();
+        return nullptr;
     }
+    return ast_mod.release();
+}
+
+auto link_ast(PyObject *mod) -> bool {
+    static constexpr auto imports = std::array{
+        TypeImport<ASTModuleState>{&ASTModuleState::lib_type, &py_library_type},
+        TypeImport<ASTModuleState>{&ASTModuleState::symbol_type, &py_symbol_type},
+        TypeImport<ASTModuleState>{&ASTModuleState::location_type, &py_location_type},
+        TypeImport<ASTModuleState>{&ASTModuleState::control_type, &py_control_type},
+    };
+    auto *state = get_state(mod);
+    return state != nullptr && import_types(state, imports);
 }
 
 } // namespace PyClingo

@@ -190,8 +190,8 @@ auto py_symbol_value_pair(TheoryModuleState *state, clingo_symbol_t symbol, clin
     if (ret.get() == nullptr) {
         return nullptr;
     }
-    PyTuple_SET_ITEM(ret.get(), 0, sym_obj.release());
-    PyTuple_SET_ITEM(ret.get(), 1, val_obj.release());
+    PyTuple_SetItem(ret.get(), 0, sym_obj.release());
+    PyTuple_SetItem(ret.get(), 1, val_obj.release());
     return ret.release();
 }
 
@@ -199,7 +199,7 @@ auto py_symbol_value_pair(TheoryModuleState *state, clingo_symbol_t symbol, clin
 
 auto py_theory_assignment_iter_new(PyObject *type, PyObject *owner, uint32_t thread_id) -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
-    auto *obj = to->tp_alloc(to, 0);
+    auto *obj = PyType_GenericAlloc(to, 0);
     if (obj == nullptr) {
         return nullptr;
     }
@@ -303,7 +303,7 @@ auto py_theory_assignment_clear(PyObject *self) -> int {
 
 auto py_theory_assignment_new(PyObject *type, PyObject *owner, uint32_t thread_id) -> PyObject * {
     auto *to = reinterpret_cast<PyTypeObject *>(type);
-    auto *obj = to->tp_alloc(to, 0);
+    auto *obj = PyType_GenericAlloc(to, 0);
     if (obj == nullptr) {
         return nullptr;
     }
@@ -1058,58 +1058,34 @@ PyModuleDef theory_def = {
 
 } // namespace
 
-void register_theory(pybind11::module &m) {
+auto create_theory(PyObject *parent) -> PyObject * {
     auto theory_mod = PyGuard{nullptr};
-    if (!add_submodule(m.ptr(), &theory_def, &theory_mod.get())) {
-        throw py::error_already_set();
+    if (!add_submodule(parent, &theory_def, &theory_mod.get())) {
+        return nullptr;
     }
-
     auto *state = get_state(theory_mod.get());
-    if (state == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->lib_type = py_library_type();
-    if (state->lib_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->ast_type = py_ast_type();
-    if (state->ast_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->symbol_type = py_symbol_type();
-    if (state->symbol_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->stats_type = py_stats_type();
-    if (state->stats_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->model_type = py_model_type();
-    if (state->model_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->app_options_type = py_app_options_type();
-    if (state->app_options_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    state->control_type = py_control_type();
-    if (state->control_type == nullptr) {
-        throw py::error_already_set();
-    }
-
-    if (!add_type(theory_mod.get(), "_TheoryAssignmentIter", &py_theory_assignment_iter_spec,
+    if (state == nullptr ||
+        !add_type(theory_mod.get(), "_TheoryAssignmentIter", &py_theory_assignment_iter_spec,
                   &state->assignment_iter_type) ||
         !add_type(theory_mod.get(), "TheoryAssignment", &py_theory_assignment_spec, &state->assignment_type) ||
         !add_type(theory_mod.get(), "Theory", &py_theory_spec, &state->theory_type)) {
-        throw py::error_already_set();
+        return nullptr;
     }
+    return theory_mod.release();
+}
+
+auto link_theory(PyObject *mod) -> bool {
+    static constexpr auto imports = std::array{
+        TypeImport<TheoryModuleState>{&TheoryModuleState::lib_type, &py_library_type},
+        TypeImport<TheoryModuleState>{&TheoryModuleState::ast_type, &py_ast_type},
+        TypeImport<TheoryModuleState>{&TheoryModuleState::symbol_type, &py_symbol_type},
+        TypeImport<TheoryModuleState>{&TheoryModuleState::stats_type, &py_stats_type},
+        TypeImport<TheoryModuleState>{&TheoryModuleState::model_type, &py_model_type},
+        TypeImport<TheoryModuleState>{&TheoryModuleState::app_options_type, &py_app_options_type},
+        TypeImport<TheoryModuleState>{&TheoryModuleState::control_type, &py_control_type},
+    };
+    auto *state = get_state(mod);
+    return state != nullptr && import_types(state, imports);
 }
 
 } // namespace PyClingo

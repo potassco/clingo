@@ -4,11 +4,12 @@
 
 #include <clingo/symbol.h>
 
-#include <pybind11/pybind11.h>
-
 namespace PyClingo {
 
-void register_symbol(pybind11::module &m);
+//! Create the clingo.symbol module with its own types and functions (first registration phase).
+auto create_symbol(PyObject *parent) -> PyObject *;
+//! Store the types of other modules in the state of the clingo.symbol module (second registration phase).
+auto link_symbol(PyObject *mod) -> bool;
 
 auto py_symbol_type() -> PyObject *;
 auto py_symbol_new(PyObject *type, clingo_symbol_t sym, bool acquire) -> PyObject *;

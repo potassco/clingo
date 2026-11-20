@@ -92,6 +92,13 @@ auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **
     return true;
 }
 
+auto register_abc(PyObject *type, char const *abc) -> bool {
+    auto mod = steal(PyImport_ImportModule("collections.abc"));
+    auto cls = steal(mod.get() != nullptr ? PyObject_GetAttrString(mod.get(), abc) : nullptr);
+    auto res = steal(cls.get() != nullptr ? PyObject_CallMethod(cls.get(), "register", "O", type) : nullptr);
+    return res.get() != nullptr;
+}
+
 auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool {
     const char *n = std::strrchr(def->m_name, '.');
     if (n == nullptr) {
@@ -102,7 +109,7 @@ auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool
 
     auto submodule = steal(PyModule_Create(def));
     auto *modules = PyImport_GetModuleDict();
-    if (modules == nullptr || PyModule_AddObjectRef(module, n, submodule.get()) < 0 ||
+    if (submodule.get() == nullptr || modules == nullptr || PyModule_AddObjectRef(module, n, submodule.get()) < 0 ||
         PyDict_SetItemString(modules, def->m_name, submodule.get()) < 0) {
         return false;
     }

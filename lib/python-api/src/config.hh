@@ -1,8 +1,8 @@
 #pragma once
 
-#include <clingo/config.h>
+#include <Python.h>
 
-#include <pybind11/pybind11.h>
+#include <clingo/config.h>
 
 namespace PyClingo {
 
@@ -17,6 +17,7 @@ auto py_config_type() -> PyObject *;
 auto py_config_new(PyObject *owner, void const *valid, PyObject *keeper, PyObject *type, clingo_config_t *config,
                    clingo_id_t key) -> PyObject *;
 auto py_config_get(PyObject *type, PyObject *obj, clingo_config_t **config, clingo_id_t *key) -> bool;
-void register_config(pybind11::module &m);
+//! Create the clingo.config module with its own types and functions (first registration phase).
+auto create_config(PyObject *parent) -> PyObject *;
 
 } // namespace PyClingo
