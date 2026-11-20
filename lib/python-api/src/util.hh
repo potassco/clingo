@@ -845,6 +845,14 @@ inline auto parse_string_sequence(PyObject *obj, PyGuard &seq, PyBuffer<clingo_s
     return true;
 }
 
+//! Get a placeholder for required arguments set by parse_args() that fails every type check.
+//!
+//! Initializing the outputs with it instead of nullptr keeps clang-analyzer
+//! from assuming that they are still null after parsing.
+inline auto unset_arg() -> PyObject * {
+    return Py_Ellipsis;
+}
+
 //! Parse required and optional arguments passed with the METH_FASTCALL | METH_KEYWORDS convention.
 inline auto parse_args(char const *fname, std::initializer_list<char const *> req,
                        std::initializer_list<char const *> opt, PyObject *const *args, Py_ssize_t nargs,

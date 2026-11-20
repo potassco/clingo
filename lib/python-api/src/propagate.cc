@@ -1018,7 +1018,7 @@ auto py_control_add_nogood(PyObject *self, PyObject *const *args, Py_ssize_t nar
 auto py_control_add_weight_constraint(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
     -> PyObject * {
     PyObject *lit_obj{};
-    PyObject *wlits_obj = Py_None; // overwritten by parse_args (non-null for clang-analyzer)
+    PyObject *wlits_obj = unset_arg();
     PyObject *bound_obj{};
     PyObject *type_obj{};
     if (!parse_args("add_weight_constraint", {"literal", "literals", "bound"}, {"type"}, args, nargs, kwnames,
@@ -1806,7 +1806,6 @@ void undo_cb(clingo_assignment_t const *ass, clingo_literal_t const *changes, si
     }
     auto gil = GILGuard{};
     if (handle_cast(data)->propagator == nullptr) {
-        // NOTE: there is nothing to undo for a released propagator
         return;
     }
     auto call = Call{};
