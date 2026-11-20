@@ -11,7 +11,7 @@ from clingo.control import Control
 from clingo.core import Library
 from clingo.ground import GroundResult
 from clingo.symbol import Function, Number
-from util import MCB
+from util import MCB, needs_threads
 
 
 class Context:
@@ -91,6 +91,7 @@ class TestControl:
             case _:
                 pytest.fail("mapping pattern did not match")
 
+    @needs_threads
     def test_start_ground(self):
         """
         Test start_ground method with event handler and interruption.
@@ -114,6 +115,7 @@ class TestControl:
             #show.
             """)
 
+    @needs_threads
     def test_start_ground_interrupt(self):
         """
         Test start_ground method with interruption.

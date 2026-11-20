@@ -2,8 +2,17 @@
 Utilities for testing.
 """
 
+import sys
+
+import pytest
 from clingo.solve import Model
 from clingo.symbol import Symbol
+
+# WebAssembly platforms like Pyodide support neither threads nor processes.
+WASM = sys.platform in ("emscripten", "wasi")
+
+needs_threads = pytest.mark.skipif(WASM, reason="threads are not supported")
+needs_processes = pytest.mark.skipif(WASM, reason="processes are not supported")
 
 
 class MCB:

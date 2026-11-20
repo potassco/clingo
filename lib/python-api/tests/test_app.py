@@ -12,7 +12,7 @@ import pytest
 from clingo.app import App, AppOptions, Flag, clingo_main
 from clingo.control import Control
 from clingo.core import Library, MessageType
-from util import MCB
+from util import MCB, needs_processes
 
 
 class AppTest(App):
@@ -134,6 +134,7 @@ class TestApplication:
     Tests for clingo's application class.
     """
 
+    @needs_processes
     @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_app(self):
         """

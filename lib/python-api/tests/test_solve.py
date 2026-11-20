@@ -6,7 +6,7 @@ from clingo.control import Control
 from clingo.core import Library
 from clingo.solve import Model, ModelType
 from clingo.symbol import Function, Symbol
-from util import MCB
+from util import MCB, needs_threads
 
 
 class TestSolve:
@@ -64,11 +64,21 @@ class TestSolve:
         assert mcb.symbols == res
         assert mcc.symbols == res
 
+    @needs_threads
+    def test_solve_async(self):
+        """
+        Test asynchronous solving.
+        """
+        res = [["a"], ["b"]]
+        ctl = Control(self.lib, ["0"])
+        ctl.parse_string("1 { a; b } 1.")
+        ctl.ground()
+
         # async
         mcb = MCB()
         with ctl.start_solve(on_model=mcb, async_=True) as hnd:
             assert hnd.get().satisfiable
-        assert mcc.symbols == res
+        assert mcb.symbols == res
 
         # yield+async
         mcb = MCB()

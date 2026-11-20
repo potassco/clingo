@@ -16,7 +16,7 @@ from clingo.stats import (
     StatsType,
     StatsView,
 )
-from util import MCB
+from util import MCB, needs_threads
 
 
 class TestStats:
@@ -176,6 +176,7 @@ class TestStats:
         assert stats["user_step"]["tested"].value > 0
         assert stats["user_accu"]["tested"].value > 0
 
+    @needs_threads
     def test_solve(self):
         """
         Test the solver stats.

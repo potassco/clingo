@@ -19,7 +19,7 @@ from clingo.propagate import (
     WeightConstraintType,
 )
 from clingo.symbol import Function
-from util import MCB
+from util import MCB, needs_threads
 
 
 class AIFFBPropagator(Propagator):
@@ -518,6 +518,7 @@ class TestPropagate:
         self.ctl.ground()
         assert self.ctl.solve().satisfiable
 
+    @needs_threads
     def test_aiffb(self):
         """
         Test the example a iff b propagator.
@@ -550,6 +551,7 @@ class TestPropagate:
         assert not prop.errors
         assert mcb.symbols == [["a", "b"]]
 
+    @needs_threads
     def test_exception_propagation(self):
         """
         Test python exception propagation.

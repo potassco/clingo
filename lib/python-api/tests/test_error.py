@@ -23,6 +23,7 @@ from clingo.propagate import (
 from clingo.script import Script, register
 from clingo.solve import Model
 from clingo.symbol import Symbol
+from util import needs_processes
 
 
 class ErrorApp(App):
@@ -293,6 +294,7 @@ class TestError:
         ).stderr
         return bool(re.search(pattern, output, re.DOTALL))
 
+    @needs_processes
     @pytest.mark.parametrize(
         "mode",
         [
@@ -310,6 +312,7 @@ class TestError:
         msg = f"mode `{mode}` failed"
         assert self.run_app_test(mode[0], f"RuntimeError: {mode}"), msg
 
+    @needs_processes
     def test_error_validate(self):
         """
         Test special handling of ValueErrors in validate.
