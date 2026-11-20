@@ -690,7 +690,7 @@ auto py_assignment_spec = PyType_Spec{
     py_assignment_slots.data(),
 };
 
-// Trail and _TrailView
+// Trail and TrailView
 
 auto view_new(PropagateModuleState *state, PyObject *trail, Py_ssize_t start, Py_ssize_t step, Py_ssize_t size)
     -> PyObject * {
@@ -939,7 +939,7 @@ auto py_view_slots = std::array{
 };
 
 auto py_view_spec = PyType_Spec{
-    "clingo.propagate._TrailView", sizeof(PyTrailViewObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.propagate.TrailView", sizeof(PyTrailViewObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
     py_view_slots.data(),
 };
 
@@ -1927,34 +1927,19 @@ PyModuleDef propagate_def = {
     propagate_module_free,
 };
 
-auto register_sequences(PropagateModuleState *state) -> bool {
-    auto abc = steal(PyImport_ImportModule("collections.abc"));
-    if (abc.get() == nullptr) {
-        return false;
-    }
-    auto seq = steal(PyObject_GetAttrString(abc.get(), "Sequence"));
-    if (seq.get() == nullptr) {
-        return false;
-    }
-    for (auto *type : {state->assignment_type, state->trail_type, state->trail_view_type}) {
-        auto res = steal(PyObject_CallMethod(seq.get(), "register", "O", type));
-        if (res.get() == nullptr) {
-            return false;
-        }
-    }
-    return true;
-}
-
 auto intern_names(PropagateModuleState *state) -> bool {
-    auto names = std::array{
-        std::pair{&state->str_init, "init"},           std::pair{&state->str_attach, "attach"},
-        std::pair{&state->str_propagate, "propagate"}, std::pair{&state->str_undo, "undo"},
-        std::pair{&state->str_check, "check"},         std::pair{&state->str_decide, "decide"},
+    static constexpr auto names = std::array{
+        std::pair{&PropagateModuleState::str_init, "init"},
+        std::pair{&PropagateModuleState::str_attach, "attach"},
+        std::pair{&PropagateModuleState::str_propagate, "propagate"},
+        std::pair{&PropagateModuleState::str_undo, "undo"},
+        std::pair{&PropagateModuleState::str_check, "check"},
+        std::pair{&PropagateModuleState::str_decide, "decide"},
     };
     // NOLINTNEXTLINE(readability-use-anyofallof)
-    for (auto [store, name] : names) {
-        *store = PyUnicode_InternFromString(name);
-        if (*store == nullptr) {
+    for (auto [member, name] : names) {
+        state->*member = PyUnicode_InternFromString(name);
+        if (state->*member == nullptr) {
             return false;
         }
     }
@@ -2045,13 +2030,13 @@ void register_propagate(pybind11::module &m) {
                       {}) ||
         !add_int_enum(mod, "CheckMode", check_mode_members, &state->check_mode_enum, {}) ||
         !add_int_enum(mod, "UndoMode", undo_mode_members, &state->undo_mode_enum, {}) ||
-        !add_type(mod, "_TrailView", &py_view_spec, &state->trail_view_type) ||
+        !add_type(mod, "TrailView", &py_view_spec, &state->trail_view_type) ||
         !add_type(mod, "Trail", &py_trail_spec, &state->trail_type) ||
         !add_type(mod, "Assignment", &py_assignment_spec, &state->assignment_type) ||
         !add_type(mod, "PropagateControl", &py_control_spec, &state->control_type) ||
         !add_type(mod, "PropagateInit", &py_init_spec, &state->init_type, state->control_type) ||
         !add_type(mod, "Propagator", &py_propagator_spec, &state->propagator_type) ||
-        !add_type(mod, "_PropagatorHandle", &py_handle_spec, &state->handle_type) || !register_sequences(state)) {
+        !add_type(mod, "_PropagatorHandle", &py_handle_spec, &state->handle_type)) {
         throw py::error_already_set();
     }
 }

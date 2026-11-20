@@ -4,7 +4,7 @@ Functions and classes to implement custom propagators.
 # Example
 
 ```python
->>> from typing import Sequence
+>>> from collections.abc import Sequence
 >>> from clingo.control import Control
 >>> from clingo.core import Library
 >>> from clingo.propagate import Assignment, PropagateControl, PropagateInit, Propagator
@@ -54,14 +54,12 @@ SAT
 ```
 """
 
-from __future__ import annotations
+from collections.abc import Iterator, Sequence
+from enum import IntEnum
+from typing import overload
 
-import collections.abc
-import enum
-import typing
-
-import clingo.base
-import clingo.core
+from clingo.base import Base
+from clingo.core import Library
 
 __all__: list[str] = [
     "Assignment",
@@ -70,84 +68,138 @@ __all__: list[str] = [
     "PropagateInit",
     "Propagator",
     "Trail",
+    "TrailView",
     "UndoMode",
     "WeightConstraintType",
 ]
 
-class WeightConstraintType(enum.IntEnum):
+class WeightConstraintType(IntEnum):
     """
     Enumeration of weight constraint types.
     """
 
     Equivalence = 0
+    """
+    The literal is equivalent to the weight constraint.
+    """
     LeftImplication = -1
+    """
+    The weight constraint implies the literal.
+    """
     RightImplication = 1
+    """
+    The literal implies the weight constraint.
+    """
 
-class CheckMode(enum.IntEnum):
+class CheckMode(IntEnum):
     """
     Enumeration of check modes.
     """
 
     Both = 3
+    """
+    Call `clingo.propagate.Propagator.check` on propagation fixpoints and total
+    assignments.
+    """
     Fixpoint = 2
+    """
+    Call `clingo.propagate.Propagator.check` on propagation fixpoints.
+    """
     Off = 0
+    """
+    Do not call `clingo.propagate.Propagator.check`.
+    """
     Total = 1
+    """
+    Call `clingo.propagate.Propagator.check` on total assignments.
 
-class UndoMode(enum.IntEnum):
+    Total checks are subject to the lock when a model is found, i.e., information
+    from previously found models can be used to discard assignments in check calls.
+    """
+
+class UndoMode(IntEnum):
     """
     Enumeration of undo modes.
     """
 
     Always = 1
+    """
+    Also call `clingo.propagate.Propagator.undo` when check has been called.
+    """
     Default = 0
+    """
+    Call `clingo.propagate.Propagator.undo` for non-empty changes only.
+    """
 
-class _TrailView:
+class TrailView:
     """
     Provides access to a subrange of literals in the solver's trail.
 
-    Implements `Sequence[int]` to access the solver literals in the view.
+    This provides a read-only sequence interface to access the solver literals in
+    the view. The view is only valid during the propagator callback in which it was
+    obtained.
     """
 
-    def __contains__(self, value: int) -> bool:
+    def __contains__(self, value: int, /) -> bool:
         """
-        Check whether the sequence contains the given value.
+        Check whether the view contains the given literal.
+
+        Args:
+            value: The literal to look up.
+
+        Returns:
+            Whether the literal is contained.
         """
 
-    @typing.overload
-    def __getitem__(self, index: int) -> int:
+    @overload
+    def __getitem__(self, index: int, /) -> int:
         """
-        Get the value at the given index.
+        Get the literal at the given index.
+
+        Args:
+            index: The index of the literal.
+
+        Returns:
+            The literal at the given index.
         """
 
-    @typing.overload
-    def __getitem__(self, slice: slice) -> typing.Sequence[int]:
+    @overload
+    def __getitem__(self, index: slice, /) -> TrailView:
         """
-        Slice the sequence.
+        Get a view on the literals in the given slice.
+
+        Args:
+            index: The slice of literals.
+
+        Returns:
+            A view on the literals in the given slice.
         """
 
-    def __iter__(self) -> collections.abc.Iterator[int]:
+    def __getitem__(self, index: int | slice, /) -> int | TrailView:
         """
-        Get an iterator for the sequence.
+        Get the literal at the given index or a view on the given slice.
+
+        Args:
+            index: The index of the literal or the slice of literals.
+
+        Returns:
+            The literal at the given index or a view on the selected literals.
+        """
+
+    def __iter__(self) -> Iterator[int]:
+        """
+        Get an iterator over the literals in the view.
+
+        Returns:
+            An iterator over the literals in the view.
         """
 
     def __len__(self) -> int:
         """
-        Get the size of the sequence.
-        """
+        Get the number of literals in the view.
 
-    def __reversed__(self) -> collections.abc.Iterator[int]:
-        """
-        Get a reverse iterator for the sequence.
-        """
-
-    def count(self, value: int) -> int:
-        """
-        Count how often the given value occurs in the sequence.
-        """
-
-    def index(self, value: int) -> int:
-        """
-        Get the index of the given value in the sequence.
+        Returns:
+            The number of literals in the view.
         """
 
 class Trail:
@@ -163,39 +215,71 @@ class Trail:
     learning mechanisms. The decision literal for each level is placed at the
     beginning of its respective sequence.
 
-    Implements `Sequence[int]` to access the solver literals in the trail.
+    This provides a read-only sequence interface to access the solver literals in
+    the trail. The trail is only valid during the propagator callback in which it
+    was obtained.
     """
 
-    def __contains__(self, value: int) -> bool:
+    def __contains__(self, value: int, /) -> bool:
         """
-        Check whether the sequence contains the given value.
+        Check whether the trail contains the given literal.
+
+        Args:
+            value: The literal to look up.
+
+        Returns:
+            Whether the literal is contained.
         """
 
-    @typing.overload
-    def __getitem__(self, index: int) -> int:
+    @overload
+    def __getitem__(self, index: int, /) -> int:
         """
-        Get the value at the given index.
+        Get the literal at the given index.
+
+        Args:
+            index: The index of the literal.
+
+        Returns:
+            The literal at the given index.
         """
 
-    @typing.overload
-    def __getitem__(self, slice: slice) -> typing.Sequence[int]:
+    @overload
+    def __getitem__(self, index: slice, /) -> TrailView:
         """
-        Slice the sequence.
+        Get a view on the literals in the given slice.
+
+        Args:
+            index: The slice of literals.
+
+        Returns:
+            A view on the literals in the given slice.
         """
 
-    def __iter__(self) -> collections.abc.Iterator[int]:
+    def __getitem__(self, index: int | slice, /) -> int | TrailView:
         """
-        Get an iterator for the sequence.
+        Get the literal at the given index or a view on the given slice.
+
+        Args:
+            index: The index of the literal or the slice of literals.
+
+        Returns:
+            The literal at the given index or a view on the selected literals.
+        """
+
+    def __iter__(self) -> Iterator[int]:
+        """
+        Get an iterator over the literals in the trail.
+
+        Returns:
+            An iterator over the literals in the trail.
         """
 
     def __len__(self) -> int:
         """
-        Get the size of the sequence.
-        """
+        Get the number of literals in the trail.
 
-    def __reversed__(self) -> collections.abc.Iterator[int]:
-        """
-        Get a reverse iterator for the sequence.
+        Returns:
+            The number of literals in the trail.
         """
 
     def begin(self, level: int) -> int:
@@ -206,13 +290,9 @@ class Trail:
 
         Args:
             level: A decision level.
+
         Returns:
             The index of the decision literal.
-        """
-
-    def count(self, value: int) -> int:
-        """
-        Count how often the given value occurs in the sequence.
         """
 
     def end(self, level: int) -> int:
@@ -221,26 +301,23 @@ class Trail:
 
         Args:
             level: A decision level.
+
         Returns:
             The index after the last literal.
         """
 
-    def index(self, value: int) -> int:
-        """
-        Get the index of the given value in the sequence.
-        """
-
-    def level(self, level: int) -> typing.Sequence[int]:
+    def level(self, level: int) -> TrailView:
         """
         Get the literals assigned at the given decision level.
 
-        This sequence includes all literals assigned at this level in implication
-        order, with the decision literal at the beginning of the sequence.
+        The view includes all literals assigned at this level in implication order,
+        with the decision literal at the beginning.
 
         Args:
             level: A decision level.
+
         Returns:
-            A sequence of literals.
+            A view on the literals of the level.
         """
 
 class Assignment:
@@ -257,58 +334,93 @@ class Assignment:
     - There is exactly one decision literal per level.
     - All other literals on the same level are implied by the decision literal and
       literals from earlier levels.
-    - The current decision level is the highest level at which atoms are assigned.
+    - The current decision level is the highest level at which literals are
+      assigned.
     - The root level is the lowest decision level that can be backtracked to.
 
-    Implements `Sequence[int]` to access the solver literals in the assignment.
+    This provides a read-only sequence interface to access the positive solver
+    literals, i.e., one entry per solver variable, independent of their truth
+    values. The assignment is only valid during the propagator callback in which it
+    was obtained.
     """
 
-    def __contains__(self, value: int) -> bool:
+    def __contains__(self, value: int, /) -> bool:
         """
-        Check whether the sequence contains the given value.
+        Check whether the given solver literal is part of the assignment.
+
+        Both positive and negative literals are accepted. The check does not depend
+        on the truth value of the literal.
+
+        Args:
+            value: The literal to look up.
+
+        Returns:
+            Whether the literal is part of the assignment.
         """
 
-    def __getitem__(self, index: int) -> int:
+    @overload
+    def __getitem__(self, index: int, /) -> int:
         """
-        Get the value at the given index.
+        Get the literal at the given index.
+
+        Args:
+            index: The index of the literal.
+
+        Returns:
+            The literal at the given index.
         """
 
-    def __iter__(self) -> collections.abc.Iterator[int]:
+    @overload
+    def __getitem__(self, index: slice, /) -> list[int]:
         """
-        Get an iterator for the sequence.
+        Get a list of the literals in the given slice.
+
+        Args:
+            index: The slice of literals.
+
+        Returns:
+            A list of the literals in the given slice.
+        """
+
+    def __getitem__(self, index: int | slice, /) -> int | list[int]:
+        """
+        Get the literal at the given index or the literals in the given slice.
+
+        Args:
+            index: The index of the literal or the slice of literals.
+
+        Returns:
+            The literal at the given index or a list of the selected literals.
+        """
+
+    def __iter__(self) -> Iterator[int]:
+        """
+        Get an iterator over the literals in the assignment.
+
+        Returns:
+            An iterator over the literals in the assignment.
         """
 
     def __len__(self) -> int:
         """
-        Get the size of the sequence.
-        """
+        Get the number of positive solver literals in the assignment.
 
-    def __reversed__(self) -> collections.abc.Iterator[int]:
-        """
-        Get a reverse iterator for the sequence.
-        """
-
-    def count(self, value: int) -> int:
-        """
-        Count how often the given value occurs in the sequence.
+        Returns:
+            The number of positive solver literals in the assignment.
         """
 
     def decision(self, level: int) -> int:
         """
-        Returns the decision literal of the given level.
+        Get the decision literal of the given level.
 
         Each level has exactly one decision literal, which implies other literals on
         the same level.
 
         Args:
             level: The decision level.
+
         Returns:
             The decision literal.
-        """
-
-    def index(self, value: int) -> int:
-        """
-        Get the index of the given value in the sequence.
         """
 
     def is_false(self, literal: int) -> bool:
@@ -317,16 +429,18 @@ class Assignment:
 
         Args:
             literal: The solver literal.
+
         Returns:
             Whether the literal is false.
         """
 
     def is_fixed(self, literal: int) -> bool:
         """
-        Checks if the truth value of the literal is fixed.
+        Check if the truth value of the given literal is fixed.
 
         Args:
             literal: The solver literal.
+
         Returns:
             Whether the literal is fixed.
         """
@@ -337,6 +451,7 @@ class Assignment:
 
         Args:
             literal: The solver literal.
+
         Returns:
             Whether the literal is free.
         """
@@ -347,31 +462,34 @@ class Assignment:
 
         Args:
             literal: The solver literal.
+
         Returns:
             Whether the literal is true.
         """
 
     def level(self, literal: int) -> int:
         """
-        Returns the decision level of the given literal.
+        Get the decision level of the given literal.
 
         The decision level indicates when the literal was assigned or implied during
         the solving process.
 
         Args:
             literal: The solver literal.
+
         Returns:
             The decision level of the literal.
         """
 
     def value(self, literal: int) -> bool | None:
         """
-        Returns the truth value of the literal, or None if unassigned.
+        Get the truth value of the given literal.
 
         Args:
             literal: The solver literal.
+
         Returns:
-            The truth value of the literal.
+            The truth value of the literal or `None` if it is unassigned.
         """
 
     @property
@@ -389,7 +507,7 @@ class Assignment:
     @property
     def is_total(self) -> bool:
         """
-        Check if all literals in the assigment are assigned.
+        Check if all literals in the assignment are assigned.
         """
 
     @property
@@ -413,7 +531,7 @@ class Assignment:
     @property
     def trail(self) -> Trail:
         """
-        Get the trail of literals.
+        Get the trail of assigned literals.
         """
 
 class PropagateControl:
@@ -422,27 +540,32 @@ class PropagateControl:
 
     This class provides methods for adding clauses, literals, and nogoods, as well
     as managing watches and performing propagation.
+
+    If a method adding constraints or `clingo.propagate.PropagateControl.propagate`
+    returns `False`, no further methods must be called on the control object or the
+    assignment, and the propagator must return from the current callback
+    immediately.
+
+    A control object is only valid during the propagator callback in which it was
+    obtained.
     """
 
     def add_clause(
-        self, literals: typing.Sequence[int], tag: bool = False, lock: bool = False
+        self, literals: Sequence[int], tag: bool = False, lock: bool = False
     ) -> bool:
         """
         Add a clause to the solver.
 
         Tagged clauses are deleted after the current solve call finishes while locked
-        clauses are exempt from the solvers clause deletion strategy.
+        clauses are exempt from the solver's clause deletion strategy.
 
         See `clingo.propagate.PropagateControl.propagate` for how to handle the case
         that the function returns false.
 
         Args:
-            literals:
-                A sequence of solver literals representing the clause.
-            tag:
-                Whether to tag the clause.
-            lock:
-                Whether to lock the clause.
+            literals: The solver literals of the clause.
+            tag: Whether to tag the clause.
+            lock: Whether to lock the clause.
 
         Returns:
             Whether the clause could be integrated without conflict.
@@ -452,30 +575,29 @@ class PropagateControl:
         """
         Add a literal to the solver.
 
-        If the function is called in the context of a particular solver thread, the literal is only added to
-        that thread and deleted after the active solve call.
+        If the function is called in the context of a particular solver thread, the
+        literal is only added to that thread and deleted after the active solve call
+        together with all clauses involving it.
 
         Args:
-            freeze:
-                Whether to freeze the literal.
+            freeze: Whether to freeze the literal.
 
         Returns:
             A fresh solver literal.
         """
 
     def add_nogood(
-        self, literals: typing.Sequence[int], tag: bool = False, lock: bool = False
+        self, literals: Sequence[int], tag: bool = False, lock: bool = False
     ) -> bool:
         """
-        A shortcut for `add_clause([-literal for literal in literals], tag, lock)`.
+        Add a nogood to the solver.
+
+        This is a shortcut for `add_clause([-literal for literal in literals], tag, lock)`.
 
         Args:
-            literals:
-                A sequence of solver literals representing the nogood.
-            tag:
-                Whether to tag the nogood.
-            lock:
-                Whether to lock the nogood.
+            literals: The solver literals of the nogood.
+            tag: Whether to tag the nogood.
+            lock: Whether to lock the nogood.
 
         Returns:
             Whether the nogood could be integrated without conflict.
@@ -485,6 +607,10 @@ class PropagateControl:
         """
         Add a watch for the given solver literal.
 
+        If called on a `clingo.propagate.PropagateInit` object, the watch is added
+        to all current and future solver threads. Otherwise, it is only added to
+        the active solver thread.
+
         Args:
             literal: The literal to watch.
         """
@@ -492,58 +618,66 @@ class PropagateControl:
     def add_weight_constraint(
         self,
         literal: int,
-        literals: typing.Sequence[tuple[int, int]],
+        literals: Sequence[tuple[int, int]],
         bound: int,
         type: WeightConstraintType = WeightConstraintType.Equivalence,
     ) -> bool:
         """
         Add a weight constraint to the solver.
 
-        See `add_clause` for how to interpret the return value.
+        The constraint has the form `literal <=> sum >= bound`, where `sum` is the
+        sum of the weights of the true literals in `literals`. Depending on `type`,
+        the connective `<=>` can also be a left or right implication.
+
+        See `clingo.propagate.PropagateControl.add_clause` for how to interpret the
+        return value.
 
         Args:
-            literal:
-                The literal associated with the constraint.
-            literals:
-                A sequence of (literal, weight) tuples.
-            bound:
-                The bound of the weight constraint.
-            type:
-                The type of the weight constraint.
+            literal: The literal associated with the constraint.
+            literals: The weighted literals of the constraint as (literal, weight)
+                pairs.
+            bound: The bound of the weight constraint.
+            type: The type of the weight constraint.
 
         Returns:
-            Whether the weight constraint could be added without conflict.
+            Whether the weight constraint could be integrated without conflict.
         """
 
     def has_watch(self, literal: int) -> bool:
         """
         Check if a watch exists for the given solver literal.
 
+        The check refers to the current context, i.e., the active solver thread or,
+        for a `clingo.propagate.PropagateInit` object, the initialization.
+
         Args:
             literal: The literal to check.
 
         Returns:
-            True if a watch exists for the literal, False otherwise.
+            Whether a watch exists for the literal.
         """
 
     def propagate(self) -> bool:
         """
         Perform propagation in the solver.
 
-        If this function returns False, the propagator must add no further
-        clauses/literals and immediately return from the corresponding
-        `clingo.propagate.Propagator.init`, `clingo.propagate.Propagator.propagate`
+        If this function returns `False`, the propagator must add no further
+        clauses or literals and immediately return from the corresponding
+        `clingo.propagate.Propagator.init`, `clingo.propagate.Propagator.propagate`,
         or `clingo.propagate.Propagator.check` call.
 
         Returns:
-            True if propagation was successful, False otherwise.
+            Whether propagation finished without conflict.
         """
 
     def remove_watch(self, literal: int) -> None:
         """
         Remove the watch for the given literal.
 
-        This function has no effect if the literal is not watched.
+        This function has no effect if the literal is not watched. If called on a
+        `clingo.propagate.PropagateInit` object, the watch is removed from all
+        current and future solver threads. Otherwise, it is only removed from the
+        active solver thread.
 
         Args:
             literal: The literal to remove the watch for.
@@ -553,108 +687,130 @@ class PropagateInit(PropagateControl):
     """
     Class for initializing a propagator.
 
-    This class extends PropagateControl and additionally provides methods for freezing and looking up literals, adding
-    constraints, and configuring the propagator's behavior.
+    This class extends `clingo.propagate.PropagateControl` and additionally provides
+    methods for freezing and looking up literals, adding constraints, and
+    configuring the propagator's behavior.
+
+    Methods inherited from `clingo.propagate.PropagateControl` affect all current
+    and future solver threads. Watched literals are frozen automatically.
+
+    An init object is only valid during the call to
+    `clingo.propagate.Propagator.init` in which it was obtained.
     """
 
     def add_minimize(self, literal: int, weight: int, priority: int = 0) -> None:
         """
         Add a weighted literal to minimize to the solver.
 
+        This corresponds to a weak constraint of form `:~ literal. [weight@priority]`.
+
         Args:
-            literal:
-                The literal to minimize.
-            weight:
-                The weight of the literal.
-            priority:
-                The priority of the literal.
+            literal: The literal to minimize.
+            weight: The weight of the literal.
+            priority: The priority of the literal.
         """
 
     def freeze_literal(self, literal: int) -> None:
         """
         Freeze the given literal.
 
-        Frozen literals are exempt from simplification. This is important for literals
-        whose truth values a propagator has to track.
+        Literals that are not frozen are subject to simplification and might be
+        removed in a preprocessing step after propagator initialization. A
+        propagator should freeze all literals over which it might add clauses during
+        propagation. Watched literals are frozen automatically, and it does not
+        matter which phase of a literal is frozen.
 
         Args:
-            literal:
-                The literal to freeze.
+            literal: The literal to freeze.
         """
 
     def solver_literal(self, literal: int | None) -> int:
         """
-        Map the given program literal to a solver literal.
+        Map the given program literal or condition id to a solver literal.
 
-        If the literal is `None`, the true solver literal is returned.
+        Condition ids are the literals associated with the conditions of theory
+        elements. If the literal is `None`, the true solver literal is returned.
 
         Args:
-            literal:
-                The program literal to map.
+            literal: The program literal or condition id to map.
 
         Returns:
             The corresponding solver literal.
         """
 
     @property
-    def base(self) -> clingo.base.Base:
+    def base(self) -> Base:
         """
-        The base object to inspect the grounder's base.
+        Get the base object to inspect the grounder's base.
         """
 
     @property
     def check_mode(self) -> CheckMode:
         """
-        Get/set the check mode for the propagator.
+        Get or set the check mode of the propagator.
         """
 
     @check_mode.setter
-    def check_mode(self, arg1: CheckMode) -> None: ...
+    def check_mode(self, value: CheckMode) -> None: ...
     @property
-    def library(self) -> clingo.core.Library:
+    def library(self) -> Library:
         """
-        The library object managing symbols.
+        Get the library object managing symbols.
         """
 
     @property
     def number_of_threads(self) -> int:
         """
-        The number of solver threads.
+        Get the number of solver threads.
         """
 
     @property
     def undo_mode(self) -> UndoMode:
         """
-        Get/set the undo mode for the propagator.
+        Get or set the undo mode of the propagator.
         """
 
     @undo_mode.setter
-    def undo_mode(self, arg1: UndoMode) -> None: ...
+    def undo_mode(self, value: UndoMode) -> None: ...
 
 class Propagator:
     """
     Interface for implementing propagators.
 
-    This class defines methods that can be implemented to create custom propagators
-    for use with the solver. They can be left empty to use their default
-    implementation.
+    This class defines methods that can be overridden to create custom propagators
+    for use with the solver.
+
+    Only the methods overridden in the class of a propagator are called by the
+    solver. Methods that are not overridden are not registered with the solver at
+    all, which avoids the overhead of calling into Python. This matters, for
+    example, for `clingo.propagate.Propagator.decide`, which is called very often
+    during search. The overridden methods are determined when the propagator is
+    registered; methods assigned to an instance are ignored.
+
+    The default implementations, which can be called via `super()`, do nothing
+    except `clingo.propagate.Propagator.decide`, which returns the fallback literal.
     """
 
-    def __init__(self) -> None: ...
+    def __init__(self) -> None:
+        """
+        Construct a propagator.
+        """
+
     def attach(self, assignment: Assignment, control: PropagateControl) -> None:
         """
-        Initialize solver thread with given id.
+        Attach the propagator to a solver thread.
 
-        This function is called once for each solving thread before solving of the
-        current step is started.
-        It can be used to add thread-specific watches and literals, or
-        initialize thread-specific data structures.
+        This function is called once for each solver thread before solving of the
+        current step is started. It can be used to add thread-specific watches and
+        literals, or to initialize thread-specific data structures.
+
+        Literals and watches added in this function are only valid within the solver
+        thread. Furthermore, added literals and clauses involving them are deleted
+        after the current search.
 
         Args:
-            assignment:
-                The current assignment.
-            control:
-                The propagate control object for managing propagation.
+            assignment: The assignment of the solver thread.
+            control: The propagate control object of the solver thread.
         """
 
     def check(self, assignment: Assignment, control: PropagateControl) -> None:
@@ -663,29 +819,30 @@ class Propagator:
 
         This method is called on propagation fixpoints or total assignments (see
         `clingo.propagate.PropagateInit.check_mode`). A propagator should add clauses
-        to implement its constraints here.
+        to implement its constraints here. The method is called even if no watches
+        have been added.
 
         Args:
-            assignment:
-                The current assignment.
-            control:
-                The propagate control object for managing propagation.
+            assignment: The current assignment.
+            control: The propagate control object for managing propagation.
         """
 
     def decide(self, assignment: Assignment, fallback: int) -> int:
         """
         Make a decision on the next literal to assign.
 
-        This method is called to decide on a literal to be assigned next.
+        This method is called whenever propagation reaches a fixpoint and should
+        return a free solver literal that is to be assigned true. If multiple
+        propagators are registered, returning 0 lets a propagator registered later
+        make the decision. If all propagators return 0, the fallback literal is
+        used.
 
         Args:
-            assignment:
-                The current assignment.
-            fallback:
-                The literal choosen by the solver's heuristic.
+            assignment: The current assignment.
+            fallback: The literal chosen by the solver's heuristic.
 
         Returns:
-            The literal to assign or 0 if no decision was made.
+            The literal to make true or 0 to leave the decision to others.
         """
 
     def init(self, assignment: Assignment, init: PropagateInit) -> None:
@@ -696,48 +853,53 @@ class Propagator:
         relevant program literals to solver literals, add watches for solver
         literals, and initialize the propagator's internal state.
 
+        This is the last point to access symbolic and theory atoms via
+        `clingo.propagate.PropagateInit.base`. Once the search has started, they are
+        no longer accessible.
+
         Args:
-            assignment:
-                The current assignment.
-            init:
-                The propagate init object for initializing the propagator.
+            assignment: The top-level assignment.
+            init: The propagate init object for initializing the propagator.
         """
 
     def propagate(
         self,
         assignment: Assignment,
         control: PropagateControl,
-        changes: typing.Sequence[int],
+        changes: Sequence[int],
     ) -> None:
         """
-        Propagate given set of changes.
+        Propagate the given set of changes.
 
-        This method is called during propagation with a non-empty list of watched literals
-        that have been assigned truth values. A propagator should add clauses to
-        propagate literals and to implement its constraints.
+        This method is called during propagation with a non-empty list of watched
+        literals that have become true since the last call to
+        `clingo.propagate.Propagator.propagate` or `clingo.propagate.Propagator.undo`,
+        or since the start of the search. A propagator should add clauses to
+        propagate literals and to implement its constraints. If adding a clause or
+        propagating returns `False`, the method must return immediately.
 
         Typical propagators add unit-resulting or conflicting constraints only.
 
+        The method can be called from different solver threads. Each thread has its
+        own assignment and thread id.
+
         Args:
-            assignment:
-                The current assignment.
-            control:
-                The propagate control object for managing propagation.
-            changes:
-                A list of literals that have changed.
+            assignment: The current assignment.
+            control: The propagate control object for managing propagation.
+            changes: The watched literals that have become true.
         """
 
-    def undo(self, assignment: Assignment, changes: typing.Sequence[int]) -> None:
+    def undo(self, assignment: Assignment, changes: Sequence[int]) -> None:
         """
         Undo previous assignments.
 
-        This method is called to undo previous assignments.
+        This method is called when the solver backtracks to undo the assignment of
+        watched literals. It is meant to update assignment-dependent state in the
+        propagator.
 
         See also `clingo.propagate.PropagateInit.undo_mode`.
 
         Args:
-            assignment:
-                The current assignment.
-            changes:
-                The literals whose assignment is undone.
+            assignment: The current assignment.
+            changes: The watched literals whose assignment is undone.
         """

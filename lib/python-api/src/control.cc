@@ -21,10 +21,7 @@
 #include <clingo/profile.h>
 #include <clingo/stats.h>
 
-#include <structmember.h>
-
 #include <array>
-#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <tuple>
@@ -93,7 +90,6 @@ struct PyControlObject {
     PyObject *keep;
     //! Whether the object holds a reference to its clingo control object.
     bool owns;
-    PyObject *weakrefs;
 };
 
 struct PyConstMapObject {
@@ -225,10 +221,9 @@ auto control_new(ControlModuleState *state, PyObject *library, clingo_control_t 
     return obj.release();
 }
 
-//! Invalidate a non-owned control object and release the reference held by its clingo control object.
 void control_finalizer(void *data) {
-    // NOTE: objects cannot be released anymore once the interpreter is gone
     if (Py_IsInitialized() == 0) {
+        fprintf(stderr, "warning: control finalizer called after interpreter shutdown\n");
         return;
     }
     auto gil = GILGuard{};
@@ -247,9 +242,7 @@ auto control_get(PyObject *self) -> clingo_control_t * {
 
 // program parts
 
-//! Program parts converted from Python.
 struct PartBuffer {
-    //! Keeps the converted tuples alive, which own the names and symbols.
     PyGuard keep{nullptr};
     PyBuffer<clingo_part_t> parts;
     PyBuffer<clingo_symbol_t> symbols;
@@ -491,14 +484,6 @@ auto py_control_clear(PyObject *self) -> int {
     Py_CLEAR(c->keep);
     Py_CLEAR(c->library);
     return 0;
-}
-
-void py_control_dealloc(PyObject *self) {
-    PyObject_GC_UnTrack(self);
-    if (control_cast(self)->weakrefs != nullptr) {
-        PyObject_ClearWeakRefs(self);
-    }
-    free_object(self);
 }
 
 auto py_control_register_propagator(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
@@ -1126,20 +1111,14 @@ auto py_control_getset = std::array{
     PyGetSetDef{nullptr, nullptr, nullptr, nullptr, nullptr},
 };
 
-auto py_control_members = std::array{
-    PyMemberDef{"__weaklistoffset__", T_PYSSIZET, offsetof(PyControlObject, weakrefs), READONLY, nullptr},
-    PyMemberDef{nullptr, 0, 0, 0, nullptr},
-};
-
 auto py_control_slots = std::array{
     PyType_Slot{Py_tp_doc, const_cast<char *>("A control object for grounding and solving.")}, // NOLINT
     PyType_Slot{Py_tp_new, reinterpret_cast<void *>(py_control_tp_new)},
-    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_control_dealloc)},
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
     PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_control_traverse)},
     PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_control_clear)},
     PyType_Slot{Py_tp_methods, py_control_methods.data()},
     PyType_Slot{Py_tp_getset, py_control_getset.data()},
-    PyType_Slot{Py_tp_members, py_control_members.data()},
     PyType_Slot{0, nullptr},
 };
 
@@ -1148,7 +1127,7 @@ auto py_control_spec = PyType_Spec{
     py_control_slots.data(),
 };
 
-// _ConstMap
+// ConstMap
 
 auto const_map_get(PyObject *self) -> clingo_const_map_t const * {
     auto *m = const_map_cast(self);
@@ -1289,14 +1268,29 @@ auto py_const_map_methods = std::array{
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Get the value for the given key or the default if absent."),
     },
-    PyMethodDef{"keys", py_const_map_keys, METH_NOARGS, PyDoc_STR("Get an iterator over the keys.")},
-    PyMethodDef{"values", py_const_map_values, METH_NOARGS, PyDoc_STR("Get an iterator over the values.")},
-    PyMethodDef{"items", py_const_map_items, METH_NOARGS, PyDoc_STR("Get an iterator over the items.")},
+    PyMethodDef{
+        "keys",
+        py_const_map_keys,
+        METH_NOARGS,
+        PyDoc_STR("Get an iterator over the keys."),
+    },
+    PyMethodDef{
+        "values",
+        py_const_map_values,
+        METH_NOARGS,
+        PyDoc_STR("Get an iterator over the values."),
+    },
+    PyMethodDef{
+        "items",
+        py_const_map_items,
+        METH_NOARGS,
+        PyDoc_STR("Get an iterator over the items."),
+    },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
 
 auto py_const_map_slots = std::array{
-    PyType_Slot{Py_tp_doc, const_cast<char *>("The map from constants defined by #const directives.")}, // NOLINT
+    PyType_Slot{Py_tp_doc, const_cast<char *>("The map of constants defined by #const directives.")}, // NOLINT
     PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(py_const_map_dealloc)},
     PyType_Slot{Py_tp_methods, py_const_map_methods.data()},
     PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_const_map_iter)},
@@ -1307,7 +1301,7 @@ auto py_const_map_slots = std::array{
 };
 
 auto py_const_map_spec = PyType_Spec{
-    "clingo.control._ConstMap", sizeof(PyConstMapObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
+    "clingo.control.ConstMap", sizeof(PyConstMapObject), 0, Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION,
     py_const_map_slots.data(),
 };
 
@@ -1418,39 +1412,26 @@ PyModuleDef control_def = {
 };
 
 auto import_types(ControlModuleState *state) -> bool {
-    auto types = std::array{
-        std::pair{&state->lib_type, &py_library_type},
-        std::pair{&state->symbol_type, &py_symbol_type},
-        std::pair{&state->base_type, &py_base_type},
-        std::pair{&state->config_type, &py_config_type},
-        std::pair{&state->stats_type, &py_stats_view_type},
-        std::pair{&state->ground_handle_type, &py_ground_handle_type},
-        std::pair{&state->solve_handle_type, &py_solve_handle_type},
-        std::pair{&state->backend_manager_type, &py_backend_manager_type},
-        std::pair{&state->propagator_type, &py_propagator_type},
+    static constexpr auto types = std::array{
+        std::pair{&ControlModuleState::lib_type, &py_library_type},
+        std::pair{&ControlModuleState::symbol_type, &py_symbol_type},
+        std::pair{&ControlModuleState::base_type, &py_base_type},
+        std::pair{&ControlModuleState::config_type, &py_config_type},
+        std::pair{&ControlModuleState::stats_type, &py_stats_view_type},
+        std::pair{&ControlModuleState::ground_handle_type, &py_ground_handle_type},
+        std::pair{&ControlModuleState::solve_handle_type, &py_solve_handle_type},
+        std::pair{&ControlModuleState::backend_manager_type, &py_backend_manager_type},
+        std::pair{&ControlModuleState::propagator_type, &py_propagator_type},
     };
     // NOLINTNEXTLINE(readability-use-anyofallof)
-    for (auto [store, get] : types) {
-        *store = get();
-        if (*store == nullptr) {
+    for (auto [member, get] : types) {
+        state->*member = get();
+        if (state->*member == nullptr) {
             return false;
         }
     }
     state->backend_module = PyImport_ImportModule("clingo.backend");
     return state->backend_module != nullptr;
-}
-
-auto register_mapping(ControlModuleState *state) -> bool {
-    auto abc = steal(PyImport_ImportModule("collections.abc"));
-    if (abc.get() == nullptr) {
-        return false;
-    }
-    auto mapping = steal(PyObject_GetAttrString(abc.get(), "Mapping"));
-    if (mapping.get() == nullptr) {
-        return false;
-    }
-    auto res = steal(PyObject_CallMethod(mapping.get(), "register", "O", state->const_map_type));
-    return res.get() != nullptr;
 }
 
 } // namespace
@@ -1530,8 +1511,8 @@ void register_control(pybind11::module &m) {
     if (state == nullptr || !import_types(state) ||
         !add_int_enum(control_mod.get(), "ControlMode", mode_members, &state->mode_enum, {}) ||
         !add_type(control_mod.get(), "_ConstMapIter", &py_const_map_iter_spec, &state->const_map_iter_type) ||
-        !add_type(control_mod.get(), "_ConstMap", &py_const_map_spec, &state->const_map_type) ||
-        !add_type(control_mod.get(), "Control", &py_control_spec, &state->control_type) || !register_mapping(state)) {
+        !add_type(control_mod.get(), "ConstMap", &py_const_map_spec, &state->const_map_type) ||
+        !add_type(control_mod.get(), "Control", &py_control_spec, &state->control_type)) {
         throw py::error_already_set();
     }
 }
