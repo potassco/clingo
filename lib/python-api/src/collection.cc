@@ -376,14 +376,21 @@ auto py_mapping_richcompare(PyObject *view_type, PyObject *self, PyObject *other
         Py_RETURN_NOTIMPLEMENTED;
     }
     // NOTE: like collections.abc.Mapping, the mappings are compared as dictionaries
-    auto lhs = steal(PyDict_New());
+    auto *dict_type = reinterpret_cast<PyObject *>(&PyDict_Type);
     auto lhs_items = steal(items(self));
-    if (lhs.get() == nullptr || lhs_items.get() == nullptr || PyDict_MergeFromSeq2(lhs.get(), lhs_items.get(), 1) < 0) {
+    if (lhs_items.get() == nullptr) {
         return nullptr;
     }
-    auto rhs = steal(PyDict_New());
+    auto lhs = steal(PyObject_CallFunctionObjArgs(dict_type, lhs_items.get(), nullptr));
+    if (lhs.get() == nullptr) {
+        return nullptr;
+    }
     auto rhs_items = steal(PyObject_CallMethod(other, "items", nullptr));
-    if (rhs.get() == nullptr || rhs_items.get() == nullptr || PyDict_MergeFromSeq2(rhs.get(), rhs_items.get(), 1) < 0) {
+    if (rhs_items.get() == nullptr) {
+        return nullptr;
+    }
+    auto rhs = steal(PyObject_CallFunctionObjArgs(dict_type, rhs_items.get(), nullptr));
+    if (rhs.get() == nullptr) {
         return nullptr;
     }
     return PyObject_RichCompare(lhs.get(), rhs.get(), op);
