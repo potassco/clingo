@@ -363,9 +363,43 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../ast/" class="md-nav__link">
+    
+    
+      
         
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../ast/" class="md-nav__link ">
+              
   
   
   <span class="md-ellipsis">
@@ -378,7 +412,221 @@
   
   
 
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1_3" id="__nav_1_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        
+          <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_1_3_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_1_3">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  ast
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ast/terms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  terms
+
+    
+  </span>
+  
+  
+
       </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ast/literals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  literals
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ast/aggregates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  aggregates
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ast/head/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  head
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ast/body/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  body
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ast/theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  theory
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ast/statements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  statements
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
     </li>
   
 
@@ -684,6 +932,17 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         cancel
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clingo.ground.GroundHandle.close" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        close
       </span>
     </span>
   </a>
@@ -1043,6 +1302,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#clingo.ground.GroundHandle.close" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        close
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#clingo.ground.GroundHandle.get" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1220,6 +1490,8 @@ grounding to finish:</p>
 
     <div class="doc doc-contents ">
 
+        <p>Indicates that the grounding was interrupted.</p>
+
     </div>
 
 </div>
@@ -1243,6 +1515,8 @@ grounding to finish:</p>
 
     <div class="doc doc-contents ">
 
+        <p>Indicates that the grounding finished successfully.</p>
+
     </div>
 
 </div>
@@ -1265,6 +1539,8 @@ grounding to finish:</p>
 </code></pre></div>
 
     <div class="doc doc-contents ">
+
+        <p>Indicates that grounding finished and the program is unsatisfiable.</p>
 
     </div>
 
@@ -1296,14 +1572,12 @@ grounding to finish:</p>
 
 
 
-        <p>An object to interact with a running search.</p>
-<p>It can be used to control solving, like, retrieving models or cancelling a
-search.</p>
+        <p>An object to interact with a running grounding.</p>
 <p>A GroundHandle is a context manager and must be used with Python's with
 statement.</p>
 <p>Blocking functions in this object release the GIL. They are not thread-safe
 though.</p>
-<p>See also: <a class="autorefs autorefs-internal" title="ground" href="../control/#clingo.control.Control.ground"><code>ground</code></a></p>
+<p>See also: <a class="autorefs autorefs-internal" title="ground" href="../control/#clingo.control.Control.ground"><code>ground</code></a>, <a class="autorefs autorefs-internal" title="start_ground" href="../control/#clingo.control.Control.start_ground"><code>start_ground</code></a></p>
 
 
 
@@ -1334,12 +1608,36 @@ though.</p>
 
 
 <a href="#clingo.ground.GroundHandle.__enter__" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">__enter__</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="GroundHandle (clingo.ground.GroundHandle)" href="./#clingo.ground.GroundHandle">GroundHandle</a></span>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">__enter__</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="typing.Self" href="https://docs.python.org/3/library/typing.html#typing.Self">Self</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Start the search.</p>
+        <p>Return the handle.</p>
+<p>Grounding has already been started when the handle is created.</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-external" title="typing.Self" href="https://docs.python.org/3/library/typing.html#typing.Self">Self</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The handle itself.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>
@@ -1355,13 +1653,78 @@ though.</p>
 
 <a href="#clingo.ground.GroundHandle.__exit__" class="headerlink" title="Permanent link">&para;</a></h3>
 <div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">__exit__</span><span class="p">(</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">arg0</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#type">type</a></span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">arg1</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="typing.Any" href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a></span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">arg2</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="typing.Any" href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a></span> <span class="o">|</span> <span class="kc">None</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="nb">type</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#type">type</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/exceptions.html#BaseException">BaseException</a></span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">value</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/exceptions.html#BaseException">BaseException</a></span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">traceback</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="types.TracebackType" href="https://docs.python.org/3/library/types.html#types.TracebackType">TracebackType</a></span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
         <p>Stop grounding and close the handle.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>type</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#type">type</a>[<a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/exceptions.html#BaseException">BaseException</a>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The exception type, if an exception occurred.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>value</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/exceptions.html#BaseException">BaseException</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The exception instance, if an exception occurred.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>traceback</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="types.TracebackType" href="https://docs.python.org/3/library/types.html#types.TracebackType">TracebackType</a> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The traceback object, if an exception occurred.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>
@@ -1381,8 +1744,28 @@ though.</p>
 
     <div class="doc doc-contents ">
 
-        <p>Cancel the running search.</p>
+        <p>Cancel the running grounding.</p>
 <p>See also: <a class="autorefs autorefs-internal" title="interrupt" href="../control/#clingo.control.Control.interrupt"><code>interrupt</code></a></p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="clingo.ground.GroundHandle.close" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">close</span>
+
+
+<a href="#clingo.ground.GroundHandle.close" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">close</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Stop grounding and close the handle.</p>
 
 
     </div>
@@ -1403,9 +1786,32 @@ though.</p>
     <div class="doc doc-contents ">
 
         <p>Get the ground result.</p>
-<p>This is always the last function to be called on a handle to ensure that the
-search is properly terminated. It might be preceded by a call to cancel to stop
-the search.</p>
+<p>This is always the last function to be called on a handle to ensure
+that grounding is properly terminated. It might be preceded by a call
+to cancel to stop grounding.</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="GroundResult (clingo.ground.GroundResult)" href="./#clingo.ground.GroundResult">GroundResult</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The ground result.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
 
 
     </div>
@@ -1420,16 +1826,16 @@ the search.</p>
 
 
 <a href="#clingo.ground.GroundHandle.wait" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">wait</span><span class="p">(</span><span class="n">timeout</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="typing.SupportsFloat" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat">SupportsFloat</a></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></span>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">wait</span><span class="p">(</span><span class="n">timeout</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#float">float</a></span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Wait for the ground call to finish or the next result with an optional timeout.</p>
-<p>If a timeout is provided, the function blocks for the given duration or until a
-result is ready. A positive timeout blocks for that amount of time. A negative
-timeout blocks until a result is available, and a zero timeout allows polling
-for a result.</p>
+        <p>Wait for the ground call to finish or for the given timeout to expire.</p>
+<p>If a timeout is provided, the function blocks for the given duration or
+until grounding is finished. A positive timeout blocks for that amount
+of time. A negative timeout blocks until grounding is finished. And a
+zero timeout allows polling for a result.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -1448,7 +1854,7 @@ for a result.</p>
                 <code>timeout</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-external" title="typing.SupportsFloat" href="https://docs.python.org/3/library/typing.html#typing.SupportsFloat">SupportsFloat</a> | None</code>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#float">float</a> | None</code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -1478,7 +1884,7 @@ for a result.</p>
             </td>
             <td>
               <div class="doc-md-description">
-                <p>Whether the ground call has finished or the next result is ready.</p>
+                <p>Whether the ground call has finished.</p>
               </div>
             </td>
           </tr>

@@ -10,6 +10,27 @@
         <loc>https://potassco.org/clingo/clingo/ast/</loc>
       </url>
       <url>
+        <loc>https://potassco.org/clingo/clingo/ast/aggregates/</loc>
+      </url>
+      <url>
+        <loc>https://potassco.org/clingo/clingo/ast/body/</loc>
+      </url>
+      <url>
+        <loc>https://potassco.org/clingo/clingo/ast/head/</loc>
+      </url>
+      <url>
+        <loc>https://potassco.org/clingo/clingo/ast/literals/</loc>
+      </url>
+      <url>
+        <loc>https://potassco.org/clingo/clingo/ast/statements/</loc>
+      </url>
+      <url>
+        <loc>https://potassco.org/clingo/clingo/ast/terms/</loc>
+      </url>
+      <url>
+        <loc>https://potassco.org/clingo/clingo/ast/theory/</loc>
+      </url>
+      <url>
         <loc>https://potassco.org/clingo/clingo/backend/</loc>
       </url>
       <url>
