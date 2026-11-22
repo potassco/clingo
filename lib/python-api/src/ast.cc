@@ -9,16 +9,14 @@
 
 #include <clingo/ast.h>
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cctype>
 #include <cstring>
-#include <deque>
 #include <span>
-#include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 namespace PyClingo {
 
@@ -142,29 +140,63 @@ auto check_type(PyObject *type, PyObject *obj, char const *msg) -> bool {
     return true;
 }
 
-auto info() -> clingo_ast_info_t const & {
+auto type_info() -> clingo_ast_info_t const & {
     return *clingo_ast_info();
 }
 
 //! Convert a snake case name into camel case.
-auto camel_case(std::string_view name) -> std::string {
-    auto res = std::string{};
+auto camel_case(std::string_view name, Vector<char> &out) -> bool {
+    size_t n = 0;
+    for (auto c : name) {
+        if (c != '_') {
+            ++n;
+        }
+    }
+    if (!out.resize(static_cast<Py_ssize_t>(n + 1))) {
+        return false;
+    }
+    auto *it = out.data();
     auto upper = true;
     for (auto c : name) {
         if (c == '_') {
             upper = true;
-        } else {
-            res.push_back(upper ? static_cast<char>(std::toupper(static_cast<unsigned char>(c))) : c);
+        } else if (upper) {
+            *it++ = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
             upper = false;
+        } else {
+            *it++ = c;
         }
     }
-    return res;
+    assert(*it == '\0');
+    return true;
 }
 
 //! Get the first line of a documentation string.
-auto summary(char const *doc) -> std::string {
-    auto str = std::string_view{doc};
-    return std::string{str.substr(0, str.find('\n'))};
+auto summary(char const *doc, Vector<char> &buf) noexcept -> bool {
+    auto n = std::strcspn(doc, "\n");
+    if (!buf.resize(n + 1)) {
+        return false;
+    }
+    std::ranges::copy_n(doc, static_cast<ptrdiff_t>(n), buf.data());
+    assert(buf[n] == 0);
+    return true;
+}
+
+auto concat(std::initializer_list<std::string_view> lst, Vector<char> &out) -> bool {
+    size_t n = 0;
+    for (auto view : lst) {
+        n += view.size();
+    }
+    if (!out.resize(static_cast<Py_ssize_t>(n + 1))) {
+        return false;
+    }
+    auto *end = out.data();
+    for (auto view : lst) {
+        std::ranges::copy(view, end);
+        end += view.size();
+    }
+    assert(out[n] == '\0');
+    return true;
 }
 
 // static type data
@@ -175,25 +207,25 @@ auto summary(char const *doc) -> std::string {
 
 struct RecordData {
     //! The name of the type including its module.
-    std::string qualified_name;
+    Vector<char> qualified_name;
     //! The name of the type.
-    std::string name;
-    std::string doc;
-    std::deque<std::string> arg_docs;
-    std::vector<PyGetSetDef> getset;
-    std::vector<PyType_Slot> slots;
+    Vector<char> name;
+    Vector<char> doc;
+    Vector<Vector<char>> arg_docs;
+    Vector<PyGetSetDef> getset;
+    Vector<PyType_Slot> slots;
     PyType_Spec spec{};
 };
 
 struct GroupData {
-    std::string qualified_name;
-    std::string doc;
+    Vector<char> qualified_name;
+    char const *doc{};
     PyModuleDef def{};
 };
 
 struct TypeData {
-    std::deque<RecordData> records;
-    std::deque<GroupData> groups;
+    Vector<RecordData> records;
+    Vector<GroupData> groups;
 };
 
 auto type_data() -> TypeData & {
@@ -203,7 +235,7 @@ auto type_data() -> TypeData & {
 }
 
 auto record_name(size_t index) -> char const * {
-    return type_data().records[index].name.c_str();
+    return type_data().records[index].name.data();
 }
 
 // conversion of argument values
@@ -450,8 +482,8 @@ class ValueBuffer {
         return false;
     }
 
-    template <class T> static auto append(TrivialVector<T> &vec, T const &value) -> bool {
-        if (!vec.push_back(value)) {
+    template <class T> static auto append(Vector<T> &vec, T const &value) -> bool {
+        if (!vec.emplace_back(value)) {
             PyErr_NoMemory();
             return false;
         }
@@ -532,9 +564,9 @@ class ValueBuffer {
     std::array<clingo_ast_value_t, max_arguments> values_{};
     std::array<size_t, max_arguments> offsets_{};
     std::array<PyGuard, max_arguments> keep_;
-    TrivialVector<clingo_string_t> strings_;
-    TrivialVector<clingo_symbol_t> symbols_;
-    TrivialVector<clingo_ast_t const *> asts_;
+    Vector<clingo_string_t> strings_;
+    Vector<clingo_symbol_t> symbols_;
+    Vector<clingo_ast_t const *> asts_;
 };
 
 //! The Python objects passed as arguments to construct an AST.
@@ -578,7 +610,7 @@ auto ast_record(PyObject *self, size_t *index) -> clingo_ast_record_info_t const
         return py_handle_error();
     }
     *index = static_cast<size_t>(type);
-    return &info().records[type]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    return &type_info().records[type]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 }
 
 //! Get the values of all arguments of an AST object.
@@ -597,7 +629,7 @@ auto ast_values(ASTModuleState *state, PyObject *self, clingo_ast_record_info_t 
 
 //! Construct an AST object of the given type from Python objects.
 auto ast_construct(ASTModuleState *state, size_t index, PyObject *lib_obj, Arguments const &args) -> PyObject * {
-    auto const &record = info().records[index]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    auto const &record = type_info().records[index]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     auto const *fname = record_name(index);
     auto buffer = ValueBuffer{};
     for (size_t i = 0; i < record.size; ++i) {
@@ -630,7 +662,7 @@ auto find_argument(clingo_ast_record_info_t const &record, PyObject *name) -> si
 
 //! Parse the arguments to construct an AST: the library followed by the arguments of the record.
 auto parse_record_args(size_t index, PyObject *args, PyObject *kwargs, PyObject **lib, Arguments &out) -> bool {
-    auto const &record = info().records[index]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    auto const &record = type_info().records[index]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     auto const *fname = record_name(index);
     auto nargs = PyTuple_Size(args);
     if (nargs < 0) {
@@ -1548,7 +1580,7 @@ auto ref_info(clingo_ast_ref_t ref) -> PyObject * {
     if (ref.type == clingo_ast_ref_type_none) {
         Py_RETURN_NONE;
     }
-    auto const &inf = info();
+    auto const &inf = type_info();
     char const *name = nullptr;
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     switch (ref.type) {
@@ -1578,7 +1610,7 @@ auto value_type_name(clingo_ast_value_type_t type) -> char const * {
 }
 
 auto py_type_info([[maybe_unused]] PyObject *module, [[maybe_unused]] PyObject *args) -> PyObject * {
-    auto const &inf = info();
+    auto const &inf = type_info();
     auto res = steal(PyDict_New());
     auto records = steal(PyList_New(0));
     auto unions = steal(PyList_New(0));
@@ -1783,8 +1815,14 @@ auto group_module(PyObject *ast_mod, PyObject *groups, char const *group) -> PyO
     if (auto *mod = PyDict_GetItemString(groups, group); mod != nullptr) {
         return mod;
     }
-    auto &data = type_data().groups.emplace_back();
-    data.qualified_name = std::string{"clingo.ast."} + group;
+    auto &group_data = type_data().groups;
+    assert(group_data.size() < group_data.capacity());
+    std::ignore = group_data.emplace_back();
+    auto &data = group_data.back();
+
+    if (!concat({"clingo.ast.", group}, data.qualified_name)) {
+        return nullptr;
+    }
     data.doc = "AST nodes.";
     for (auto const &[name, doc] : group_docs) {
         if (std::strcmp(name, group) == 0) {
@@ -1792,15 +1830,7 @@ auto group_module(PyObject *ast_mod, PyObject *groups, char const *group) -> PyO
         }
     }
     data.def = PyModuleDef{
-        PyModuleDef_HEAD_INIT,
-        data.qualified_name.c_str(),
-        data.doc.c_str(),
-        0,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
+        PyModuleDef_HEAD_INIT, data.qualified_name.data(), data.doc, 0, nullptr, nullptr, nullptr, nullptr, nullptr,
     };
     auto mod = PyGuard{nullptr};
     if (!add_submodule(ast_mod, &data.def, &mod.get()) || PyDict_SetItemString(groups, group, mod.get()) < 0) {
@@ -1810,30 +1840,52 @@ auto group_module(PyObject *ast_mod, PyObject *groups, char const *group) -> PyO
 }
 
 auto add_record(ASTModuleState *state, PyObject *ast_mod, PyObject *groups, size_t index) -> bool {
-    auto const &record = info().records[index]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    auto &data = type_data().records.emplace_back();
-    data.name = camel_case(record.name);
-    data.qualified_name = std::string{"clingo.ast."} + record.group + "." + data.name;
-    data.doc = summary(record.doc);
+    auto &td = type_data();
+    assert(index < type_info().records_size);
+    assert(index == td.records.size());
+    assert(td.records.size() < td.records.capacity());
+    auto const &record = type_info().records[index];
+    std::ignore = td.records.emplace_back();
+    auto &data = td.records.back();
+    if (!camel_case(record.name, data.name)) {
+        return false;
+    }
+    if (!concat({"clingo.ast.", record.group, ".", data.name.data()}, data.qualified_name)) {
+        return false;
+    }
+    if (!summary(record.doc, data.doc)) {
+        return false;
+    }
+    if (!data.getset.resize(record.size + 1)) {
+        return false;
+    }
+    if (!data.arg_docs.resize(record.size)) {
+        return false;
+    }
+    auto *it = data.getset.data();
+    auto *jt = data.arg_docs.data();
     for (auto const &arg : std::span{record.arguments, record.size}) {
-        auto const &doc = data.arg_docs.emplace_back(summary(arg.doc));
+        if (!summary(arg.doc, *jt)) {
+            return false;
+        }
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
         auto *closure = const_cast<void *>(static_cast<void const *>(&arg));
-        data.getset.push_back(PyGetSetDef{arg.name, py_ast_getter, nullptr, doc.c_str(), closure});
+        *it = PyGetSetDef{arg.name, py_ast_getter, nullptr, jt->data(), closure};
+        ++it;
+        ++jt;
     }
-    data.getset.push_back(PyGetSetDef{nullptr, nullptr, nullptr, nullptr, nullptr});
-    data.slots = {
-        PyType_Slot{Py_tp_doc, const_cast<char *>(data.doc.c_str())}, // NOLINT(cppcoreguidelines-pro-type-const-cast)
-        PyType_Slot{Py_tp_new, reinterpret_cast<void *>(record_tp_new.at(index))},
-        PyType_Slot{Py_tp_getset, data.getset.data()},
-        PyType_Slot{0, nullptr},
-    };
-    data.spec = PyType_Spec{data.qualified_name.c_str(), 0, 0, Py_TPFLAGS_DEFAULT, data.slots.data()};
+    if (!data.slots.resize(4)) {
+        return false;
+    }
+    data.slots[0] = PyType_Slot{Py_tp_doc, const_cast<char *>(data.doc.data())};
+    data.slots[1] = PyType_Slot{Py_tp_new, reinterpret_cast<void *>(record_tp_new.at(index))};
+    data.slots[2] = PyType_Slot{Py_tp_getset, data.getset.data()};
+    data.spec = PyType_Spec{data.qualified_name.data(), 0, 0, Py_TPFLAGS_DEFAULT, data.slots.data()};
     // NOTE: the type is created with the ast module, whose state the methods use
     auto *mod = group_module(ast_mod, groups, record.group);
     auto bases = steal(mod != nullptr ? PyTuple_Pack(1, state->ast_type) : nullptr);
     auto type = steal(bases.get() != nullptr ? PyType_FromModuleAndSpec(ast_mod, &data.spec, bases.get()) : nullptr);
-    if (type.get() == nullptr || PyModule_AddObjectRef(mod, data.name.c_str(), type.get()) < 0) {
+    if (type.get() == nullptr || PyModule_AddObjectRef(mod, data.name.data(), type.get()) < 0) {
         return false;
     }
     // the argument names enable pattern matching with positional patterns
@@ -1857,19 +1909,33 @@ auto add_record(ASTModuleState *state, PyObject *ast_mod, PyObject *groups, size
 }
 
 auto add_enum(ASTModuleState *state, PyObject *ast_mod, PyObject *groups, size_t index) -> bool {
-    auto const &enm = info().enums[index]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    auto names = std::vector<std::string>{};
-    auto members = std::vector<IntEnumMember>{};
-    names.reserve(enm.size);
+    auto const &enm = type_info().enums[index]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    auto names = Vector<Vector<char>>{};
+    auto members = Vector<IntEnumMember>{};
+    if (!names.reserve(enm.size)) {
+        return false;
+    }
+    if (!members.reserve(enm.size)) {
+        return false;
+    }
     for (auto const &val : std::span{enm.values, enm.size}) {
-        members.emplace_back(names.emplace_back(camel_case(val.name)).c_str(), val.value);
+        std::ignore = names.emplace_back();
+        if (!camel_case(val.name, names.back())) {
+            return false;
+        }
+        std::ignore = members.emplace_back(names.back().data(), val.value);
     }
     auto *mod = group_module(ast_mod, groups, enm.group);
     auto type = PyGuard{nullptr};
-    if (mod == nullptr || !add_int_enum(mod, camel_case(enm.name).c_str(), members, &type.get(), {})) {
+    auto name = Vector<char>{};
+    if (!camel_case(enm.name, name)) {
         return false;
     }
-    auto doc = steal(PyUnicode_FromString(summary(enm.doc).c_str()));
+    if (mod == nullptr || !add_int_enum(mod, name.data(), std::span{members.data(), members.size()}, &type.get(), {})) {
+        return false;
+    }
+    auto n = std::strcspn(enm.doc, "\n");
+    auto doc = steal(PyUnicode_FromStringAndSize(enm.doc, static_cast<Py_ssize_t>(n)));
     if (doc.get() == nullptr || PyObject_SetAttrString(type.get(), "__doc__", doc.get()) < 0) {
         return false;
     }
@@ -1878,18 +1944,18 @@ auto add_enum(ASTModuleState *state, PyObject *ast_mod, PyObject *groups, size_t
 }
 
 //! Get the object for a union (new reference).
-auto union_object(ASTModuleState *state, std::vector<PyGuard> &unions, size_t index) -> PyObject *;
+auto union_object(ASTModuleState *state, Vector<PyGuard> &unions, size_t index) -> PyObject *;
 
-auto ref_object(ASTModuleState *state, std::vector<PyGuard> &unions, clingo_ast_ref_t ref) -> PyObject * {
+auto ref_object(ASTModuleState *state, Vector<PyGuard> &unions, clingo_ast_ref_t ref) -> PyObject * {
     if (ref.type == clingo_ast_ref_type_record) {
         return borrow(PyTuple_GetItem(state->records, static_cast<Py_ssize_t>(ref.index))).release();
     }
     return union_object(state, unions, ref.index);
 }
 
-auto union_object(ASTModuleState *state, std::vector<PyGuard> &unions, size_t index) -> PyObject * {
+auto union_object(ASTModuleState *state, Vector<PyGuard> &unions, size_t index) -> PyObject * {
     if (unions[index].get() == nullptr) {
-        auto const &uni = info().unions[index]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        auto const &uni = type_info().unions[index]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         auto res = PyGuard{nullptr};
         for (auto const &ref : std::span{uni.types, uni.size}) {
             auto obj = steal(ref_object(state, unions, ref));
@@ -1907,7 +1973,7 @@ auto union_object(ASTModuleState *state, std::vector<PyGuard> &unions, size_t in
 }
 
 auto add_types(ASTModuleState *state, PyObject *ast_mod) -> bool {
-    auto const &inf = info();
+    auto const &inf = type_info();
     if (inf.records_size != record_count) {
         PyErr_SetString(PyExc_RuntimeError, "unexpected number of AST types");
         return false;
@@ -1917,6 +1983,17 @@ auto add_types(ASTModuleState *state, PyObject *ast_mod) -> bool {
             PyErr_SetString(PyExc_RuntimeError, "too many AST arguments");
             return false;
         }
+    }
+    auto &td = type_data();
+    auto unions = Vector<PyGuard>();
+    if (!unions.resize(inf.unions_size)) {
+        return false;
+    }
+    if (!td.groups.reserve(inf.records_size + inf.enums_size)) {
+        return false;
+    }
+    if (!td.records.reserve(inf.records_size)) {
+        return false;
     }
     auto groups = steal(PyDict_New());
     state->records = PyTuple_New(static_cast<Py_ssize_t>(inf.records_size));
@@ -1934,12 +2011,18 @@ auto add_types(ASTModuleState *state, PyObject *ast_mod) -> bool {
             return false;
         }
     }
-    auto unions = std::vector<PyGuard>(inf.unions_size);
     for (size_t i = 0; i < inf.unions_size; ++i) {
-        auto const &uni = inf.unions[i]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        auto const &uni = inf.unions[i];
         auto obj = steal(union_object(state, unions, i));
-        auto *mod = obj.get() != nullptr ? group_module(ast_mod, groups.get(), uni.group) : nullptr;
-        if (mod == nullptr || PyModule_AddObjectRef(mod, camel_case(uni.name).c_str(), obj.get()) < 0) {
+        if (obj.get() == nullptr) {
+            return false;
+        }
+        auto name = Vector<char>{};
+        if (!camel_case(uni.name, name)) {
+            return false;
+        }
+        auto *mod = group_module(ast_mod, groups.get(), uni.group);
+        if (mod == nullptr || PyModule_AddObjectRef(mod, name.data(), obj.get()) < 0) {
             return false;
         }
     }

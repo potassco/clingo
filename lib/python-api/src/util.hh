@@ -1,6 +1,5 @@
 #pragma once
 
-// NOTE: Python.h has to be included before any standard headers
 #include <Python.h>
 
 #include <clingo/core.h>
@@ -16,7 +15,6 @@
 #include <limits>
 #include <span>
 #include <string_view>
-#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -43,15 +41,6 @@ inline void *const invalid_pointer = nullptr;
 //! Get a slot for pointer_valid() that is never valid.
 inline auto invalid_slot() noexcept -> void const * {
     return pointer_slot(&invalid_pointer);
-}
-
-//! Backport of std::unreachable from C++23.
-[[noreturn]] inline void unreachable() {
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-    __assume(false);
-#else // GCC, Clang
-    __builtin_unreachable();
-#endif
 }
 
 //! Convert a hash value into a Python hash value.
@@ -160,7 +149,10 @@ inline auto method_cast(PyCFunctionFastWithKeywords fun) noexcept -> PyCFunction
     return reinterpret_cast<PyCFunction>(reinterpret_cast<void *>(fun)); // NOLINT
 }
 
-using IntEnumMember = std::tuple<char const *, int>;
+struct IntEnumMember {
+    char const *name;
+    int value;
+};
 
 auto add_int_enum(PyObject *module, char const *enum_name, std::span<IntEnumMember const> members, PyObject **store,
                   std::span<PyObject *> cache) -> bool;
@@ -252,85 +244,193 @@ template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *wha
     return true;
 }
 
-//! A growable array of trivially copyable values.
+//! A growable array.
 //!
 //! The container does not depend on Python and does not throw: allocation
 //! failures are reported via return values and have to be handled by the
 //! caller.
-template <class T> class TrivialVector {
-    static_assert(std::is_trivially_copyable_v<T>);
+template <class T> class Vector {
+    static_assert(std::is_nothrow_move_constructible_v<T>);
+    static_assert(std::is_nothrow_destructible_v<T>);
 
   public:
-    TrivialVector() = default;
-    TrivialVector(TrivialVector const &) = delete;
-    auto operator=(TrivialVector const &) -> TrivialVector & = delete;
-    TrivialVector(TrivialVector &&other) noexcept
+    Vector() noexcept = default;
+
+    Vector(Vector const &) = delete;
+    auto operator=(Vector const &) -> Vector & = delete;
+
+    Vector(Vector &&other) noexcept
         : data_{std::exchange(other.data_, nullptr)}, size_{std::exchange(other.size_, 0)},
           capacity_{std::exchange(other.capacity_, 0)} {}
-    auto operator=(TrivialVector &&other) noexcept -> TrivialVector & {
-        std::swap(data_, other.data_);
-        std::swap(size_, other.size_);
-        std::swap(capacity_, other.capacity_);
+    auto operator=(Vector &&other) noexcept -> Vector & {
+        if (this != &other) {
+            clear();
+            deallocate(data_);
+
+            data_ = std::exchange(other.data_, nullptr);
+            size_ = std::exchange(other.size_, 0);
+            capacity_ = std::exchange(other.capacity_, 0);
+        }
         return *this;
     }
-    ~TrivialVector() {
-        std::free(data_); // NOLINT(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+
+    ~Vector() noexcept {
+        clear();
+        deallocate(data_);
     }
 
-    //! Ensure capacity for at least n values.
-    [[nodiscard]] auto reserve(size_t n) noexcept -> bool {
+    [[nodiscard]] auto resize(std::size_t n) noexcept -> bool
+        requires std::is_nothrow_default_constructible_v<T>
+    {
+        if (n > max_size()) {
+            return false;
+        }
+        if (n > capacity_ && !reserve(n)) {
+            return false;
+        }
+
+        if (n < size_) {
+            std::destroy_n(data_ + n, size_ - n);
+        } else {
+            std::uninitialized_value_construct_n(data_ + size_, n - size_);
+        }
+        size_ = n;
+        return true;
+    }
+
+    [[nodiscard]] auto reserve(std::size_t n) noexcept -> bool {
         if (n <= capacity_) {
             return true;
         }
-        if (n > std::numeric_limits<size_t>::max() / sizeof(T)) {
+        if (n > max_size()) {
             return false;
         }
-        // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
-        auto *data = static_cast<T *>(std::realloc(static_cast<void *>(data_), n * sizeof(T)));
-        if (data == nullptr) {
+
+        auto *new_data = allocate(n);
+        if (new_data == nullptr) {
             return false;
         }
-        data_ = data;
+
+        std::uninitialized_move_n(data_, size_, new_data);
+        std::destroy_n(data_, size_);
+        deallocate(data_);
+
+        data_ = new_data;
         capacity_ = n;
         return true;
     }
-    //! Append a value.
-    [[nodiscard]] auto push_back(T const &value) noexcept -> bool {
-        static constexpr size_t min_capacity = 8;
-        if (size_ == capacity_ && !reserve(std::max(2 * capacity_, min_capacity))) {
+
+    template <class... Args>
+        requires std::is_nothrow_constructible_v<T, Args &&...>
+    [[nodiscard]] auto emplace_back(Args &&...args) noexcept -> bool {
+        if (size_ < capacity_) {
+            std::construct_at(data_ + size_, std::forward<Args>(args)...);
+            ++size_;
+            return true;
+        }
+
+        auto const max = max_size();
+        if (capacity_ == max) {
             return false;
         }
-        data_[size_++] = value;
+        auto new_capacity = capacity_;
+        if (new_capacity == 0) {
+            new_capacity = std::min<std::size_t>(8, max); // NOLINT
+        } else if (new_capacity > max / 2) {
+            new_capacity = max;
+        } else {
+            new_capacity *= 2;
+        }
+
+        auto *new_data = allocate(new_capacity);
+        if (new_data == nullptr) {
+            return false;
+        }
+
+        std::construct_at(new_data + size_, std::forward<Args>(args)...);
+        std::uninitialized_move_n(data_, size_, new_data);
+        std::destroy_n(data_, size_);
+        deallocate(data_);
+
+        data_ = new_data;
+        capacity_ = new_capacity;
+        ++size_;
         return true;
     }
-    //! Remove all values keeping the capacity.
-    void clear() noexcept { size_ = 0; }
 
-    [[nodiscard]] auto data() const noexcept -> T * { return data_; }
-    [[nodiscard]] auto size() const noexcept -> size_t { return size_; }
-    [[nodiscard]] auto capacity() const noexcept -> size_t { return capacity_; }
+    void clear() noexcept {
+        std::destroy_n(data_, size_);
+        size_ = 0;
+    }
+
+    auto back() noexcept -> T & {
+        assert(size_ > 0);
+        return data_[size_ - 1];
+    }
+    auto front() noexcept -> T & {
+        assert(size_ > 0);
+        return data_[0];
+    }
+
+    auto operator[](std::size_t i) noexcept -> T & {
+        assert(i < size_);
+        return data_[i];
+    }
+    auto operator[](std::size_t i) const noexcept -> T const & {
+        assert(i < size_);
+        return data_[i];
+    }
+
+    [[nodiscard]] auto data() const noexcept -> T const * { return data_; }
+    [[nodiscard]] auto data() noexcept -> T * { return data_; }
+    [[nodiscard]] auto size() const noexcept -> std::size_t { return size_; }
+    [[nodiscard]] auto capacity() const noexcept -> std::size_t { return capacity_; }
     [[nodiscard]] auto empty() const noexcept -> bool { return size_ == 0; }
 
   private:
+    [[nodiscard]] static constexpr auto max_size() noexcept -> std::size_t {
+        return std::numeric_limits<std::size_t>::max() / sizeof(T);
+    }
+
+    [[nodiscard]] static auto allocate(std::size_t n) noexcept -> T * {
+        auto const bytes = n * sizeof(T);
+        return static_cast<T *>(::operator new(bytes, std::align_val_t{alignof(T)}, std::nothrow));
+    }
+
+    static void deallocate(T *ptr) noexcept {
+        if (ptr != nullptr) {
+            ::operator delete(ptr, std::align_val_t{alignof(T)});
+        }
+    }
+
     T *data_ = nullptr;
-    size_t size_ = 0;
-    size_t capacity_ = 0;
+    std::size_t size_ = 0;
+    std::size_t capacity_ = 0;
 };
 
 template <class T> struct PyBuffer {
     PyBuffer() = default;
     PyBuffer(PyBuffer const &) = delete;
     auto operator=(PyBuffer const &) -> PyBuffer & = delete;
-    PyBuffer(PyBuffer &&) = delete;
-    auto operator=(PyBuffer &&) -> PyBuffer & = delete;
+    PyBuffer(PyBuffer &&other) noexcept : ptr_{std::exchange(other.ptr_, nullptr)}, n_{std::exchange(other.n_, 0)} {}
+    auto operator=(PyBuffer &&other) noexcept -> PyBuffer & {
+        if (this != &other) {
+            if (ptr_ != nullptr) {
+                PyMem_Free(ptr_);
+            }
+            ptr_ = std::exchange(other.ptr_, nullptr);
+            n_ = std::exchange(other.n_, 0);
+        }
+        return *this;
+    }
 
-    ~PyBuffer() {
+    ~PyBuffer() noexcept {
         if (ptr_ != nullptr) {
             PyMem_Free(ptr_);
         }
     }
 
-    auto alloc(size_t n) -> bool {
+    auto alloc(size_t n) noexcept -> bool {
         T *new_ptr = nullptr;
         if (n > 0) {
             new_ptr = static_cast<T *>(PyMem_Calloc(n, sizeof(T)));
@@ -347,7 +447,7 @@ template <class T> struct PyBuffer {
         return true;
     }
 
-    auto resize(size_t n) -> bool {
+    auto resize(size_t n) noexcept -> bool {
         if (n == n_) {
             return true;
         }
@@ -368,14 +468,14 @@ template <class T> struct PyBuffer {
 
     [[nodiscard]]
 
-    auto data() -> T * {
+    auto data() noexcept -> T * {
         return ptr_;
     }
-    [[nodiscard]] auto data() const -> T const * { return ptr_; }
-    [[nodiscard]] auto size() const -> size_t { return n_; }
+    [[nodiscard]] auto data() const noexcept -> T const * { return ptr_; }
+    [[nodiscard]] auto size() const noexcept -> size_t { return n_; }
 
-    auto operator[](size_t i) -> T & { return ptr_[i]; }
-    auto operator[](size_t i) const -> T const & { return ptr_[i]; }
+    auto operator[](size_t i) noexcept -> T & { return ptr_[i]; }
+    auto operator[](size_t i) const noexcept -> T const & { return ptr_[i]; }
 
   private:
     T *ptr_{nullptr};

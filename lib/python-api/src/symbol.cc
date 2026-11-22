@@ -933,7 +933,10 @@ auto create_symbol(PyObject *parent) -> PyObject * {
 
 auto link_symbol(PyObject *mod) -> bool {
     static constexpr auto imports = std::array{
-        TypeImport<SymbolModuleState>{&SymbolModuleState::lib_type, &py_library_type},
+        TypeImport<SymbolModuleState>{
+            &SymbolModuleState::lib_type,
+            &py_library_type,
+        },
     };
     auto *state = get_symbol_module_state(mod);
     return state != nullptr && import_types(state, imports);

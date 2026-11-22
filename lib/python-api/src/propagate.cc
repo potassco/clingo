@@ -165,7 +165,7 @@ auto parse_level_arg(char const *fname, PyObject *const *args, Py_ssize_t nargs,
 //! their own one.
 template <class T> class BufferLease {
   public:
-    explicit BufferLease(TrivialVector<T> &pool) : pool_{pool}, buf_{std::move(pool)} { buf_.clear(); }
+    explicit BufferLease(Vector<T> &pool) : pool_{pool}, buf_{std::move(pool)} { buf_.clear(); }
     BufferLease(BufferLease const &) = delete;
     BufferLease(BufferLease &&) = delete;
     auto operator=(BufferLease const &) -> BufferLease & = delete;
@@ -176,15 +176,15 @@ template <class T> class BufferLease {
         }
     }
 
-    auto get() -> TrivialVector<T> & { return buf_; }
+    auto get() -> Vector<T> & { return buf_; }
 
   private:
-    TrivialVector<T> &pool_;
-    TrivialVector<T> buf_;
+    Vector<T> &pool_;
+    Vector<T> buf_;
 };
 
-thread_local auto lit_pool = TrivialVector<clingo_literal_t>{};
-thread_local auto wlit_pool = TrivialVector<clingo_weighted_literal_t>{};
+thread_local auto lit_pool = Vector<clingo_literal_t>{};
+thread_local auto wlit_pool = Vector<clingo_weighted_literal_t>{};
 
 // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward)
 template <class F> auto for_each_item(PyObject *obj, F &&fun) -> bool {
@@ -204,13 +204,13 @@ template <class F> auto for_each_item(PyObject *obj, F &&fun) -> bool {
     return PyErr_Occurred() == nullptr;
 }
 
-auto parse_literals(PyObject *obj, bool negate, TrivialVector<clingo_literal_t> &out) -> bool {
+auto parse_literals(PyObject *obj, bool negate, Vector<clingo_literal_t> &out) -> bool {
     return for_each_item(obj, [&](PyObject *item) {
         clingo_literal_t lit = 0;
         if (!parse_num(item, &lit, "literal")) {
             return false;
         }
-        if (!out.push_back(negate ? -lit : lit)) {
+        if (!out.emplace_back(negate ? -lit : lit)) {
             PyErr_NoMemory();
             return false;
         }
@@ -218,7 +218,7 @@ auto parse_literals(PyObject *obj, bool negate, TrivialVector<clingo_literal_t> 
     });
 }
 
-auto parse_weighted_literals(PyObject *obj, TrivialVector<clingo_weighted_literal_t> &out) -> bool {
+auto parse_weighted_literals(PyObject *obj, Vector<clingo_weighted_literal_t> &out) -> bool {
     static constexpr char const *msg = "weighted literal must be a pair (literal, weight)";
     return for_each_item(obj, [&](PyObject *item) {
         auto pair = steal(PySequence_Tuple(item));
@@ -234,7 +234,7 @@ auto parse_weighted_literals(PyObject *obj, TrivialVector<clingo_weighted_litera
             !parse_num(PyTuple_GetItem(pair.get(), 1), &wlit.weight, "weight")) {
             return false;
         }
-        if (!out.push_back(wlit)) {
+        if (!out.emplace_back(wlit)) {
             PyErr_NoMemory();
             return false;
         }
@@ -2049,7 +2049,10 @@ auto create_propagate(PyObject *parent) -> PyObject * {
 
 auto link_propagate(PyObject *mod) -> bool {
     static constexpr auto imports = std::array{
-        TypeImport<PropagateModuleState>{&PropagateModuleState::base_type, &py_base_type},
+        TypeImport<PropagateModuleState>{
+            &PropagateModuleState::base_type,
+            &py_base_type,
+        },
     };
     auto *state = get_state(mod);
     return state != nullptr && import_types(state, imports);
