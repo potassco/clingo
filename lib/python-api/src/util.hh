@@ -13,6 +13,7 @@
 #include <functional>
 #include <initializer_list>
 #include <limits>
+#include <memory>
 #include <span>
 #include <string_view>
 #include <type_traits>
