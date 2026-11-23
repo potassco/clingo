@@ -26,6 +26,10 @@ requirements:
 
 build:
   number: {{ build }}
+  # packages linking against clingo require the clingo they were built with up
+  # to the next minor version
+  run_exports:
+  - {{ pin_subpackage(name, max_pin='x.x') }}
 
 test:
   commands:
