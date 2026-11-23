@@ -514,6 +514,26 @@ class ValueBuffer {
             return false;
         }
         auto &val = values_[i];
+        auto const count = static_cast<size_t>(n);
+        auto reserved = false;
+        switch (arg.type) {
+            case clingo_ast_value_type_string_array: {
+                reserved = strings_.reserve(strings_.size() + count);
+                break;
+            }
+            case clingo_ast_value_type_symbol_array: {
+                reserved = symbols_.reserve(symbols_.size() + count);
+                break;
+            }
+            default: {
+                reserved = asts_.reserve(asts_.size() + count);
+                break;
+            }
+        }
+        if (!reserved) {
+            PyErr_NoMemory();
+            return false;
+        }
         for (Py_ssize_t j = 0; j < n; ++j) {
             auto *item = PyTuple_GetItem(seq, j);
             switch (arg.type) {
