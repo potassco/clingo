@@ -152,7 +152,8 @@ auto camel_case(std::string_view name, Vector<char> &out) -> bool {
             ++n;
         }
     }
-    if (!out.resize(static_cast<Py_ssize_t>(n + 1))) {
+    if (!out.resize(n + 1)) {
+        PyErr_NoMemory();
         return false;
     }
     auto *it = out.data();
@@ -172,9 +173,10 @@ auto camel_case(std::string_view name, Vector<char> &out) -> bool {
 }
 
 //! Get the first line of a documentation string.
-auto summary(char const *doc, Vector<char> &buf) noexcept -> bool {
+auto summary(char const *doc, Vector<char> &buf) -> bool {
     auto n = std::strcspn(doc, "\n");
     if (!buf.resize(n + 1)) {
+        PyErr_NoMemory();
         return false;
     }
     std::ranges::copy_n(doc, static_cast<ptrdiff_t>(n), buf.data());
@@ -187,7 +189,8 @@ auto concat(std::initializer_list<std::string_view> lst, Vector<char> &out) -> b
     for (auto view : lst) {
         n += view.size();
     }
-    if (!out.resize(static_cast<Py_ssize_t>(n + 1))) {
+    if (!out.resize(n + 1)) {
+        PyErr_NoMemory();
         return false;
     }
     auto *end = out.data();
@@ -202,8 +205,8 @@ auto concat(std::initializer_list<std::string_view> lst, Vector<char> &out) -> b
 // static type data
 //
 // NOTE: The type data has to outlive the types, which keep pointers to names
-// and attribute definitions. It is created once and never freed because the
-// Python interpreter is initialized only once.
+// and attribute definitions. It is built completely before any type is
+// created, never freed, and reused if the module is initialized again.
 
 struct RecordData {
     //! The name of the type including its module.
@@ -218,6 +221,8 @@ struct RecordData {
 };
 
 struct GroupData {
+    //! The name of the group.
+    char const *name{};
     Vector<char> qualified_name;
     char const *doc{};
     PyModuleDef def{};
@@ -1810,18 +1815,31 @@ constexpr auto group_docs = std::array{
     std::pair{"statements", "AST nodes for statements."},
 };
 
-//! Get (and create if necessary) the submodule of the given group (borrowed reference).
-auto group_module(PyObject *ast_mod, PyObject *groups, char const *group) -> PyObject * {
-    if (auto *mod = PyDict_GetItemString(groups, group); mod != nullptr) {
-        return mod;
+//! Get the data of the given group (nullptr if it does not exist).
+auto find_group_data(char const *group) -> GroupData * {
+    auto &groups = type_data().groups;
+    for (size_t i = 0; i < groups.size(); ++i) {
+        if (std::strcmp(groups[i].name, group) == 0) {
+            return &groups[i];
+        }
     }
-    auto &group_data = type_data().groups;
-    assert(group_data.size() < group_data.capacity());
-    std::ignore = group_data.emplace_back();
-    auto &data = group_data.back();
+    return nullptr;
+}
 
+//! Add the data of the given group if it does not exist yet.
+auto add_group_data(char const *group) -> bool {
+    if (find_group_data(group) != nullptr) {
+        return true;
+    }
+    auto &groups = type_data().groups;
+    if (!groups.emplace_back()) {
+        PyErr_NoMemory();
+        return false;
+    }
+    auto &data = groups.back();
+    data.name = group;
     if (!concat({"clingo.ast.", group}, data.qualified_name)) {
-        return nullptr;
+        return false;
     }
     data.doc = "AST nodes.";
     for (auto const &[name, doc] : group_docs) {
@@ -1832,20 +1850,33 @@ auto group_module(PyObject *ast_mod, PyObject *groups, char const *group) -> PyO
     data.def = PyModuleDef{
         PyModuleDef_HEAD_INIT, data.qualified_name.data(), data.doc, 0, nullptr, nullptr, nullptr, nullptr, nullptr,
     };
+    return true;
+}
+
+//! Get (and create if necessary) the submodule of the given group (borrowed reference).
+auto group_module(PyObject *ast_mod, PyObject *groups, char const *group) -> PyObject * {
+    if (auto *mod = PyDict_GetItemString(groups, group); mod != nullptr) {
+        return mod;
+    }
+    auto *data = find_group_data(group);
+    assert(data != nullptr);
     auto mod = PyGuard{nullptr};
-    if (!add_submodule(ast_mod, &data.def, &mod.get()) || PyDict_SetItemString(groups, group, mod.get()) < 0) {
+    if (!add_submodule(ast_mod, &data->def, &mod.get()) || PyDict_SetItemString(groups, group, mod.get()) < 0) {
         return nullptr;
     }
     return mod.get();
 }
 
-auto add_record(ASTModuleState *state, PyObject *ast_mod, PyObject *groups, size_t index) -> bool {
+//! Add the data of the record with the given index.
+auto add_record_data(size_t index) -> bool {
     auto &td = type_data();
     assert(index < type_info().records_size);
     assert(index == td.records.size());
-    assert(td.records.size() < td.records.capacity());
     auto const &record = type_info().records[index];
-    std::ignore = td.records.emplace_back();
+    if (!td.records.emplace_back()) {
+        PyErr_NoMemory();
+        return false;
+    }
     auto &data = td.records.back();
     if (!camel_case(record.name, data.name)) {
         return false;
@@ -1856,10 +1887,8 @@ auto add_record(ASTModuleState *state, PyObject *ast_mod, PyObject *groups, size
     if (!summary(record.doc, data.doc)) {
         return false;
     }
-    if (!data.getset.resize(record.size + 1)) {
-        return false;
-    }
-    if (!data.arg_docs.resize(record.size)) {
+    if (!data.getset.resize(record.size + 1) || !data.arg_docs.resize(record.size)) {
+        PyErr_NoMemory();
         return false;
     }
     auto *it = data.getset.data();
@@ -1875,12 +1904,54 @@ auto add_record(ASTModuleState *state, PyObject *ast_mod, PyObject *groups, size
         ++jt;
     }
     if (!data.slots.resize(4)) {
+        PyErr_NoMemory();
         return false;
     }
     data.slots[0] = PyType_Slot{Py_tp_doc, const_cast<char *>(data.doc.data())};
     data.slots[1] = PyType_Slot{Py_tp_new, reinterpret_cast<void *>(record_tp_new.at(index))};
     data.slots[2] = PyType_Slot{Py_tp_getset, data.getset.data()};
     data.spec = PyType_Spec{data.qualified_name.data(), 0, 0, Py_TPFLAGS_DEFAULT, data.slots.data()};
+    return add_group_data(record.group);
+}
+
+//! Build the type data unless it has been built by an earlier module initialization.
+//!
+//! On failure, the partially built data is discarded. This is safe because no
+//! type has been created from it yet.
+auto init_type_data() -> bool {
+    auto const &inf = type_info();
+    auto &td = type_data();
+    if (td.records.size() == inf.records_size) {
+        return true;
+    }
+    assert(td.records.empty() && td.groups.empty());
+    auto ok = [&] {
+        if (!td.records.reserve(inf.records_size)) {
+            PyErr_NoMemory();
+            return false;
+        }
+        for (size_t i = 0; i < inf.records_size; ++i) {
+            if (!add_record_data(i)) {
+                return false;
+            }
+        }
+        for (auto const &enm : std::span{inf.enums, inf.enums_size}) {
+            if (!add_group_data(enm.group)) {
+                return false;
+            }
+        }
+        return std::ranges::all_of(std::span{inf.unions, inf.unions_size},
+                                   [](auto const &uni) { return add_group_data(uni.group); });
+    }();
+    if (!ok) {
+        td = TypeData{};
+    }
+    return ok;
+}
+
+auto add_record(ASTModuleState *state, PyObject *ast_mod, PyObject *groups, size_t index) -> bool {
+    auto &data = type_data().records[index];
+    auto const &record = type_info().records[index];
     // NOTE: the type is created with the ast module, whose state the methods use
     auto *mod = group_module(ast_mod, groups, record.group);
     auto bases = steal(mod != nullptr ? PyTuple_Pack(1, state->ast_type) : nullptr);
@@ -1912,10 +1983,8 @@ auto add_enum(ASTModuleState *state, PyObject *ast_mod, PyObject *groups, size_t
     auto const &enm = type_info().enums[index]; // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     auto names = Vector<Vector<char>>{};
     auto members = Vector<IntEnumMember>{};
-    if (!names.reserve(enm.size)) {
-        return false;
-    }
-    if (!members.reserve(enm.size)) {
+    if (!names.reserve(enm.size) || !members.reserve(enm.size)) {
+        PyErr_NoMemory();
         return false;
     }
     for (auto const &val : std::span{enm.values, enm.size}) {
@@ -1984,15 +2053,12 @@ auto add_types(ASTModuleState *state, PyObject *ast_mod) -> bool {
             return false;
         }
     }
-    auto &td = type_data();
+    if (!init_type_data()) {
+        return false;
+    }
     auto unions = Vector<PyGuard>();
     if (!unions.resize(inf.unions_size)) {
-        return false;
-    }
-    if (!td.groups.reserve(inf.records_size + inf.enums_size)) {
-        return false;
-    }
-    if (!td.records.reserve(inf.records_size)) {
+        PyErr_NoMemory();
         return false;
     }
     auto groups = steal(PyDict_New());

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdlib>
@@ -14,6 +15,7 @@
 #include <initializer_list>
 #include <limits>
 #include <memory>
+#include <new>
 #include <span>
 #include <string_view>
 #include <type_traits>
