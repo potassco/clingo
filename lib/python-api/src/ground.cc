@@ -299,8 +299,7 @@ auto py_handle_enter(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject
     if (ensure_handle_open(self) == nullptr) {
         return nullptr;
     }
-    Py_INCREF(self);
-    return self;
+    return Py_NewRef(self);
 }
 
 auto py_handle_exit(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
@@ -380,12 +379,9 @@ auto handle_new(GroundModuleState *state, PyObject *owner, PyObject *ctx, PyObje
     }
     auto *h = py_handle_cast(obj);
     h->state = state;
-    h->owner = owner;
-    h->ctx = ctx;
-    h->finish = finish;
-    Py_XINCREF(owner);
-    Py_XINCREF(ctx);
-    Py_XINCREF(finish);
+    h->owner = Py_XNewRef(owner);
+    h->ctx = Py_XNewRef(ctx);
+    h->finish = Py_XNewRef(finish);
     return obj;
 }
 
@@ -567,8 +563,7 @@ auto py_ground_handle_type() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.ground module is not initialized");
         return nullptr;
     }
-    Py_INCREF(state->handle_type);
-    return state->handle_type;
+    return Py_NewRef(state->handle_type);
 }
 
 auto py_ground(PyObject *type, clingo_control_t *ctl, clingo_part_t const *parts, size_t size, PyObject *ctx) -> bool {

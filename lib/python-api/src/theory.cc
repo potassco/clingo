@@ -204,12 +204,11 @@ auto py_theory_assignment_iter_new(PyObject *type, PyObject *owner, uint32_t thr
         return nullptr;
     }
     auto *a = py_theory_assignment_iter_cast(obj);
-    a->owner = owner;
+    a->owner = Py_NewRef(owner);
     a->thread_id = thread_id;
     a->init = true;
     a->has_value = true;
     a->index = 0;
-    Py_INCREF(owner);
     return obj;
 }
 
@@ -308,9 +307,8 @@ auto py_theory_assignment_new(PyObject *type, PyObject *owner, uint32_t thread_i
         return nullptr;
     }
     auto *a = py_theory_assignment_cast(obj);
-    a->owner = owner;
+    a->owner = Py_NewRef(owner);
     a->thread_id = thread_id;
-    Py_INCREF(owner);
     return obj;
 }
 

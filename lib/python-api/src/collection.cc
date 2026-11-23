@@ -353,8 +353,7 @@ auto py_view_new(PyObject *type, PyObject *mapping, ViewIter iter) -> PyObject *
     if (obj == nullptr) {
         return nullptr;
     }
-    Py_INCREF(mapping);
-    view_cast(obj)->mapping = mapping;
+    view_cast(obj)->mapping = Py_NewRef(mapping);
     view_cast(obj)->iter = iter;
     return obj;
 }

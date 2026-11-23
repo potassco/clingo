@@ -879,11 +879,9 @@ auto call_with(PyObject *fun, PyObject *obj, std::span<PyObject *const> extra, P
     if (args.get() == nullptr) {
         return nullptr;
     }
-    Py_INCREF(obj);
-    PyTuple_SetItem(args.get(), 0, obj);
+    PyTuple_SetItem(args.get(), 0, Py_NewRef(obj));
     for (size_t i = 0; i < extra.size(); ++i) {
-        Py_INCREF(extra[i]);
-        PyTuple_SetItem(args.get(), static_cast<Py_ssize_t>(i + 1), extra[i]);
+        PyTuple_SetItem(args.get(), static_cast<Py_ssize_t>(i + 1), Py_NewRef(extra[i]));
     }
     return PyObject_Call(fun, args.get(), kwargs);
 }
@@ -1127,8 +1125,7 @@ auto py_program_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) -> 
     }
     auto *p = program_cast(obj);
     p->prg = guard.release();
-    Py_INCREF(lib_obj);
-    p->library = lib_obj;
+    p->library = Py_NewRef(lib_obj);
     return obj;
 }
 
@@ -1226,8 +1223,7 @@ auto py_context_tp_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) -> 
     }
     auto *c = context_cast(obj);
     c->ctx = guard.release();
-    Py_INCREF(lib_obj);
-    c->library = lib_obj;
+    c->library = Py_NewRef(lib_obj);
     return obj;
 }
 
@@ -2151,8 +2147,7 @@ auto get_type(PyObject *ASTModuleState::*member) -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.ast module is not initialized");
         return nullptr;
     }
-    Py_INCREF(type);
-    return type;
+    return Py_NewRef(type);
 }
 
 } // namespace

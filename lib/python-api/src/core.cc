@@ -289,8 +289,7 @@ auto get_type(PyObject *CoreModuleState::*member) -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.core module is not initialized");
         return nullptr;
     }
-    Py_INCREF(type);
-    return type;
+    return Py_NewRef(type);
 }
 
 using BuilderGuard = Guard<clingo_string_builder_t *, clingo_string_builder_free>;
@@ -510,8 +509,7 @@ auto py_library_capsule(PyObject *self, [[maybe_unused]] PyObject *args) -> PyOb
 }
 
 auto py_library_enter(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
-    Py_INCREF(self);
-    return self;
+    return Py_NewRef(self);
 }
 
 auto py_library_exit(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
@@ -884,8 +882,7 @@ auto py_library_attach(PyObject *type, clingo_lib_t *lib) -> PyObject * {
         return nullptr;
     }
     if (auto *owner = library_owner(state, lib); owner != nullptr) {
-        Py_INCREF(owner);
-        return owner;
+        return Py_NewRef(owner);
     }
     auto obj = steal(library_new(state, lib, nullptr, false));
     if (obj.get() == nullptr) {

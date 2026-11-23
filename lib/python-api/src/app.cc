@@ -197,8 +197,7 @@ auto py_options_new(PyObject *type, clingo_options_t *opts, PyObject *keep) -> P
     }
     auto *o = py_options_cast(obj);
     o->opts = opts;
-    o->keep = keep;
-    Py_INCREF(keep);
+    o->keep = Py_NewRef(keep);
     return obj;
 }
 
@@ -393,8 +392,7 @@ void set_opt_str(PyObject **slot, PyObject *value) {
     if (value == Py_None) {
         value = nullptr;
     }
-    Py_XINCREF(value);
-    *slot = value;
+    *slot = Py_XNewRef(value);
     Py_XDECREF(old);
 }
 
@@ -659,10 +657,8 @@ auto app_run_new(PyObject *self, AppModuleState *state, PyObject *lib, clingo_ap
     }
     auto *run = py_run_cast(obj.get());
     run->state = state;
-    Py_INCREF(self);
-    run->app = self;
-    Py_INCREF(lib);
-    run->library = lib;
+    run->app = Py_NewRef(self);
+    run->library = Py_NewRef(lib);
     run->keep = PyList_New(0);
     if (run->keep == nullptr) {
         return nullptr;
@@ -882,8 +878,7 @@ auto py_app_options_type() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.app.AppOptions type not initialized");
         return nullptr;
     }
-    Py_INCREF(state->options_type);
-    return state->options_type;
+    return Py_NewRef(state->options_type);
 }
 
 auto py_app_options_check(PyObject *type, PyObject *obj) -> clingo_options_t * {

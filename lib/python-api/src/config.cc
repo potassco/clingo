@@ -68,13 +68,11 @@ auto py_config_alloc(PyObject *owner, void const *valid, PyObject *keeper, PyObj
         return nullptr;
     }
     auto *cfg = reinterpret_cast<PyConfigObject *>(obj);
-    cfg->owner = owner;
+    cfg->owner = Py_NewRef(owner);
     cfg->valid = valid;
-    cfg->keeper = keeper;
+    cfg->keeper = Py_NewRef(keeper);
     cfg->config = config;
     cfg->key = key;
-    Py_INCREF(owner);
-    Py_INCREF(keeper);
     return obj;
 }
 
@@ -758,8 +756,7 @@ auto py_config_type() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "config type is unavailable");
         return nullptr;
     }
-    Py_INCREF(state->config_type);
-    return state->config_type;
+    return Py_NewRef(state->config_type);
 }
 
 auto py_config_new(PyObject *owner, void const *valid, PyObject *keeper, PyObject *type, clingo_config_t *config,

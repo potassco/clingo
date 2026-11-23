@@ -134,8 +134,7 @@ inline auto steal(PyObject *obj) -> PyGuard {
 }
 
 inline auto borrow(PyObject *obj) -> PyGuard {
-    Py_XINCREF(obj);
-    return PyGuard(obj);
+    return PyGuard(Py_XNewRef(obj));
 }
 
 template <size_t N> auto cast_kw(std::array<char const *, N> const &kwlist) -> char ** {

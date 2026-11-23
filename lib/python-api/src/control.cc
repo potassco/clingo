@@ -217,8 +217,7 @@ auto control_new(ControlModuleState *state, PyObject *library, clingo_control_t 
     auto *c = control_cast(obj.get());
     c->ctl = ctl;
     c->owns = owns;
-    Py_INCREF(library);
-    c->library = library;
+    c->library = Py_NewRef(library);
     c->keep = PyList_New(0);
     if (c->keep == nullptr) {
         return nullptr;
@@ -1005,8 +1004,7 @@ auto py_control_const_map(PyObject *self, [[maybe_unused]] void *closure) -> PyO
         return nullptr;
     }
     auto *m = const_map_cast(obj);
-    Py_INCREF(self);
-    m->owner = self;
+    m->owner = Py_NewRef(self);
     m->valid = pointer_slot(&control_cast(self)->ctl);
     m->map = map;
     return obj;
@@ -1292,8 +1290,7 @@ auto py_const_map_get(PyObject *self, PyObject *const *args, Py_ssize_t nargs, P
     if (def == nullptr) {
         Py_RETURN_NONE;
     }
-    Py_INCREF(def);
-    return def;
+    return Py_NewRef(def);
 }
 
 auto const_map_iter_new(PyObject *self, IterType type) -> PyObject * {
@@ -1306,8 +1303,7 @@ auto const_map_iter_new(PyObject *self, IterType type) -> PyObject * {
         return nullptr;
     }
     auto *it = const_map_iter_cast(obj);
-    Py_INCREF(self);
-    it->map = self;
+    it->map = Py_NewRef(self);
     it->index = 0;
     it->type = type;
     return obj;
@@ -1502,8 +1498,7 @@ auto py_control_type() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.control module is not initialized");
         return nullptr;
     }
-    Py_INCREF(state->control_type);
-    return state->control_type;
+    return Py_NewRef(state->control_type);
 }
 
 auto py_control_get(PyObject *type, PyObject *obj) -> clingo_control_t * {
@@ -1525,8 +1520,7 @@ auto py_control_begin(PyObject *type, PyObject *library, clingo_control_t *ctl, 
             PyErr_SetString(PyExc_RuntimeError, "cannot claim a control object that already has an owner");
             return nullptr;
         }
-        Py_INCREF(owner);
-        return owner;
+        return Py_NewRef(owner);
     }
     if (ref_type == ControlRef::claim) {
         // the claimed control is owned until the end call

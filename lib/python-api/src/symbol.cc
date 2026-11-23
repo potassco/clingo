@@ -372,8 +372,7 @@ auto py_symbol_get_type(PyObject *self, [[maybe_unused]] void *closure) -> PyObj
         PyErr_SetString(PyExc_RuntimeError, "symbol type cache missing");
         return nullptr;
     }
-    Py_INCREF(obj);
-    return obj;
+    return Py_NewRef(obj);
 }
 
 auto py_symbol_get_number(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
@@ -962,8 +961,7 @@ auto py_symbol_type() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "failed to resolve symbol type");
         return nullptr;
     }
-    Py_INCREF(state->symbol_type);
-    return state->symbol_type;
+    return Py_NewRef(state->symbol_type);
 }
 
 auto py_symbol_new(PyObject *type, clingo_symbol_t sym, bool acquire) -> PyObject * {

@@ -129,11 +129,10 @@ auto py_stats_alloc(PyObject *owner, void const *valid, PyObject *type, clingo_s
         return nullptr;
     }
     auto *s = reinterpret_cast<PyStatsObject *>(obj);
-    s->owner = owner;
+    s->owner = Py_XNewRef(owner);
     s->valid = valid;
     s->stats = stats;
     s->key = key;
-    Py_XINCREF(owner);
     return obj;
 }
 
@@ -230,8 +229,7 @@ auto stats_nestify(clingo_stats_t *stats, uint64_t key) -> PyObject *;
 
 auto stats_resolve_callable_arg(clingo_stats_t *stats, uint64_t key, bool has_old) -> PyObject * {
     if (!has_old) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Py_RETURN_NONE;
     }
     return stats_nestify(stats, key);
 }
@@ -646,8 +644,7 @@ auto stats_map_get_impl(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
     }
 
     if (!found) {
-        Py_INCREF(def);
-        return def;
+        return Py_NewRef(def);
     }
 
     return py_stats_alloc(o->owner, o->valid, out_type, o->stats, subkey);
@@ -733,8 +730,7 @@ auto py_stats_get_type_enum(PyObject *self, [[maybe_unused]] void *arg) -> PyObj
         return nullptr;
     }
 
-    Py_INCREF(state->stats_type_vals[idx]);
-    return state->stats_type_vals[idx];
+    return Py_NewRef(state->stats_type_vals[idx]);
 }
 
 auto py_stats_str(PyObject *self) -> PyObject * {
@@ -856,8 +852,7 @@ auto py_stats_iter_new(PyObject *owner, IterKind kind) -> PyObject * {
     it->index = 0;
     it->kind = kind;
     it->size = n;
-    it->owner = owner;
-    Py_INCREF(owner);
+    it->owner = Py_NewRef(owner);
 
     return obj;
 }
@@ -1730,8 +1725,7 @@ auto py_stats_type() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.stats.Stats type not initialized");
         return nullptr;
     }
-    Py_INCREF(state->stats_type);
-    return state->stats_type;
+    return Py_NewRef(state->stats_type);
 }
 
 auto py_stats_view_type() -> PyObject * {
@@ -1747,8 +1741,7 @@ auto py_stats_view_type() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.stats.StatsView type not initialized");
         return nullptr;
     }
-    Py_INCREF(state->stats_view_type);
-    return state->stats_view_type;
+    return Py_NewRef(state->stats_view_type);
 }
 
 auto py_stats_get(PyObject *type, PyObject *obj, clingo_stats_t **stats, uint64_t *key) -> bool {

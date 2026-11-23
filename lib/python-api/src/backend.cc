@@ -579,8 +579,7 @@ auto py_backend_new(PyObject *type, clingo_backend_t *backend, PyObject *owner) 
     }
     auto *b = py_backend_cast(obj);
     b->backend = backend;
-    b->owner = owner;
-    Py_XINCREF(owner);
+    b->owner = Py_XNewRef(owner);
     return obj;
 }
 
@@ -1284,8 +1283,7 @@ auto py_backend_manager_enter(PyObject *self, [[maybe_unused]] PyObject *args) -
         return nullptr;
     }
 
-    Py_INCREF(obj.get());
-    mgr->backend_obj = obj.get();
+    mgr->backend_obj = Py_NewRef(obj.get());
     return obj.release();
 }
 
@@ -1387,9 +1385,8 @@ auto py_backend_manager_new(PyObject *type, clingo_control_t *ctl, PyObject *own
     auto *mgr = py_backend_manager_cast(obj);
     mgr->ctl = ctl;
     mgr->backend = nullptr;
-    mgr->owner = owner;
+    mgr->owner = Py_XNewRef(owner);
     mgr->backend_obj = nullptr;
-    Py_XINCREF(owner);
     return obj;
 }
 
@@ -1406,8 +1403,7 @@ auto py_backend_manager_type() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.backend module is not initialized");
         return nullptr;
     }
-    Py_INCREF(state->backend_manager_type);
-    return state->backend_manager_type;
+    return Py_NewRef(state->backend_manager_type);
 }
 
 auto py_observe(PyObject *module, clingo_control_t *ctl, PyObject *observer, bool preprocess) -> bool {

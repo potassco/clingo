@@ -523,8 +523,7 @@ auto py_atom_base_get(PyObject *self, PyObject *const *args, Py_ssize_t nargs, P
         return nullptr;
     }
     if (std::cmp_greater_equal(idx, n)) {
-        Py_INCREF(def);
-        return def;
+        return Py_NewRef(def);
     }
     return py_atom_base_subscript(self, key);
 }
@@ -934,8 +933,7 @@ auto py_term_base_get(PyObject *self, PyObject *const *args, Py_ssize_t nargs, P
         return nullptr;
     }
     if (std::cmp_greater_equal(idx, n)) {
-        Py_INCREF(def);
-        return def;
+        return Py_NewRef(def);
     }
     return py_term_base_subscript(self, key);
 }
@@ -1877,8 +1875,7 @@ auto base_get(PyObject *self, PyObject *key, PyObject *def) -> PyObject * {
         return py_handle_error();
     }
     if (!found || atoms == nullptr) {
-        Py_INCREF(def);
-        return def;
+        return Py_NewRef(def);
     }
 
     if (PyTuple_Check(key) != 0) {
@@ -1894,8 +1891,7 @@ auto base_get(PyObject *self, PyObject *key, PyObject *def) -> PyObject * {
         return py_handle_error();
     }
     if (idx >= n) {
-        Py_INCREF(def);
-        return def;
+        return Py_NewRef(def);
     }
     auto base = PyGuard{py_atom_base_new(b, reinterpret_cast<PyTypeObject *>(state->atom_base_type), atoms)};
     if (base.get() == nullptr) {
@@ -2206,8 +2202,7 @@ auto py_base_new(PyObject *owner, void const *valid, PyObject *type, clingo_base
     auto *b = reinterpret_cast<PyBaseObject *>(obj);
     b->base = base;
     b->valid = valid != nullptr ? valid : pointer_slot(&b->base);
-    b->owner = owner;
-    Py_XINCREF(owner);
+    b->owner = Py_XNewRef(owner);
     return obj;
 }
 
@@ -2228,8 +2223,7 @@ auto py_base_type() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.base.Base type not initialized");
         return nullptr;
     }
-    Py_INCREF(state->base_type);
-    return state->base_type;
+    return Py_NewRef(state->base_type);
 }
 
 auto py_base_get(PyObject *type, PyObject *obj) -> clingo_base_t const * {

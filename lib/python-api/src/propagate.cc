@@ -487,8 +487,7 @@ auto py_assignment_trail(PyObject *self, [[maybe_unused]] void *closure) -> PyOb
         return nullptr;
     }
     auto *trail = as<PyAssignmentObject>(self)->trail;
-    Py_INCREF(trail);
-    return trail;
+    return Py_NewRef(trail);
 }
 
 auto py_assignment_len(PyObject *self) -> Py_ssize_t {
@@ -690,8 +689,7 @@ auto view_new(PropagateModuleState *state, PyObject *trail, Py_ssize_t start, Py
         return nullptr;
     }
     auto *v = as<PyTrailViewObject>(obj);
-    Py_INCREF(trail);
-    v->trail = trail;
+    v->trail = Py_NewRef(trail);
     v->start = start;
     v->step = step;
     v->size = size;
@@ -1249,8 +1247,7 @@ auto py_init_library(PyObject *self, [[maybe_unused]] void *closure) -> PyObject
     if (library == nullptr) {
         Py_RETURN_NONE;
     }
-    Py_INCREF(library);
-    return library;
+    return Py_NewRef(library);
 }
 
 auto py_init_base(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
@@ -1492,8 +1489,7 @@ auto py_propagator_decide([[maybe_unused]] PyObject *self, PyObject *const *args
     if (!parse_args("decide", {"assignment", "fallback"}, {}, args, nargs, kwnames, {&ass_obj, &fallback_obj})) {
         return nullptr;
     }
-    Py_INCREF(fallback_obj);
-    return fallback_obj;
+    return Py_NewRef(fallback_obj);
 }
 
 auto py_propagator_methods = std::array{
@@ -1729,8 +1725,7 @@ auto init_cb(clingo_assignment_t const *ass, clingo_propagate_init_t *init, void
         return store_python_error("propagator init failed");
     }
     auto *library = call.handle->library;
-    Py_XINCREF(library);
-    as<PyPropagateInitObject>(init_obj.get())->library = library;
+    as<PyPropagateInitObject>(init_obj.get())->library = Py_XNewRef(library);
     auto ass_bind = AssignmentBinding{ass_obj.get(), ass};
     auto ctl_bind = ControlBinding{init_obj.get(), ctl};
     auto init_bind = InitBinding{init_obj.get(), init};
@@ -1961,8 +1956,7 @@ auto py_propagator_type() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.propagate module is not initialized");
         return nullptr;
     }
-    Py_INCREF(state->propagator_type);
-    return state->propagator_type;
+    return Py_NewRef(state->propagator_type);
 }
 
 auto py_register_propagator(PyObject *type, clingo_control_t *ctl, PyObject *keeper, PyObject *library,
@@ -1984,10 +1978,8 @@ auto py_register_propagator(PyObject *type, clingo_control_t *ctl, PyObject *kee
         return false;
     }
     auto *h = as<PyPropagatorHandleObject>(obj.get());
-    Py_INCREF(propagator);
-    h->propagator = propagator;
-    Py_XINCREF(library);
-    h->library = library;
+    h->propagator = Py_NewRef(propagator);
+    h->library = Py_XNewRef(library);
     auto overrides = std::array{
         std::pair{&h->has_init, state->str_init},           std::pair{&h->has_attach, state->str_attach},
         std::pair{&h->has_propagate, state->str_propagate}, std::pair{&h->has_undo, state->str_undo},

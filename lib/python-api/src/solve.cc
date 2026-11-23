@@ -578,8 +578,7 @@ auto py_model_control(PyObject *self, [[maybe_unused]] void *closure) -> PyObjec
         obj->ctl = ctl;
         m->control = reinterpret_cast<PyObject *>(obj);
     }
-    Py_INCREF(m->control);
-    return m->control;
+    return Py_NewRef(m->control);
 }
 
 auto py_get_model_type(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
@@ -992,16 +991,11 @@ auto handle_new(SolveModuleState *state, PyObject *owner, PyObject *on_model, Py
     if (h == nullptr) {
         return nullptr;
     }
-    h->owner = owner;
-    h->on_model = on_model;
-    h->on_unsat = on_unsat;
-    h->on_stats = on_stats;
-    h->on_finish = on_finish;
-    Py_XINCREF(owner);
-    Py_XINCREF(on_model);
-    Py_XINCREF(on_unsat);
-    Py_XINCREF(on_stats);
-    Py_XINCREF(on_finish);
+    h->owner = Py_XNewRef(owner);
+    h->on_model = Py_XNewRef(on_model);
+    h->on_unsat = Py_XNewRef(on_unsat);
+    h->on_stats = Py_XNewRef(on_stats);
+    h->on_finish = Py_XNewRef(on_finish);
     return reinterpret_cast<PyObject *>(h);
 }
 
@@ -1098,8 +1092,7 @@ auto py_handle_model(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject
         Py_RETURN_NONE;
     }
     auto *obj = model_set(handle_cast(self)->cur_model, state->model_type, mdl, true);
-    Py_XINCREF(obj);
-    return obj;
+    return Py_XNewRef(obj);
 }
 
 auto py_handle_last(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
@@ -1120,8 +1113,7 @@ auto py_handle_last(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject 
         Py_RETURN_NONE;
     }
     auto *obj = model_set(handle_cast(self)->cur_model, state->model_type, mdl, false);
-    Py_XINCREF(obj);
-    return obj;
+    return Py_XNewRef(obj);
 }
 
 auto py_handle_core(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
@@ -1170,8 +1162,7 @@ auto py_handle_enter(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject
     if (ensure_handle_open(self) == nullptr) {
         return nullptr;
     }
-    Py_INCREF(self);
-    return self;
+    return Py_NewRef(self);
 }
 
 auto py_handle_exit(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
@@ -1189,8 +1180,7 @@ auto py_handle_iter(PyObject *self) -> PyObject * {
     if (ensure_handle_open(self) == nullptr) {
         return nullptr;
     }
-    Py_INCREF(self);
-    return self;
+    return Py_NewRef(self);
 }
 
 auto py_handle_iternext(PyObject *self) -> PyObject * {
@@ -1215,8 +1205,7 @@ auto py_handle_iternext(PyObject *self) -> PyObject * {
         return nullptr;
     }
     auto *obj = model_set(handle_cast(self)->cur_model, state->model_type, mdl, true);
-    Py_XINCREF(obj);
-    return obj;
+    return Py_XNewRef(obj);
 }
 
 auto py_handle_methods = std::array{
@@ -1678,8 +1667,7 @@ auto py_async_aiter(PyObject *self) -> PyObject * {
         PyErr_SetString(PyExc_TypeError, "models can only be iterated with yield_=True");
         return nullptr;
     }
-    Py_INCREF(self);
-    return self;
+    return Py_NewRef(self);
 }
 
 auto py_async_anext(PyObject *self) -> PyObject * {
@@ -1905,8 +1893,7 @@ auto py_solve_handle_type() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.solve module is not initialized");
         return nullptr;
     }
-    Py_INCREF(state->handle_type);
-    return state->handle_type;
+    return Py_NewRef(state->handle_type);
 }
 
 auto py_model_type() -> PyObject * {
@@ -1922,8 +1909,7 @@ auto py_model_type() -> PyObject * {
         PyErr_SetString(PyExc_RuntimeError, "clingo.solve module is not initialized");
         return nullptr;
     }
-    Py_INCREF(state->model_type);
-    return state->model_type;
+    return Py_NewRef(state->model_type);
 }
 
 auto py_model_new(PyObject *type, clingo_model_t const *model, bool is_mutable) -> PyObject * {

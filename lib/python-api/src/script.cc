@@ -163,10 +163,8 @@ auto handle_new(ScriptModuleState *state, PyObject *script, PyObject *scope) -> 
         return nullptr;
     }
     auto *h = handle_cast(obj);
-    Py_XINCREF(script);
-    h->script = script;
-    Py_XINCREF(scope);
-    h->scope = scope;
+    h->script = Py_XNewRef(script);
+    h->scope = Py_XNewRef(scope);
     return obj;
 }
 
@@ -248,8 +246,7 @@ auto main_lookup(PyScriptHandleObject *h, char const *name, size_t size) -> PyOb
         return nullptr;
     }
     auto *value = PyDict_GetItemWithError(h->scope, key.get());
-    Py_XINCREF(value);
-    return value;
+    return Py_XNewRef(value);
 }
 
 auto main_callable(PyObject *self, char const *name, size_t size, bool *result) -> bool {
