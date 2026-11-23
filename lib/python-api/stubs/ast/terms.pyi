@@ -10,6 +10,27 @@ from clingo.ast import AST
 from clingo.core import Library, Location
 from clingo.symbol import Symbol
 
+__all__: list[str] = [
+    "ArgumentTuple",
+    "BinaryOperator",
+    "FormatField",
+    "FormatFieldExpression",
+    "FormatFieldLiteral",
+    "Projection",
+    "Term",
+    "TermAbsolute",
+    "TermBinaryOperation",
+    "TermFormatString",
+    "TermFunction",
+    "TermOrArgumentTuple",
+    "TermOrProjection",
+    "TermSymbolic",
+    "TermTuple",
+    "TermUnaryOperation",
+    "TermVariable",
+    "UnaryOperator",
+]
+
 class UnaryOperator(IntEnum):
     """
     Enumeration of unary operators.

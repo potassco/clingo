@@ -542,7 +542,7 @@ auto py_control_join(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
     if (ctl == nullptr) {
         return nullptr;
     }
-    if (!clingo_control_join(ctl, prg)) {
+    if (!with_gil_released([&] { return clingo_control_join(ctl, prg); })) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
@@ -566,7 +566,7 @@ auto py_control_parse_string(PyObject *self, PyObject *const *args, Py_ssize_t n
     if (ctl == nullptr) {
         return nullptr;
     }
-    if (!clingo_control_parse_string(ctl, str, static_cast<size_t>(size))) {
+    if (!with_gil_released([&] { return clingo_control_parse_string(ctl, str, static_cast<size_t>(size)); })) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
@@ -586,7 +586,7 @@ auto py_control_parse_files(PyObject *self, PyObject *const *args, Py_ssize_t na
     if (ctl == nullptr) {
         return nullptr;
     }
-    if (!clingo_control_parse_files(ctl, buf.data(), buf.size())) {
+    if (!with_gil_released([&] { return clingo_control_parse_files(ctl, buf.data(), buf.size()); })) {
         return py_handle_error();
     }
     Py_RETURN_NONE;

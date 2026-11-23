@@ -12,6 +12,18 @@ from clingo.ast.terms import Term
 from clingo.ast.theory import TheoryAtomElement, TheoryRightGuard
 from clingo.core import Library, Location
 
+__all__: list[str] = [
+    "DisjunctionElement",
+    "HeadAggregate",
+    "HeadAggregateElement",
+    "HeadConditionalLiteral",
+    "HeadDisjunction",
+    "HeadLiteral",
+    "HeadSetAggregate",
+    "HeadSimpleLiteral",
+    "HeadTheoryAtom",
+]
+
 @final
 class HeadSimpleLiteral(AST):
     """

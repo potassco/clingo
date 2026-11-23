@@ -14,6 +14,43 @@ from clingo.ast.terms import Term
 from clingo.core import Library, Location
 from clingo.symbol import Symbol
 
+__all__: list[str] = [
+    "CommentType",
+    "Edge",
+    "IncludeType",
+    "OptimizeElement",
+    "OptimizeTuple",
+    "OptimizeType",
+    "Precedence",
+    "ProgramPart",
+    "Statement",
+    "StatementComment",
+    "StatementConst",
+    "StatementDefined",
+    "StatementEdge",
+    "StatementExternal",
+    "StatementHeuristic",
+    "StatementInclude",
+    "StatementOptimize",
+    "StatementParts",
+    "StatementProgram",
+    "StatementProject",
+    "StatementProjectSignature",
+    "StatementRule",
+    "StatementScript",
+    "StatementShow",
+    "StatementShowNothing",
+    "StatementShowSignature",
+    "StatementTheory",
+    "StatementWeakConstraint",
+    "TheoryAtomDefinition",
+    "TheoryAtomType",
+    "TheoryGuardDefinition",
+    "TheoryOperatorDefinition",
+    "TheoryOperatorType",
+    "TheoryTermDefinition",
+]
+
 class TheoryOperatorType(IntEnum):
     """
     Enumeration of theory operator types.

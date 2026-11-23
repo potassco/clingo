@@ -1064,7 +1064,7 @@ auto py_handle_resume(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObjec
         return nullptr;
     }
     model_clear(handle_cast(self)->cur_model);
-    if (!clingo_solve_handle_resume(hnd)) {
+    if (!with_gil_released([&] { return clingo_solve_handle_resume(hnd); })) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
@@ -1102,7 +1102,7 @@ auto py_handle_last(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject 
     }
     model_clear(handle_cast(self)->cur_model);
     clingo_model_t const *mdl = nullptr;
-    if (!clingo_solve_handle_last(hnd, &mdl)) {
+    if (!with_gil_released([&] { return clingo_solve_handle_last(hnd, &mdl); })) {
         return py_handle_error();
     }
     if (mdl == nullptr) {
@@ -1193,7 +1193,7 @@ auto py_handle_iternext(PyObject *self) -> PyObject * {
         return nullptr;
     }
     model_clear(handle_cast(self)->cur_model);
-    if (!clingo_solve_handle_resume(hnd)) {
+    if (!with_gil_released([&] { return clingo_solve_handle_resume(hnd); })) {
         return py_handle_error();
     }
     clingo_model_t *mdl = nullptr;

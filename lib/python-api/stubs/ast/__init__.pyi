@@ -108,22 +108,30 @@ from collections.abc import Callable, Sequence
 from enum import IntEnum
 from typing import Self
 
+from clingo.ast.body import BodyLiteral
+from clingo.ast.head import HeadLiteral
+from clingo.ast.literals import Literal
+from clingo.ast.statements import Statement, StatementTheory
+from clingo.ast.terms import Term
+from clingo.ast.theory import TheoryTerm
 from clingo.control import Control
 from clingo.core import Library
 
-from . import aggregates as aggregates
-from . import body as body
-from . import head as head
-from . import literals as literals
-from . import statements as statements
-from . import terms as terms
-from . import theory as theory
-from .body import BodyLiteral
-from .head import HeadLiteral
-from .literals import Literal
-from .statements import Statement, StatementTheory
-from .terms import Term
-from .theory import TheoryTerm
+__all__: list[str] = [
+    "AST",
+    "Program",
+    "ProjectionMode",
+    "RewriteContext",
+    "parse_body_literal",
+    "parse_files",
+    "parse_head_literal",
+    "parse_literal",
+    "parse_statement",
+    "parse_string",
+    "parse_term",
+    "parse_theory_term",
+    "rewrite_statement",
+]
 
 class AST:
     """
@@ -208,24 +216,6 @@ class AST:
 
         Returns:
             The hash value.
-        """
-
-    def __str__(self) -> str:
-        """
-        Convert the node to a string in clingo's input language.
-
-        Returns:
-            The string representation of the node.
-        """
-
-    def __repr__(self) -> str:
-        """
-        Get a representation of the node showing its type and arguments.
-
-        For example, `TermVariable(location=..., name='X', anonymous=False)`.
-
-        Returns:
-            The representation of the node.
         """
 
     def visit(

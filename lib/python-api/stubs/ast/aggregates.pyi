@@ -10,6 +10,11 @@ from clingo.ast import AST
 from clingo.ast.literals import Literal
 from clingo.core import Library, Location
 
+__all__: list[str] = [
+    "AggregateFunction",
+    "SetAggregateElement",
+]
+
 class AggregateFunction(IntEnum):
     """
     Enumeration of aggregate functions.

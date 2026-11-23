@@ -12,6 +12,17 @@ from clingo.ast.terms import Term
 from clingo.ast.theory import TheoryAtomElement, TheoryRightGuard
 from clingo.core import Library, Location
 
+__all__: list[str] = [
+    "BodyAggregate",
+    "BodyAggregateElement",
+    "BodyConditionalLiteral",
+    "BodyLiteral",
+    "BodySetAggregate",
+    "BodySimpleLiteral",
+    "BodySort",
+    "BodyTheoryAtom",
+]
+
 @final
 class BodySimpleLiteral(AST):
     """

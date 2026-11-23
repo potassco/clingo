@@ -478,9 +478,12 @@ auto py_ground_start(PyObject *type, clingo_control_t *ctl, PyObject *owner, cli
         nullptr,
     };
     auto has_handler = ctx != nullptr || finish != nullptr;
-    if (!clingo_control_start_ground(ctl, parts, size, has_handler ? &handler : nullptr,
-                                     has_handler ? static_cast<void *>(obj.get()) : nullptr,
-                                     &py_handle_cast(obj.get())->hnd)) {
+    auto ok = with_gil_released([&] {
+        return clingo_control_start_ground(ctl, parts, size, has_handler ? &handler : nullptr,
+                                           has_handler ? static_cast<void *>(obj.get()) : nullptr,
+                                           &py_handle_cast(obj.get())->hnd);
+    });
+    if (!ok) {
         py_handle_error();
         return nullptr;
     }

@@ -64,6 +64,13 @@ target_link_libraries(clingo-python PRIVATE clingo ${pyclingo_python_target})
 
 # the standalone module
 Python_add_library(pyclingo MODULE WITH_SOABI ${pyclingo_sabi} "src/module.cc")
+# FindPython may pick the abi3t suffix for Python 3.15 and later but the
+# bindings target abi3, which is only compatible with GIL-enabled builds
+get_target_property(pyclingo_suffix pyclingo SUFFIX)
+if(pyclingo_sabi AND pyclingo_suffix AND NOT Python_FREE_THREADED)
+    string(REPLACE ".abi3t" ".abi3" pyclingo_suffix "${pyclingo_suffix}")
+    set_target_properties(pyclingo PROPERTIES SUFFIX "${pyclingo_suffix}")
+endif()
 set_target_properties(pyclingo PROPERTIES
     IMPORT_LIBRARY "pyclingo.lib"
     CXX_VISIBILITY_PRESET hidden

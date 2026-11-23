@@ -10,6 +10,17 @@ from clingo.ast import AST
 from clingo.ast.terms import Term
 from clingo.core import Library, Location
 
+__all__: list[str] = [
+    "LeftGuard",
+    "Literal",
+    "LiteralBoolean",
+    "LiteralComparison",
+    "LiteralSymbolic",
+    "Relation",
+    "RightGuard",
+    "Sign",
+]
+
 class Sign(IntEnum):
     """
     Enumeration of signs of literals.

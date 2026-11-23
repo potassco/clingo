@@ -14,15 +14,15 @@ requirements:
   - cmake
   - ninja
   - re2c
-  - libpython
   - {{ compiler('c') }}
   - {{ compiler('cxx') }}
   host:
   - pytest
   - python
+  - libpython  # [py>=315]
   run:
-  - libpython
   - python
+  - libpython  # [py>=315]
 
 build:
   number: {{ build }}

@@ -284,18 +284,27 @@ class ASTStubs:
         self._group = f"clingo.ast.{group}"
         self._imports = {}
         blocks: list[list[str]] = []
+        names: list[str] = []
         for enm in self._info["enums"]:
             if enm["group"] == group:
                 blocks.append(self._enum(enm))
+                names.append(camel_case(enm["name"]))
         for rec in self._info["records"]:
             if rec["group"] == group:
                 blocks.append(self._record(rec))
-        unions = [
-            self._union(uni) for uni in self._info["unions"] if uni["group"] == group
-        ]
+                names.append(camel_case(rec["name"]))
+        unions: list[list[str]] = []
+        for uni in self._info["unions"]:
+            if uni["group"] == group:
+                unions.append(self._union(uni))
+                names.append(camel_case(uni["name"]))
         lines = docstring(GROUP_DOCS.get(group, "AST nodes."), "")
         lines.append("")
         lines.extend(self._header())
+        lines.append("__all__: list[str] = [")
+        lines.extend(f'    "{name}",' for name in sorted(names))
+        lines.append("]")
+        lines.append("")
         for block in blocks:
             lines.extend(block)
             lines.append("")

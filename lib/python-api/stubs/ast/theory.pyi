@@ -11,6 +11,19 @@ from clingo.ast.literals import Literal
 from clingo.core import Library, Location
 from clingo.symbol import Symbol
 
+__all__: list[str] = [
+    "TheoryAtomElement",
+    "TheoryRightGuard",
+    "TheoryTerm",
+    "TheoryTermFunction",
+    "TheoryTermSymbolic",
+    "TheoryTermTuple",
+    "TheoryTermUnparsed",
+    "TheoryTermVariable",
+    "TheoryTupleType",
+    "UnparsedElement",
+]
+
 class TheoryTupleType(IntEnum):
     """
     Enumeration of theory tuple types.
