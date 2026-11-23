@@ -242,9 +242,14 @@ class TestAsync:
             ctl = self.control(LARGE)
             n = 0
             async with ctl.solve_async(asyncio.get_running_loop(), yield_=True) as hnd:
+                # the first model is received without timeout to not depend on
+                # the speed of the machine
+                models = aiter(hnd)
+                await anext(models)
+                n += 1
                 with pytest.raises(TimeoutError):
                     async with asyncio.timeout(0.01):
-                        async for _ in hnd:
+                        async for _ in models:
                             n += 1
                 res = await hnd
             assert n > 0
