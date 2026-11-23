@@ -50,13 +50,31 @@ start_ground status: running
 start_ground result: <GroundResult.Ok: 0>
 start_ground status: finished
 ```
+
+The example below shows how to ground with asyncio:
+
+```python
+>>> import asyncio
+>>> from clingo.control import Control
+>>> from clingo.core import Library
+>>>
+>>> async def main():
+...     lib = Library()
+...     ctl = Control(lib)
+...     ctl.parse_string("{a}.")
+...     print(repr(await ctl.ground_async(asyncio.get_running_loop())))
+...
+>>> asyncio.run(main())
+<GroundResult.Ok: 0>
+```
 """
 
+from collections.abc import Generator
 from enum import IntEnum
 from types import TracebackType
-from typing import Self
+from typing import Any, Self
 
-__all__: list[str] = ["GroundHandle", "GroundResult"]
+__all__: list[str] = ["AsyncGroundHandle", "GroundHandle", "GroundResult"]
 
 class GroundResult(IntEnum):
     """
@@ -127,6 +145,15 @@ class GroundHandle:
         Stop grounding and close the handle.
         """
 
+    def interrupt(self) -> None:
+        """
+        Request grounding to stop without waiting for it.
+
+        Use `clingo.ground.GroundHandle.wait` or `clingo.ground.GroundHandle.get`
+        to wait until grounding has stopped. The result is then
+        `clingo.ground.GroundResult.Interrupted` unless grounding finished before.
+        """
+
     def get(self) -> GroundResult:
         """
         Get the ground result.
@@ -153,4 +180,25 @@ class GroundHandle:
 
         Returns:
             Whether the ground call has finished.
+        """
+
+class AsyncGroundHandle:
+    """
+    An object to await grounding running in the background.
+
+    The functions of the context passed to
+    `clingo.control.Control.ground_async` are called on the grounding thread
+    and must not interact with the event loop.
+
+    Cancelling an awaiting task requests grounding to stop without waiting for
+    it. Awaiting the handle again waits until grounding stopped and returns the
+    result. The control object must not be used before grounding stopped.
+    Dropping the handle does not stop grounding.
+
+    See also: `clingo.control.Control.ground_async`
+    """
+
+    def __await__(self) -> Generator[Any, None, GroundResult]:
+        """
+        Wait for grounding to finish and return the ground result.
         """

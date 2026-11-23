@@ -130,6 +130,22 @@ class TestControl:
             res = hnd.get()
         assert res == GroundResult.Interrupted
 
+    @needs_threads
+    def test_start_ground_interrupt_nowait(self):
+        """
+        Test start_ground method with interruption without waiting.
+        """
+        ctl = Control(self.lib, ["--convert=text"])
+        ctl.parse_string("#show.")
+        ctl.parse_string("p(0).")
+        ctl.parse_string("p(X+1) :- p(X).")
+        with ctl.start_ground() as hnd:
+            assert not hnd.wait(0.1)
+            hnd.interrupt()
+            res = hnd.get()
+            hnd.interrupt()
+        assert res == GroundResult.Interrupted
+
     def test_ground(self):
         """
         Test grounding.

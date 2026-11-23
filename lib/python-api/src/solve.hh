@@ -42,6 +42,16 @@ auto py_solve_start(PyObject *type, clingo_control_t *ctl, PyObject *owner,
                     std::span<clingo_literal_t const> assumptions, PyObject *on_model, PyObject *on_unsat,
                     PyObject *on_stats, PyObject *on_finish, bool yield, bool async) -> PyObject *;
 
+//! Start a search in the background and return a new `clingo.solve.AsyncSolveHandle`.
+//!
+//! The type must be the one returned by `py_solve_handle_type`. The callbacks
+//! can be nullptr or Py_None and are called on the solver thread. The event
+//! loop is used to resolve the futures awaited via the handle. Returns nullptr
+//! with a Python error set on failure.
+auto py_solve_async(PyObject *type, clingo_control_t *ctl, PyObject *owner,
+                    std::span<clingo_literal_t const> assumptions, PyObject *on_model, PyObject *on_unsat,
+                    PyObject *on_stats, PyObject *loop, bool yield) -> PyObject *;
+
 //! Solve to completion and return a new `clingo.solve.SolveResult`.
 //!
 //! Equivalent to `with start_solve(...) as hnd: return hnd.get()`. The type

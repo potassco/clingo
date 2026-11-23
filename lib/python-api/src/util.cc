@@ -117,4 +117,112 @@ auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool
     return true;
 }
 
+// asyncio integration
+
+auto take_error() -> PyObject * {
+    // NOTE: PyErr_GetRaisedException requires Python 3.12
+    PyObject *type = nullptr;
+    PyObject *value = nullptr;
+    PyObject *traceback = nullptr;
+    PyErr_Fetch(&type, &value, &traceback);
+    PyErr_NormalizeException(&type, &value, &traceback);
+    if (value != nullptr && traceback != nullptr) {
+        PyException_SetTraceback(value, traceback);
+    }
+    Py_XDECREF(type);
+    Py_XDECREF(traceback);
+    return value;
+}
+
+auto future_new(PyObject *loop) -> PyObject * {
+    return PyObject_CallMethod(loop, "create_future", nullptr);
+}
+
+namespace {
+
+auto future_flag(PyObject *fut, char const *name) -> int {
+    auto res = Guard<PyObject *, Py_DECREF>(PyObject_CallMethod(fut, name, nullptr));
+    return res.get() != nullptr ? PyObject_IsTrue(res.get()) : -1;
+}
+
+auto future_set(PyObject *fut, char const *name, PyObject *value) -> bool {
+    auto done = future_flag(fut, "done");
+    if (done != 0) {
+        return done > 0;
+    }
+    auto set = Guard<PyObject *, Py_DECREF>(PyObject_GetAttrString(fut, name));
+    if (set.get() == nullptr) {
+        return false;
+    }
+    auto res = Guard<PyObject *, Py_DECREF>(PyObject_CallFunctionObjArgs(set.get(), value, nullptr));
+    return res.get() != nullptr;
+}
+
+} // namespace
+
+auto future_done(PyObject *fut) -> int {
+    return future_flag(fut, "done");
+}
+
+auto future_cancelled(PyObject *fut) -> int {
+    return future_flag(fut, "cancelled");
+}
+
+auto future_set_result(PyObject *fut, PyObject *value) -> bool {
+    return future_set(fut, "set_result", value);
+}
+
+auto future_set_exception(PyObject *fut, PyObject *exc) -> bool {
+    return future_set(fut, "set_exception", exc);
+}
+
+auto future_stop(PyObject *fut) -> bool {
+    auto exc = Guard<PyObject *, Py_DECREF>(PyObject_CallNoArgs(PyExc_StopAsyncIteration));
+    return exc.get() != nullptr && future_set_exception(fut, exc.get());
+}
+
+auto future_add_done(PyObject *fut, PyMethodDef *def, PyObject *self) -> bool {
+    auto fun = Guard<PyObject *, Py_DECREF>(PyCFunction_NewEx(def, self, nullptr));
+    if (fun.get() == nullptr) {
+        return false;
+    }
+    auto add = Guard<PyObject *, Py_DECREF>(PyObject_GetAttrString(fut, "add_done_callback"));
+    if (add.get() == nullptr) {
+        return false;
+    }
+    auto res = Guard<PyObject *, Py_DECREF>(PyObject_CallFunctionObjArgs(add.get(), fun.get(), nullptr));
+    return res.get() != nullptr;
+}
+
+namespace {
+
+auto py_future_chain(PyObject *dst, PyObject *src) -> PyObject * {
+    auto exc = Guard<PyObject *, Py_DECREF>(PyObject_CallMethod(src, "exception", nullptr));
+    if (exc.get() == nullptr) {
+        return nullptr;
+    }
+    if (exc.get() != Py_None) {
+        return future_set_exception(dst, exc.get()) ? Py_NewRef(Py_None) : nullptr;
+    }
+    auto res = Guard<PyObject *, Py_DECREF>(PyObject_CallMethod(src, "result", nullptr));
+    return res.get() != nullptr && future_set_result(dst, res.get()) ? Py_NewRef(Py_None) : nullptr;
+}
+
+PyMethodDef future_chain_def = {"_chain", py_future_chain, METH_O, nullptr};
+
+} // namespace
+
+auto future_chain(PyObject *src, PyObject *dst) -> bool {
+    return future_add_done(src, &future_chain_def, dst);
+}
+
+auto loop_post(PyObject *post, PyMethodDef *def, PyObject *self) -> bool {
+    auto fun = Guard<PyObject *, Py_DECREF>(PyCFunction_NewEx(def, self, nullptr));
+    if (fun.get() == nullptr) {
+        return false;
+    }
+    auto res = Guard<PyObject *, Py_DECREF>(PyObject_CallFunctionObjArgs(post, fun.get(), nullptr));
+    return res.get() != nullptr;
+}
+
 } // namespace PyClingo

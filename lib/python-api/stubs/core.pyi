@@ -203,3 +203,40 @@ class Location:
         """
         The end of the location.
         """
+
+_T = typing.TypeVar("_T")
+
+@typing.type_check_only
+class Future(typing.Protocol[_T]):
+    """
+    The interface of futures created by `EventLoop.create_future`.
+
+    The interface is a subset of `asyncio.Future`.
+    """
+
+    def __await__(self) -> collections.abc.Generator[typing.Any, None, _T]: ...
+    def add_done_callback(
+        self, fn: collections.abc.Callable[[typing.Any], object], /
+    ) -> object: ...
+    def cancelled(self) -> bool: ...
+    def done(self) -> bool: ...
+    def set_exception(self, exception: BaseException, /) -> None: ...
+    def set_result(self, result: _T, /) -> None: ...
+
+@typing.type_check_only
+class EventLoop(typing.Protocol):
+    """
+    The interface of event loops passed to the asynchronous functions.
+
+    The interface is a subset of `asyncio.AbstractEventLoop`. It is only used to
+    create futures and to notify the loop from background threads, so that
+    event loops of other frameworks can be adapted.
+
+    See also: `clingo.control.Control.solve_async`,
+    `clingo.control.Control.ground_async`
+    """
+
+    def create_future(self) -> Future[typing.Any]: ...
+    def call_soon_threadsafe(
+        self, callback: collections.abc.Callable[..., object], *args: typing.Any
+    ) -> object: ...

@@ -1424,6 +1424,8 @@ class GroundHandle::Impl {
         }
     }
 
+    void interrupt() noexcept { stop_.request_stop(); }
+
     ~Impl() noexcept {
         try {
             cancel();
@@ -1456,6 +1458,10 @@ auto GroundHandle::wait(double timeout) -> bool {
 
 void GroundHandle::cancel() {
     impl_->cancel();
+}
+
+void GroundHandle::interrupt() noexcept {
+    impl_->interrupt();
 }
 
 auto GroundHandle::get() -> GroundResult {

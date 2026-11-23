@@ -78,17 +78,40 @@ This example shows how to solve both iteratively and asynchronously:
     b
     a
     SAT
+
+The following example shows how to solve with asyncio:
+
+    >>> import asyncio
+    >>> from clingo.core import Library
+    >>> from clingo.control import Control
+    >>>
+    >>> async def main():
+    ...     lib = Library()
+    ...     ctl = Control(lib, ["0"])
+    ...     ctl.parse_string("1 { a; b } 1.")
+    ...     loop = asyncio.get_running_loop()
+    ...     await ctl.ground_async(loop)
+    ...     async with ctl.solve_async(loop, yield_=True) as hnd:
+    ...         async for mdl in hnd:
+    ...             print(mdl)
+    ...         print(await hnd)
+    ...
+    >>> asyncio.run(main())
+    b
+    a
+    SAT
 """
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Iterator, Sequence
 from enum import IntEnum
 from types import TracebackType
-from typing import Self
+from typing import Any, Self
 
 from clingo.base import Base
 from clingo.symbol import Symbol
 
 __all__: list[str] = [
+    "AsyncSolveHandle",
     "Model",
     "ModelType",
     "SolveControl",
@@ -402,4 +425,97 @@ class SolveHandle:
 
         Returns:
             Whether the solve call has finished or the next result is ready.
+        """
+
+class AsyncSolveHandle:
+    """
+    An object to await a search running in the background.
+
+    Awaiting the handle returns the solve result. If the search has been
+    started with `yield_=True`, the models can be iterated with `async for`
+    before awaiting the result. A model is only valid until the next iteration
+    step. Awaiting the result before all models have been iterated continues
+    the search passing the remaining models to the callbacks only.
+
+    The handle is an asynchronous context manager. Leaving the context
+    cancels a search whose result has not been awaited and closes the handle.
+    Afterward, the last model is no longer available.
+
+    The callbacks passed to `clingo.control.Control.solve_async` are called on
+    the solver thread. Their arguments are only valid during the call and they
+    must not interact with the event loop.
+
+    Cancelling an awaiting task cancels the search. If the task awaited a
+    model, the result can still be awaited afterward.
+
+    Cancelling the search blocks until it stopped. This is usually fast but
+    has to wait for callbacks that are still running.
+
+    See also: `clingo.control.Control.solve_async`
+    """
+
+    def __await__(self) -> Generator[Any, None, SolveResult]:
+        """
+        Wait for the search to finish and return the solve result.
+        """
+
+    def __aiter__(self) -> Self:
+        """
+        Return the handle to iterate over the models.
+
+        This is only possible if the search has been started with
+        `yield_=True`.
+        """
+
+    async def __anext__(self) -> Model:
+        """
+        Wait for the next model.
+        """
+
+    async def __aenter__(self) -> Self:
+        """
+        Return the handle.
+
+        The search has already been started when the handle is created.
+        """
+
+    async def __aexit__(
+        self,
+        type: type[BaseException] | None,
+        value: BaseException | None,
+        traceback: TracebackType | None,
+        /,
+    ) -> None:
+        """
+        Stop the search and close the handle.
+
+        Args:
+            type: The exception type, if an exception occurred.
+            value: The exception instance, if an exception occurred.
+            traceback: The traceback object, if an exception occurred.
+        """
+
+    def cancel(self) -> None:
+        """
+        Cancel the running search.
+
+        No further models are handed out and awaiting the handle afterward
+        returns an interrupted result. The function blocks until the search
+        stopped, which is usually fast but has to wait for callbacks that are
+        still running.
+        """
+
+    def core(self) -> Sequence[int]:
+        """
+        Get the subset of assumptions that made the problem unsatisfiable.
+
+        The core is only available after the result has been awaited.
+        """
+
+    def last(self) -> Model | None:
+        """
+        Get the last computed model, if any.
+
+        If the result has not been awaited yet or the problem is unsatisfiable,
+        the function returns `None`.
         """

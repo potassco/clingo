@@ -699,6 +699,10 @@ class GroundHandle {
     //!
     //! Blocks until grounding has finished.
     void cancel();
+    //! Request grounding to stop without waiting for it.
+    //!
+    //! Use wait() or get() to wait until grounding has stopped.
+    void interrupt() noexcept;
 
   private:
     class Impl;

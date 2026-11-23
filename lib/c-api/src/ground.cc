@@ -95,6 +95,13 @@ extern "C" auto clingo_ground_handle_cancel(clingo_ground_handle_t *handle) -> b
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_ground_handle_interrupt(clingo_ground_handle_t *handle) -> bool {
+    CLINGO_TRY {
+        cpp_cast(handle)->interrupt();
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" void clingo_ground_handle_close(clingo_ground_handle_t *handle) {
     delete cpp_cast(handle, false);
 }

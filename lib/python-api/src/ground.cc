@@ -21,6 +21,7 @@ struct GroundModuleState {
     PyObject *symbol_type{nullptr};
     PyObject *ground_result_enum{nullptr};
     PyObject *handle_type{nullptr};
+    PyObject *async_handle_type{nullptr};
 };
 
 using PyGroundHandleObject = struct {
@@ -253,6 +254,17 @@ auto py_handle_cancel(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObjec
     Py_RETURN_NONE;
 }
 
+auto py_handle_interrupt(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    auto *hnd = ensure_handle_open(self);
+    if (hnd == nullptr) {
+        return nullptr;
+    }
+    if (!clingo_ground_handle_interrupt(hnd)) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
 auto py_handle_wait(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
     PyObject *timeout_obj = Py_None;
     if (!parse_args("wait", {}, {"timeout"}, args, nargs, kwnames, {&timeout_obj})) {
@@ -321,7 +333,13 @@ auto py_handle_methods = std::array{
         "cancel",
         py_handle_cancel,
         METH_NOARGS,
-        PyDoc_STR("Cancel the running search."),
+        PyDoc_STR("Cancel the running grounding."),
+    },
+    PyMethodDef{
+        "interrupt",
+        py_handle_interrupt,
+        METH_NOARGS,
+        PyDoc_STR("Request grounding to stop without waiting for it."),
     },
     PyMethodDef{"close", py_handle_close, METH_NOARGS, PyDoc_STR("Stop grounding and close the handle.")},
     PyMethodDef{"__enter__", py_handle_enter, METH_NOARGS, PyDoc_STR("Return self.")},
@@ -371,6 +389,129 @@ auto handle_new(GroundModuleState *state, PyObject *owner, PyObject *ctx, PyObje
     return obj;
 }
 
+// AsyncGroundHandle
+//
+// The grounding thread only posts a notification to the event loop once
+// grounding finished. The result is fetched and the handle closed on the
+// thread of the event loop.
+
+struct PyAsyncGroundHandleObject {
+    PyGroundHandleObject base;
+    //! The event loop.
+    PyObject *loop;
+    //! The call_soon_threadsafe method of the event loop.
+    PyObject *post;
+    //! The future resolved with the ground result.
+    PyObject *result;
+    //! Whether the handle is being destroyed and must not be notified anymore.
+    bool dying;
+};
+
+auto async_cast(PyObject *obj) -> PyAsyncGroundHandleObject * {
+    return reinterpret_cast<PyAsyncGroundHandleObject *>(obj);
+}
+
+auto py_async_notify_finish(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    auto *a = async_cast(self);
+    auto *hnd = a->base.hnd;
+    clingo_ground_result_t res = 0;
+    auto ok = with_gil_released([&] { return clingo_ground_handle_get(hnd, &res); });
+    if (!ok) {
+        py_handle_error();
+    }
+    auto obj =
+        steal(ok ? PyObject_CallFunction(a->base.state->ground_result_enum, "i", static_cast<int>(res)) : nullptr);
+    if (obj.get() != nullptr) {
+        ok = future_set_result(a->result, obj.get());
+    } else {
+        auto exc = steal(take_error());
+        ok = exc.get() != nullptr && future_set_exception(a->result, exc.get());
+    }
+    if (!ok) {
+        PyErr_WriteUnraisable(self);
+    }
+    close_handle(&a->base);
+    // release the reference taken when grounding started (the caller still holds one)
+    Py_DECREF(self);
+    Py_RETURN_NONE;
+}
+
+auto py_async_done(PyObject *self, PyObject *fut) -> PyObject * {
+    auto *a = async_cast(self);
+    auto cancelled = future_cancelled(fut);
+    if (cancelled < 0) {
+        return nullptr;
+    }
+    auto *hnd = a->base.hnd;
+    if (cancelled > 0 && hnd != nullptr && !clingo_ground_handle_interrupt(hnd)) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+// NOTE: the definitions are bound to handles to post them to the event loop
+PyMethodDef async_notify_finish_def = {"_notify_finish", py_async_notify_finish, METH_NOARGS, nullptr};
+PyMethodDef async_done_def = {"_done", py_async_done, METH_O, nullptr};
+
+void async_finish([[maybe_unused]] clingo_ground_result_t result, void *data) {
+    auto gil = GILGuard{};
+    auto *self = static_cast<PyObject *>(data);
+    if (!async_cast(self)->dying && !loop_post(async_cast(self)->post, &async_notify_finish_def, self)) {
+        PyErr_WriteUnraisable(self);
+    }
+}
+
+auto py_async_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    if (auto ret = py_handle_traverse(self, visit, arg); ret != 0) {
+        return ret;
+    }
+    auto *a = async_cast(self);
+    Py_VISIT(a->loop);
+    Py_VISIT(a->post);
+    Py_VISIT(a->result);
+    return 0;
+}
+
+auto py_async_clear(PyObject *self) -> int {
+    auto *a = async_cast(self);
+    // NOTE: closing releases the GIL and the grounding thread must not post anymore
+    a->dying = true;
+    py_handle_clear(self);
+    Py_CLEAR(a->loop);
+    Py_CLEAR(a->post);
+    Py_CLEAR(a->result);
+    return 0;
+}
+
+auto py_async_await(PyObject *self) -> PyObject * {
+    // NOTE: Each await uses its own future so that cancelling an awaiting task does not cancel the result, which can
+    // then still be awaited to wait until grounding stopped.
+    auto *a = async_cast(self);
+    auto fut = steal(future_new(a->loop));
+    if (fut.get() == nullptr || !future_add_done(fut.get(), &async_done_def, self) ||
+        !future_chain(a->result, fut.get())) {
+        return nullptr;
+    }
+    return PyObject_CallMethod(fut.get(), "__await__", nullptr);
+}
+
+auto py_async_slots = std::array{
+    PyType_Slot{Py_tp_doc, const_cast<char *>("An object to await grounding running in the background.")}, // NOLINT
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_async_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_async_clear)},
+    PyType_Slot{Py_am_await, reinterpret_cast<void *>(py_async_await)},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_async_spec = PyType_Spec{
+    "clingo.ground.AsyncGroundHandle",
+    sizeof(PyAsyncGroundHandleObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
+    py_async_slots.data(),
+};
+
 auto ground_module_traverse(PyObject *module, visitproc visit, void *arg) -> int {
     auto *state = static_cast<GroundModuleState *>(PyModule_GetState(module));
     if (state == nullptr) {
@@ -379,6 +520,7 @@ auto ground_module_traverse(PyObject *module, visitproc visit, void *arg) -> int
     Py_VISIT(state->symbol_type);
     Py_VISIT(state->ground_result_enum);
     Py_VISIT(state->handle_type);
+    Py_VISIT(state->async_handle_type);
     return 0;
 }
 
@@ -390,6 +532,7 @@ auto ground_module_clear(PyObject *module) -> int {
     Py_CLEAR(state->symbol_type);
     Py_CLEAR(state->ground_result_enum);
     Py_CLEAR(state->handle_type);
+    Py_CLEAR(state->async_handle_type);
     return 0;
 }
 
@@ -494,6 +637,51 @@ auto py_ground_start(PyObject *type, clingo_control_t *ctl, PyObject *owner, cli
     return obj.release();
 }
 
+auto py_ground_async(PyObject *type, clingo_control_t *ctl, PyObject *owner, clingo_part_t const *parts, size_t size,
+                     PyObject *ctx, PyObject *loop) -> PyObject * {
+    if (ctx == Py_None) {
+        ctx = nullptr;
+    }
+    auto *state = get_state_from_type(type);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    auto post = steal(PyObject_GetAttrString(loop, "call_soon_threadsafe"));
+    auto result = steal(post.get() != nullptr ? future_new(loop) : nullptr);
+    if (result.get() == nullptr) {
+        return nullptr;
+    }
+    auto obj = steal(PyType_GenericAlloc(reinterpret_cast<PyTypeObject *>(state->async_handle_type), 0));
+    if (obj.get() == nullptr) {
+        return nullptr;
+    }
+    auto *a = async_cast(obj.get());
+    a->base.state = state;
+    a->base.owner = Py_NewRef(owner);
+    a->base.ctx = Py_XNewRef(ctx);
+    a->loop = Py_NewRef(loop);
+    a->post = post.release();
+    a->result = result.release();
+
+    auto handler = clingo_ground_event_handler_t{
+        ctx != nullptr ? context_callable : nullptr,
+        ctx != nullptr ? start_call : nullptr,
+        async_finish,
+        nullptr,
+    };
+    auto ok = with_gil_released([&] {
+        return clingo_control_start_ground(ctl, parts, size, &handler, static_cast<void *>(obj.get()), &a->base.hnd);
+    });
+    if (!ok) {
+        py_handle_error();
+        return nullptr;
+    }
+    // NOTE: The handle keeps itself alive until the finish notification closes it. Otherwise, dropping the handle after
+    // cancelling would block until grounding stopped. The reference leaks if the loop is closed before.
+    Py_INCREF(obj.get());
+    return obj.release();
+}
+
 auto create_ground(PyObject *parent) -> PyObject * {
     auto ground_mod = PyGuard{nullptr};
     if (!add_submodule(parent, &ground_def, &ground_mod.get())) {
@@ -502,7 +690,8 @@ auto create_ground(PyObject *parent) -> PyObject * {
     auto *state = get_state(ground_mod.get());
     if (state == nullptr ||
         !add_int_enum(ground_mod.get(), "GroundResult", ground_result_members, &state->ground_result_enum, {}) ||
-        !add_type(ground_mod.get(), "GroundHandle", &py_handle_spec, &state->handle_type)) {
+        !add_type(ground_mod.get(), "GroundHandle", &py_handle_spec, &state->handle_type) ||
+        !add_type(ground_mod.get(), "AsyncGroundHandle", &py_async_spec, &state->async_handle_type)) {
         return nullptr;
     }
     return ground_mod.release();

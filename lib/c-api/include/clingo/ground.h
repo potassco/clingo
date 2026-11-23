@@ -162,6 +162,15 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ground_handle_wait(clingo_ground_handle_t 
 //! @param[in] handle the target
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_ground_handle_cancel(clingo_ground_handle_t *handle);
+//! Request the running ground call to stop without waiting for it.
+//!
+//! Use clingo_ground_handle_wait() or clingo_ground_handle_get() to wait until
+//! grounding has stopped. The ground result then indicates that grounding was
+//! interrupted unless it finished before.
+//!
+//! @param[in] handle the target
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_ground_handle_interrupt(clingo_ground_handle_t *handle);
 //! Release the ground handle.
 //!
 //! This internally calls `clingo_ground_handle_cancel()` if grounding has not

@@ -29,6 +29,8 @@ struct SolveModuleState {
     PyObject *model_type{nullptr};
     PyObject *result_type{nullptr};
     PyObject *handle_type{nullptr};
+    PyObject *async_handle_type{nullptr};
+    PyObject *async_step_type{nullptr};
 };
 
 struct PyResultObject {
@@ -1295,6 +1297,539 @@ auto py_handle_spec = PyType_Spec{
     py_handle_slots.data(),
 };
 
+// AsyncSolveHandle
+//
+// The solver thread only posts notifications to the event loop. Everything
+// else, i.e., handing out models, resuming the search, and resolving futures,
+// happens on the thread of the event loop.
+
+struct PyAsyncHandleObject {
+    PyHandleObject base;
+    //! The event loop.
+    PyObject *loop;
+    //! The call_soon_threadsafe method of the event loop.
+    PyObject *post;
+    //! The future resolved with the solve result.
+    PyObject *result;
+    //! The future waiting for the next model (yield mode only).
+    PyObject *next;
+    //! The future resolved once __aexit__ closed the handle.
+    PyObject *closed;
+    //! Whether models are yielded.
+    bool yield;
+    //! Whether the handle is being destroyed and must not be notified anymore.
+    bool dying;
+    //! Whether the search was cancelled (models are no longer handed out).
+    bool cancelled;
+    //! Whether the search finished.
+    bool finished;
+    //! Whether a model arrived that was not handed out yet.
+    bool model_ready;
+    //! Whether a model was handed out and the search has to be resumed.
+    bool need_resume;
+    //! Whether the search is resumed automatically until it finished.
+    bool draining;
+};
+
+auto async_cast(PyObject *obj) -> PyAsyncHandleObject * {
+    return reinterpret_cast<PyAsyncHandleObject *>(obj);
+}
+
+auto async_self(PyAsyncHandleObject *a) -> PyObject * {
+    return reinterpret_cast<PyObject *>(a);
+}
+
+//! Cancel the search unless it already finished.
+//!
+//! This blocks until the search stopped, which is fast but has to wait for
+//! running callbacks. The result is still passed via the finish notification.
+//!
+//! NOTE: Once clasp's SolveHandle provides a non-blocking interrupt, it should
+//! be used here like for AsyncGroundHandle. Then each await needs its own
+//! future so that the result can still be awaited after cancelling, and the
+//! handle has to keep itself alive until the search finished.
+//! ClaspFacade::interrupt is not suitable because it queues the signal for the
+//! next solve call if the search already finished.
+auto async_cancel(PyAsyncHandleObject *a) -> bool {
+    auto *hnd = a->base.hnd;
+    if (a->cancelled || a->finished || hnd == nullptr) {
+        return true;
+    }
+    a->cancelled = true;
+    a->model_ready = false;
+    a->need_resume = false;
+    model_clear(a->base.cur_model);
+    if (!with_gil_released([&] { return clingo_solve_handle_cancel(hnd); })) {
+        py_handle_error();
+        return false;
+    }
+    return true;
+}
+
+//! Resume the search after a model has been handed out.
+auto async_resume(PyAsyncHandleObject *a) -> bool {
+    model_clear(a->base.cur_model);
+    a->need_resume = false;
+    auto *hnd = a->base.hnd;
+    if (!with_gil_released([&] { return clingo_solve_handle_resume(hnd); })) {
+        py_handle_error();
+        return false;
+    }
+    return true;
+}
+
+//! Resume the search past a model that arrived but was not handed out.
+auto async_skip(PyAsyncHandleObject *a) -> bool {
+    a->model_ready = false;
+    // NOTE: wait until the model is available to not resume too early
+    clingo_model_t *mdl = nullptr;
+    return fetch_model(a->base.hnd, &mdl) && async_resume(a);
+}
+
+//! Resume the search until it finished passing models to the callbacks only.
+auto async_drain(PyAsyncHandleObject *a) -> bool {
+    if (a->draining || a->cancelled || a->finished || a->base.hnd == nullptr) {
+        return true;
+    }
+    a->draining = true;
+    if (a->model_ready) {
+        return async_skip(a);
+    }
+    if (a->need_resume) {
+        return async_resume(a);
+    }
+    return true;
+}
+
+//! Hand out the model that arrived to the given future.
+auto async_deliver(PyAsyncHandleObject *a, PyObject *fut) -> bool {
+    a->model_ready = false;
+    auto *state = state_of(async_self(a));
+    if (state == nullptr) {
+        return false;
+    }
+    clingo_model_t *mdl = nullptr;
+    if (!fetch_model(a->base.hnd, &mdl)) {
+        return false;
+    }
+    if (mdl == nullptr) {
+        return future_stop(fut);
+    }
+    auto *obj = model_set(a->base.cur_model, state->model_type, mdl, true);
+    if (obj == nullptr) {
+        return false;
+    }
+    a->need_resume = true;
+    return future_set_result(fut, obj);
+}
+
+//! Pass the current error to the given future (or the result) and stop the search.
+void async_fail(PyAsyncHandleObject *a, PyObject *fut) {
+    auto exc = steal(take_error());
+    if (exc.get() == nullptr || !future_set_exception(fut != nullptr ? fut : a->result, exc.get())) {
+        PyErr_WriteUnraisable(async_self(a));
+    }
+    if (!async_cancel(a)) {
+        PyErr_WriteUnraisable(async_self(a));
+    }
+}
+
+auto py_async_notify_model(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    auto *a = async_cast(self);
+    if (a->base.hnd == nullptr || a->cancelled || a->finished) {
+        Py_RETURN_NONE;
+    }
+    if (a->draining) {
+        if (!async_skip(a)) {
+            async_fail(a, nullptr);
+        }
+        Py_RETURN_NONE;
+    }
+    auto next = steal(std::exchange(a->next, nullptr));
+    auto done = next.get() != nullptr ? future_done(next.get()) : 1;
+    if (done < 0 || (done == 0 && !async_deliver(a, next.get()))) {
+        async_fail(a, next.get());
+    } else if (done > 0) {
+        a->model_ready = true;
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_async_notify_finish(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    auto *a = async_cast(self);
+    if (a->base.hnd == nullptr || a->finished) {
+        Py_RETURN_NONE;
+    }
+    a->finished = true;
+    a->model_ready = false;
+    model_clear(a->base.cur_model);
+    auto next = steal(std::exchange(a->next, nullptr));
+    auto *state = state_of(self);
+    auto *hnd = a->base.hnd;
+    clingo_solve_result_bitset_t res = 0;
+    auto ok = state != nullptr && with_gil_released([&] { return clingo_solve_handle_get(hnd, &res); });
+    if (!ok && state != nullptr) {
+        py_handle_error();
+    }
+    auto obj = steal(ok ? result_new(state, res) : nullptr);
+    if (obj.get() != nullptr) {
+        ok = future_set_result(a->result, obj.get()) && (next.get() == nullptr || future_stop(next.get()));
+    } else {
+        auto exc = steal(take_error());
+        ok = exc.get() != nullptr && future_set_exception(a->result, exc.get()) &&
+             (next.get() == nullptr || future_set_exception(next.get(), exc.get()));
+    }
+    if (!ok) {
+        PyErr_WriteUnraisable(self);
+    }
+    if (a->closed != nullptr) {
+        close_handle(&a->base);
+        auto closed = steal(std::exchange(a->closed, nullptr));
+        if (!future_set_result(closed.get(), Py_None)) {
+            PyErr_WriteUnraisable(self);
+        }
+    }
+    Py_RETURN_NONE;
+}
+
+// NOTE: the definitions are bound to handles to post them to the event loop
+PyMethodDef async_notify_model_def = {"_notify_model", py_async_notify_model, METH_NOARGS, nullptr};
+PyMethodDef async_notify_finish_def = {"_notify_finish", py_async_notify_finish, METH_NOARGS, nullptr};
+
+auto async_model_cb(clingo_model_t *model, void *data, bool *goon) -> bool {
+    auto *self = static_cast<PyObject *>(data);
+    auto *a = async_cast(self);
+    if (a->base.on_model != nullptr && !on_model_cb(model, data, goon)) {
+        return false;
+    }
+    if (a->yield) {
+        auto gil = GILGuard{};
+        if (!a->dying && !loop_post(a->post, &async_notify_model_def, self)) {
+            return store_python_error("notifying the event loop failed");
+        }
+    }
+    return true;
+}
+
+void async_finish_cb([[maybe_unused]] clingo_solve_result_bitset_t result, void *data) {
+    auto gil = GILGuard{};
+    auto *self = static_cast<PyObject *>(data);
+    if (!async_cast(self)->dying && !loop_post(async_cast(self)->post, &async_notify_finish_def, self)) {
+        PyErr_WriteUnraisable(self);
+    }
+}
+
+auto py_async_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    if (auto ret = py_handle_traverse(self, visit, arg); ret != 0) {
+        return ret;
+    }
+    auto *a = async_cast(self);
+    Py_VISIT(a->loop);
+    Py_VISIT(a->post);
+    Py_VISIT(a->result);
+    Py_VISIT(a->next);
+    Py_VISIT(a->closed);
+    return 0;
+}
+
+auto py_async_clear(PyObject *self) -> int {
+    auto *a = async_cast(self);
+    // NOTE: closing releases the GIL and the solver thread must not post anymore
+    a->dying = true;
+    py_handle_clear(self);
+    Py_CLEAR(a->loop);
+    Py_CLEAR(a->post);
+    Py_CLEAR(a->result);
+    Py_CLEAR(a->next);
+    Py_CLEAR(a->closed);
+    return 0;
+}
+
+// AsyncStep
+//
+// Awaiting a future of the event loop directly would hide cancellations of
+// the awaiting task if the future is already done. The step forwards to the
+// iterator of the future and interrupts the search if an exception is thrown
+// into the awaiting coroutine.
+
+struct PyAsyncStepObject {
+    PyObject_HEAD
+    //! The handle whose search is interrupted.
+    PyObject *handle;
+    //! The iterator of the awaited future.
+    PyObject *iter;
+};
+
+auto step_cast(PyObject *obj) -> PyAsyncStepObject * {
+    return reinterpret_cast<PyAsyncStepObject *>(obj);
+}
+
+//! Create a step awaiting the given future on behalf of the handle.
+auto step_new(PyObject *handle, PyObject *fut) -> PyObject * {
+    auto *state = state_of(handle);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    auto iter = steal(PyObject_CallMethod(fut, "__await__", nullptr));
+    if (iter.get() == nullptr) {
+        return nullptr;
+    }
+    auto *step = alloc_object<PyAsyncStepObject>(state->async_step_type);
+    if (step == nullptr) {
+        return nullptr;
+    }
+    step->handle = Py_NewRef(handle);
+    step->iter = iter.release();
+    return reinterpret_cast<PyObject *>(step);
+}
+
+//! Call a method of the iterator of the future with the given arguments.
+auto step_call(PyObject *self, char const *name, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    auto meth = steal(PyObject_GetAttrString(step_cast(self)->iter, name));
+    auto tuple = steal(meth.get() != nullptr ? PyTuple_New(nargs) : nullptr);
+    if (tuple.get() == nullptr) {
+        return nullptr;
+    }
+    for (Py_ssize_t i = 0; i < nargs; ++i) {
+        auto *arg = std::span{args, static_cast<size_t>(nargs)}[static_cast<size_t>(i)];
+        PyTuple_SetItem(tuple.get(), i, Py_NewRef(arg));
+    }
+    return PyObject_Call(meth.get(), tuple.get(), nullptr);
+}
+
+auto py_step_send(PyObject *self, PyObject *value) -> PyObject * {
+    return step_call(self, "send", &value, 1);
+}
+
+auto py_step_throw(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    if (!async_cancel(async_cast(step_cast(self)->handle))) {
+        PyErr_WriteUnraisable(step_cast(self)->handle);
+    }
+    return step_call(self, "throw", args, nargs);
+}
+
+auto py_step_close(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    return step_call(self, "close", nullptr, 0);
+}
+
+auto py_step_iternext(PyObject *self) -> PyObject * {
+    return py_step_send(self, Py_None);
+}
+
+auto py_step_await(PyObject *self) -> PyObject * {
+    return Py_NewRef(self);
+}
+
+auto py_step_traverse(PyObject *self, visitproc visit, void *arg) -> int {
+    Py_VISIT(Py_TYPE(self));
+    Py_VISIT(step_cast(self)->handle);
+    Py_VISIT(step_cast(self)->iter);
+    return 0;
+}
+
+auto py_step_clear(PyObject *self) -> int {
+    Py_CLEAR(step_cast(self)->handle);
+    Py_CLEAR(step_cast(self)->iter);
+    return 0;
+}
+
+auto py_step_methods = std::array{
+    PyMethodDef{"send", py_step_send, METH_O, PyDoc_STR("Send a value into the awaited future.")},
+    PyMethodDef{
+        "throw",
+        method_cast(py_step_throw),
+        METH_FASTCALL,
+        PyDoc_STR("Interrupt the search and throw an exception into the awaited future."),
+    },
+    PyMethodDef{"close", py_step_close, METH_NOARGS, PyDoc_STR("Close the iterator of the awaited future.")},
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
+auto py_step_slots = std::array{
+    PyType_Slot{Py_tp_doc, const_cast<char *>("An awaitable step of an asynchronous search.")}, // NOLINT
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_step_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_step_clear)},
+    PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_step_await)},
+    PyType_Slot{Py_tp_iternext, reinterpret_cast<void *>(py_step_iternext)},
+    PyType_Slot{Py_am_await, reinterpret_cast<void *>(py_step_await)},
+    PyType_Slot{Py_tp_methods, py_step_methods.data()},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_step_spec = PyType_Spec{
+    "clingo.solve._AsyncStep",
+    sizeof(PyAsyncStepObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
+    py_step_slots.data(),
+};
+
+auto py_async_await(PyObject *self) -> PyObject * {
+    auto *a = async_cast(self);
+    if (!async_drain(a)) {
+        return nullptr;
+    }
+    return step_new(self, a->result);
+}
+
+auto py_async_aiter(PyObject *self) -> PyObject * {
+    if (!async_cast(self)->yield) {
+        PyErr_SetString(PyExc_TypeError, "models can only be iterated with yield_=True");
+        return nullptr;
+    }
+    Py_INCREF(self);
+    return self;
+}
+
+auto py_async_anext(PyObject *self) -> PyObject * {
+    auto *a = async_cast(self);
+    if (!a->yield) {
+        PyErr_SetString(PyExc_TypeError, "models can only be iterated with yield_=True");
+        return nullptr;
+    }
+    if (ensure_handle_open(self) == nullptr) {
+        return nullptr;
+    }
+    if (a->next != nullptr) {
+        auto done = future_done(a->next);
+        if (done < 0) {
+            return nullptr;
+        }
+        if (done == 0) {
+            PyErr_SetString(PyExc_RuntimeError, "the next model is already awaited");
+            return nullptr;
+        }
+        Py_CLEAR(a->next);
+    }
+    auto fut = steal(future_new(a->loop));
+    if (fut.get() == nullptr) {
+        return nullptr;
+    }
+    auto ok = true;
+    if (a->finished || a->cancelled || a->draining) {
+        ok = future_stop(fut.get());
+    } else if (a->need_resume && !async_resume(a)) {
+        ok = false;
+    } else if (a->model_ready) {
+        ok = async_deliver(a, fut.get());
+    } else {
+        a->next = Py_NewRef(fut.get());
+    }
+    return ok ? step_new(self, fut.get()) : nullptr;
+}
+
+auto py_async_cancel(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    if (!async_cancel(async_cast(self))) {
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_async_last(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    if (ensure_handle_open(self) == nullptr) {
+        return nullptr;
+    }
+    if (!async_cast(self)->finished) {
+        Py_RETURN_NONE;
+    }
+    return py_handle_last(self, nullptr);
+}
+
+auto py_async_core(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    if (ensure_handle_open(self) == nullptr) {
+        return nullptr;
+    }
+    if (!async_cast(self)->finished) {
+        return PyList_New(0);
+    }
+    return py_handle_core(self, nullptr);
+}
+
+auto py_async_aenter(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    auto fut = steal(future_new(async_cast(self)->loop));
+    if (fut.get() == nullptr || !future_set_result(fut.get(), self)) {
+        return nullptr;
+    }
+    return fut.release();
+}
+
+auto py_async_aexit(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *type = unset_arg();
+    PyObject *value = unset_arg();
+    PyObject *traceback = unset_arg();
+    if (!parse_args("__aexit__", {"type", "value", "traceback"}, {}, args, nargs, {&type, &value, &traceback})) {
+        return nullptr;
+    }
+    auto *a = async_cast(self);
+    auto fut = steal(future_new(a->loop));
+    if (fut.get() == nullptr) {
+        return nullptr;
+    }
+    if (a->base.hnd == nullptr || a->finished) {
+        close_handle(&a->base);
+        return future_set_result(fut.get(), Py_None) ? fut.release() : nullptr;
+    }
+    if (a->closed != nullptr) {
+        PyErr_SetString(PyExc_RuntimeError, "the solve handle is already being closed");
+        return nullptr;
+    }
+    if (!async_cancel(a)) {
+        return nullptr;
+    }
+    a->closed = Py_NewRef(fut.get());
+    return fut.release();
+}
+
+auto py_async_methods = std::array{
+    PyMethodDef{
+        "cancel",
+        py_async_cancel,
+        METH_NOARGS,
+        PyDoc_STR("Cancel the running search."),
+    },
+    PyMethodDef{
+        "last",
+        py_async_last,
+        METH_NOARGS,
+        PyDoc_STR("Get the last computed model once the search finished, if any."),
+    },
+    PyMethodDef{
+        "core",
+        py_async_core,
+        METH_NOARGS,
+        PyDoc_STR("Get the subset of assumptions that made the problem unsatisfiable."),
+    },
+    PyMethodDef{"__aenter__", py_async_aenter, METH_NOARGS, PyDoc_STR("Return self.")},
+    PyMethodDef{
+        "__aexit__",
+        method_cast(py_async_aexit),
+        METH_FASTCALL,
+        PyDoc_STR("Stop the search and close the handle."),
+    },
+    PyMethodDef{nullptr, nullptr, 0, nullptr},
+};
+
+auto py_async_slots = std::array{
+    PyType_Slot{Py_tp_doc, const_cast<char *>("An object to await a search running in the background.")}, // NOLINT
+    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
+    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_async_traverse)},
+    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_async_clear)},
+    PyType_Slot{Py_am_await, reinterpret_cast<void *>(py_async_await)},
+    PyType_Slot{Py_am_aiter, reinterpret_cast<void *>(py_async_aiter)},
+    PyType_Slot{Py_am_anext, reinterpret_cast<void *>(py_async_anext)},
+    PyType_Slot{Py_tp_methods, py_async_methods.data()},
+    PyType_Slot{0, nullptr},
+};
+
+auto py_async_spec = PyType_Spec{
+    "clingo.solve.AsyncSolveHandle",
+    sizeof(PyAsyncHandleObject),
+    0,
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
+    py_async_slots.data(),
+};
+
 // module
 
 constexpr auto model_type_members = std::array<IntEnumMember, 3>{
@@ -1316,6 +1851,8 @@ auto solve_module_traverse(PyObject *module, visitproc visit, void *arg) -> int 
     Py_VISIT(state->model_type);
     Py_VISIT(state->result_type);
     Py_VISIT(state->handle_type);
+    Py_VISIT(state->async_handle_type);
+    Py_VISIT(state->async_step_type);
     return 0;
 }
 
@@ -1332,6 +1869,8 @@ auto solve_module_clear(PyObject *module) -> int {
     Py_CLEAR(state->model_type);
     Py_CLEAR(state->result_type);
     Py_CLEAR(state->handle_type);
+    Py_CLEAR(state->async_handle_type);
+    Py_CLEAR(state->async_step_type);
     return 0;
 }
 
@@ -1467,6 +2006,58 @@ auto py_solve(PyObject *type, clingo_control_t *ctl, PyObject *owner, std::span<
     return result_new(state, res);
 }
 
+auto py_solve_async(PyObject *type, clingo_control_t *ctl, PyObject *owner,
+                    std::span<clingo_literal_t const> assumptions, PyObject *on_model, PyObject *on_unsat,
+                    PyObject *on_stats, PyObject *loop, bool yield) -> PyObject * {
+    if (!check_callback(on_model, "on_model") || !check_callback(on_unsat, "on_unsat") ||
+        !check_callback(on_stats, "on_stats")) {
+        return nullptr;
+    }
+    auto *state = get_state_from_type(type);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    auto post = steal(PyObject_GetAttrString(loop, "call_soon_threadsafe"));
+    auto result = steal(post.get() != nullptr ? future_new(loop) : nullptr);
+    if (result.get() == nullptr) {
+        return nullptr;
+    }
+    auto obj = steal(reinterpret_cast<PyObject *>(alloc_object<PyAsyncHandleObject>(state->async_handle_type)));
+    if (obj.get() == nullptr) {
+        return nullptr;
+    }
+    auto *a = async_cast(obj.get());
+    a->base.owner = Py_NewRef(owner);
+    a->base.on_model = Py_XNewRef(on_model);
+    a->base.on_unsat = Py_XNewRef(on_unsat);
+    a->base.on_stats = Py_XNewRef(on_stats);
+    a->loop = Py_NewRef(loop);
+    a->post = post.release();
+    a->result = result.release();
+    a->yield = yield;
+
+    auto mode = clingo_solve_mode_bitset_t{clingo_solve_mode_async};
+    if (yield) {
+        mode |= clingo_solve_mode_yield;
+    }
+    auto handler = clingo_solve_event_handler_t{
+        on_model != nullptr || yield ? async_model_cb : nullptr,
+        on_unsat != nullptr ? on_unsat_cb : nullptr,
+        on_stats != nullptr ? on_stats_cb : nullptr,
+        async_finish_cb,
+        nullptr,
+    };
+    auto ok = with_gil_released([&] {
+        return clingo_control_solve(ctl, mode, assumptions.data(), assumptions.size(), &handler,
+                                    static_cast<void *>(obj.get()), &a->base.hnd);
+    });
+    if (!ok) {
+        py_handle_error();
+        return nullptr;
+    }
+    return obj.release();
+}
+
 auto create_solve(PyObject *parent) -> PyObject * {
     auto solve_mod = PyGuard{nullptr};
     if (!add_submodule(parent, &solve_def, &solve_mod.get())) {
@@ -1478,7 +2069,13 @@ auto create_solve(PyObject *parent) -> PyObject * {
         !add_type(solve_mod.get(), "SolveControl", &py_control_spec, &state->control_type) ||
         !add_type(solve_mod.get(), "Model", &py_model_spec, &state->model_type) ||
         !add_type(solve_mod.get(), "SolveResult", &py_result_spec, &state->result_type) ||
-        !add_type(solve_mod.get(), "SolveHandle", &py_handle_spec, &state->handle_type)) {
+        !add_type(solve_mod.get(), "SolveHandle", &py_handle_spec, &state->handle_type) ||
+        !add_type(solve_mod.get(), "AsyncSolveHandle", &py_async_spec, &state->async_handle_type)) {
+        return nullptr;
+    }
+    // NOTE: the step type is an implementation detail and not added to the module
+    state->async_step_type = PyType_FromModuleAndSpec(solve_mod.get(), &py_step_spec, nullptr);
+    if (state->async_step_type == nullptr) {
         return nullptr;
     }
     return solve_mod.release();

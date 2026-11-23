@@ -120,6 +120,11 @@ class GroundHandle {
     //! This is a blocking operation.
     void cancel() { Detail::handle_error(clingo_ground_handle_cancel(hnd_.get())); }
 
+    //! Request grounding to stop without waiting for it.
+    //!
+    //! Use wait() or get() to wait until grounding has stopped.
+    void interrupt() { Detail::handle_error(clingo_ground_handle_interrupt(hnd_.get())); }
+
     //! Closes the solve handle.
     //!
     //! Blocks until the grounding process has been cleaned up.

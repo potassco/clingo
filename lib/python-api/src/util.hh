@@ -169,6 +169,48 @@ auto add_int_enum(PyObject *module, char const *enum_name, std::span<IntEnumMemb
 auto add_type(PyObject *module, const char *name, PyType_Spec *spec, PyObject **store, PyObject *base = nullptr)
     -> bool;
 
+// asyncio integration
+//
+// The helpers only use the methods of asyncio's event loop and future
+// interfaces, so that asyncio does not have to be imported.
+
+//! Take the current Python error as an exception object (new reference).
+auto take_error() -> PyObject *;
+
+//! Create a future using the create_future method of the event loop (new reference).
+auto future_new(PyObject *loop) -> PyObject *;
+
+//! Check whether a future is done; returns -1 on error.
+auto future_done(PyObject *fut) -> int;
+
+//! Check whether a future was cancelled; returns -1 on error.
+auto future_cancelled(PyObject *fut) -> int;
+
+//! Set the result of a future unless it is already done (e.g., cancelled).
+auto future_set_result(PyObject *fut, PyObject *value) -> bool;
+
+//! Set the exception of a future unless it is already done (e.g., cancelled).
+auto future_set_exception(PyObject *fut, PyObject *exc) -> bool;
+
+//! Fail a future with StopAsyncIteration unless it is already done.
+auto future_stop(PyObject *fut) -> bool;
+
+//! Call the function bound to self with the future once it is done.
+auto future_add_done(PyObject *fut, PyMethodDef *def, PyObject *self) -> bool;
+
+//! Pass the outcome of the source future to the target future once it is done.
+//!
+//! The source future must not be cancelled. Nothing is passed if the target
+//! future is already done.
+auto future_chain(PyObject *src, PyObject *dst) -> bool;
+
+//! Call the function bound to self on the thread of the event loop.
+//!
+//! The post argument is the call_soon_threadsafe method of the event loop.
+//! The function must be called with the GIL held but can be called from any
+//! thread.
+auto loop_post(PyObject *post, PyMethodDef *def, PyObject *self) -> bool;
+
 //! Create a submodule, add it to the parent module and register it in sys.modules.
 auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool;
 

@@ -685,6 +685,29 @@ auto py_control_start_ground(PyObject *self, PyObject *const *args, Py_ssize_t n
                            finish_obj != nullptr ? finish_obj : Py_None);
 }
 
+auto py_control_ground_async(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *loop = unset_arg();
+    PyObject *parts_obj{};
+    PyObject *ctx_obj{};
+    if (!parse_args("ground_async", {"loop"}, {"parts", "context"}, args, nargs, kwnames,
+                    {&loop, &parts_obj, &ctx_obj})) {
+        return nullptr;
+    }
+    auto *state = state_of(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    auto buf = PartBuffer{};
+    clingo_control_t *ctl = nullptr;
+    clingo_part_t const *parts = nullptr;
+    size_t size = 0;
+    if (!ground_parts(state, self, parts_obj, buf, &ctl, &parts, &size)) {
+        return nullptr;
+    }
+    return py_ground_async(state->ground_handle_type, ctl, self, parts, size, ctx_obj != nullptr ? ctx_obj : Py_None,
+                           loop);
+}
+
 auto py_control_base(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
     auto *state = state_of(self);
     if (state == nullptr) {
@@ -767,6 +790,35 @@ auto py_control_start_solve(PyObject *self, PyObject *const *args, Py_ssize_t na
     return py_solve_start(state->solve_handle_type, ctl, self,
                           std::span<clingo_literal_t const>{buf.data(), buf.size()}, model_obj, unsat_obj, stats_obj,
                           finish_obj, yield, async);
+}
+
+auto py_control_solve_async(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *loop = unset_arg();
+    PyObject *ass_obj{};
+    PyObject *model_obj{};
+    PyObject *unsat_obj{};
+    PyObject *stats_obj{};
+    PyObject *yield_obj{};
+    if (!parse_args("solve_async", {"loop"}, {"assumptions", "on_model", "on_unsat", "on_stats", "yield_"}, args, nargs,
+                    kwnames, {&loop, &ass_obj, &model_obj, &unsat_obj, &stats_obj, &yield_obj})) {
+        return nullptr;
+    }
+    auto yield = false;
+    if (!parse_bool(yield_obj, &yield)) {
+        return nullptr;
+    }
+    auto *state = state_of(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    auto buf = PyBuffer<clingo_literal_t>{};
+    clingo_control_t *ctl = nullptr;
+    if (!solve_assumptions(state, self, ass_obj, buf, &ctl)) {
+        return nullptr;
+    }
+    return py_solve_async(state->solve_handle_type, ctl, self,
+                          std::span<clingo_literal_t const>{buf.data(), buf.size()}, model_obj, unsat_obj, stats_obj,
+                          loop, yield);
 }
 
 auto py_control_main(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
@@ -1050,6 +1102,12 @@ auto py_control_methods = std::array{
         PyDoc_STR("Start grounding the given program parts in the background."),
     },
     PyMethodDef{
+        "ground_async",
+        method_cast(py_control_ground_async),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Ground the given program parts in the background and return an awaitable handle."),
+    },
+    PyMethodDef{
         "solve",
         method_cast(py_control_solve),
         METH_FASTCALL | METH_KEYWORDS,
@@ -1060,6 +1118,12 @@ auto py_control_methods = std::array{
         method_cast(py_control_start_solve),
         METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Start solving the current ground program and return a handle."),
+    },
+    PyMethodDef{
+        "solve_async",
+        method_cast(py_control_solve_async),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Solve the current ground program in the background and return an awaitable handle."),
     },
     PyMethodDef{
         "main",

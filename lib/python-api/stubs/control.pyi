@@ -36,10 +36,10 @@ from clingo.ast import Program
 from clingo.backend import BackendManager, Observer
 from clingo.base import Base
 from clingo.config import Config
-from clingo.core import Library
-from clingo.ground import GroundHandle, GroundResult
+from clingo.core import EventLoop, Library
+from clingo.ground import AsyncGroundHandle, GroundHandle, GroundResult
 from clingo.propagate import Propagator
-from clingo.solve import Model, SolveHandle, SolveResult
+from clingo.solve import AsyncSolveHandle, Model, SolveHandle, SolveResult
 from clingo.stats import Stats, StatsView
 from clingo.symbol import Symbol
 
@@ -242,6 +242,32 @@ class Control:
                 during grounding.
         """
 
+    def ground_async(
+        self,
+        loop: EventLoop,
+        parts: Sequence[tuple[str, Sequence[Symbol]]] | None = None,
+        context: Any = None,
+    ) -> AsyncGroundHandle:
+        """
+        Ground the given program parts in the background and return an awaitable handle.
+
+        Awaiting the handle returns the ground result. See
+        `clingo.control.Control.ground` for details on grounding program parts.
+
+        Args:
+            loop: The event loop of the awaiting task.
+            parts: The program parts to ground.
+            context: An optional object providing functions that can be called
+                during grounding. They are called on the grounding thread.
+
+        Returns:
+            A handle to await grounding.
+
+        Notes:
+            Asynchronous grounding requires compiling clingo with thread
+            support.
+        """
+
     def interrupt(self) -> None:
         """
         Interrupt the active solve call.
@@ -348,6 +374,46 @@ class Control:
 
         Returns:
             The result of the search.
+        """
+
+    def solve_async(
+        self,
+        loop: EventLoop,
+        assumptions: Sequence[tuple[Symbol, bool] | int] = [],
+        on_model: Callable[[Model], bool | None] | None = None,
+        on_unsat: Callable[[Sequence[int]], None] | None = None,
+        on_stats: Callable[[Stats, Stats], None] | None = None,
+        yield_: bool = False,
+    ) -> AsyncSolveHandle:
+        """
+        Solve the current ground program in the background and return an awaitable handle.
+
+        Awaiting the handle returns the solve result. With `yield_=True`, the
+        models can be iterated with `async for` before awaiting the result.
+        Otherwise, models can be intercepted with the `on_model` callback.
+
+        The callbacks are called on the solver thread. Their arguments are only
+        valid during the call and they must not interact with the event loop.
+        See `clingo.control.Control.start_solve` for a description of the
+        callbacks.
+
+        Args:
+            loop: The event loop of the awaiting task.
+            assumptions: The assumptions that constrain the search.
+            on_model: An optional callback to intercept models.
+            on_unsat: An optional callback to intercept lower bounds during
+                optimization.
+            on_stats: An optional callback to extend the statistics.
+            yield_: Whether models can be iterated with `async for`.
+
+        Returns:
+            A handle to await the search.
+
+        Notes:
+            Asynchronous solving requires compiling clingo with thread support.
+
+        See Also:
+            `clingo.solve.AsyncSolveHandle`
         """
 
     def start_ground(
