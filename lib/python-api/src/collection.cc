@@ -437,11 +437,11 @@ auto py_sequence_subscript(PyObject *self, PyObject *key) -> PyObject * {
     return nullptr;
 }
 
-auto py_sequence_index(PyObject *self, PyObject *args) -> PyObject * {
-    PyObject *value = nullptr;
+auto py_sequence_index(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *value = unset_arg();
     PyObject *start_obj = Py_None;
     PyObject *stop_obj = Py_None;
-    if (PyArg_ParseTuple(args, "O|OO:index", &value, &start_obj, &stop_obj) == 0) {
+    if (!parse_args("index", {"value"}, {"start", "stop"}, args, nargs, {&value, &start_obj, &stop_obj})) {
         return nullptr;
     }
     auto size = PyObject_Size(self);

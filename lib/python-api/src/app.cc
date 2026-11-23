@@ -236,27 +236,29 @@ auto options_parser_cb(char const *value, size_t size, void *data) -> bool {
     return true;
 }
 
-auto py_options_add(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    auto *o = py_options_check(self);
-    if (o == nullptr) {
+auto py_options_add(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *group_obj = unset_arg();
+    PyObject *option_obj = unset_arg();
+    PyObject *description_obj = unset_arg();
+    PyObject *parser = unset_arg();
+    PyObject *multi_obj{};
+    PyObject *argument_obj = Py_None;
+    if (!parse_args("add", {"group", "option", "description", "parser"}, {"multi", "argument"}, args, nargs, kwnames,
+                    {&group_obj, &option_obj, &description_obj, &parser, &multi_obj, &argument_obj})) {
         return nullptr;
     }
-
-    static constexpr auto kwlist =
-        std::array<char const *, 7>{"group", "option", "description", "parser", "multi", "argument", nullptr};
-    char const *group = nullptr;
-    char const *option = nullptr;
-    char const *description = nullptr;
-    char const *argument = nullptr;
-    Py_ssize_t group_n = 0;
-    Py_ssize_t option_n = 0;
-    Py_ssize_t description_n = 0;
-    Py_ssize_t argument_n = 0;
-    PyObject *parser = nullptr;
-    int multi = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#s#O|pz#:add", cast_kw(kwlist), &group, &group_n, &option,
-                                    &option_n, &description, &description_n, &parser, &multi, &argument,
-                                    &argument_n) == 0) {
+    std::string_view group;
+    std::string_view option;
+    std::string_view description;
+    std::string_view argument;
+    auto multi = false;
+    if (!parse_str(group_obj, &group, "group") || !parse_str(option_obj, &option, "option") ||
+        !parse_str(description_obj, &description, "description") || !parse_bool(multi_obj, &multi) ||
+        (argument_obj != Py_None && !parse_str(argument_obj, &argument, "argument"))) {
+        return nullptr;
+    }
+    auto *o = py_options_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
     if (PyCallable_Check(parser) == 0) {
@@ -266,35 +268,36 @@ auto py_options_add(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObjec
     if (PyList_Append(o->keep, parser) < 0) {
         return nullptr;
     }
-    if (!clingo_options_add(o->opts, group, static_cast<size_t>(group_n), option, static_cast<size_t>(option_n),
-                            description, static_cast<size_t>(description_n), options_parser_cb,
-                            static_cast<void *>(parser), multi != 0, argument,
-                            argument != nullptr ? static_cast<size_t>(argument_n) : 0)) {
+    if (!clingo_options_add(o->opts, group.data(), group.size(), option.data(), option.size(), description.data(),
+                            description.size(), options_parser_cb, static_cast<void *>(parser), multi, argument.data(),
+                            argument.size())) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
 }
 
-auto py_options_add_flag(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+auto py_options_add_flag(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *group_obj = unset_arg();
+    PyObject *option_obj = unset_arg();
+    PyObject *description_obj = unset_arg();
+    PyObject *flag = unset_arg();
+    if (!parse_args("add_flag", {"group", "option", "description", "flag"}, {}, args, nargs, kwnames,
+                    {&group_obj, &option_obj, &description_obj, &flag})) {
+        return nullptr;
+    }
+    std::string_view group;
+    std::string_view option;
+    std::string_view description;
+    if (!parse_str(group_obj, &group, "group") || !parse_str(option_obj, &option, "option") ||
+        !parse_str(description_obj, &description, "description")) {
+        return nullptr;
+    }
     auto *o = py_options_check(self);
     if (o == nullptr) {
         return nullptr;
     }
     auto *state = get_state_from_self(self);
     if (state == nullptr) {
-        return nullptr;
-    }
-
-    static constexpr auto kwlist = std::array<char const *, 5>{"group", "option", "description", "flag", nullptr};
-    char const *group = nullptr;
-    char const *option = nullptr;
-    char const *description = nullptr;
-    Py_ssize_t group_n = 0;
-    Py_ssize_t option_n = 0;
-    Py_ssize_t description_n = 0;
-    PyObject *flag = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#s#O:add_flag", cast_kw(kwlist), &group, &group_n, &option,
-                                    &option_n, &description, &description_n, &flag) == 0) {
         return nullptr;
     }
     if (PyObject_TypeCheck(flag, reinterpret_cast<PyTypeObject *>(state->flag_type)) == 0) {
@@ -304,30 +307,30 @@ auto py_options_add_flag(PyObject *self, PyObject *args, PyObject *kwargs) -> Py
     if (PyList_Append(o->keep, flag) < 0) {
         return nullptr;
     }
-    if (!clingo_options_add_flag(o->opts, group, static_cast<size_t>(group_n), option, static_cast<size_t>(option_n),
-                                 description, static_cast<size_t>(description_n), &py_flag_cast(flag)->value)) {
+    if (!clingo_options_add_flag(o->opts, group.data(), group.size(), option.data(), option.size(), description.data(),
+                                 description.size(), &py_flag_cast(flag)->value)) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
 }
 
-auto py_options_set_default_value(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+auto py_options_set_default_value(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *option_obj = unset_arg();
+    PyObject *value_obj = unset_arg();
+    if (!parse_args("set_default_value", {"option", "value"}, {}, args, nargs, kwnames, {&option_obj, &value_obj})) {
+        return nullptr;
+    }
+    std::string_view option;
+    std::string_view value;
+    if (!parse_str(option_obj, &option, "option") || !parse_str(value_obj, &value, "value")) {
+        return nullptr;
+    }
     auto *o = py_options_check(self);
     if (o == nullptr) {
         return nullptr;
     }
-
-    static constexpr auto kwlist = std::array<char const *, 3>{"option", "value", nullptr};
-    char const *option = nullptr;
-    char const *value = nullptr;
-    Py_ssize_t option_n = 0;
-    Py_ssize_t value_n = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#s#:set_default_value", cast_kw(kwlist), &option, &option_n, &value,
-                                    &value_n) == 0) {
-        return nullptr;
-    }
-    if (!clingo_options_set_default_value(o->opts, option, static_cast<size_t>(option_n), value,
-                                          static_cast<size_t>(value_n))) {
+    if (!clingo_options_set_default_value(o->opts, option.data(), option.size(), value.data(), value.size())) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
@@ -337,19 +340,19 @@ auto py_options_methods = std::array{
     PyMethodDef{
         "add",
         method_cast(py_options_add),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Add an option with a custom parser."),
     },
     PyMethodDef{
         "add_flag",
         method_cast(py_options_add_flag),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Add a Boolean flag option."),
     },
     PyMethodDef{
         "set_default_value",
         method_cast(py_options_set_default_value),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Set the default value of an existing clingo option."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
@@ -435,8 +438,8 @@ auto py_app_noop([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *arg
     Py_RETURN_NONE;
 }
 
-auto py_app_noop_kw([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args, [[maybe_unused]] PyObject *kwargs)
-    -> PyObject * {
+auto py_app_noop_kw([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *const *args,
+                    [[maybe_unused]] Py_ssize_t nargs, [[maybe_unused]] PyObject *kwnames) -> PyObject * {
     Py_RETURN_NONE;
 }
 
@@ -456,13 +459,13 @@ auto py_app_methods = std::array{
     PyMethodDef{
         "print_model",
         method_cast(py_app_noop_kw),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Print the given model in a custom format."),
     },
     PyMethodDef{
         "main",
         method_cast(py_app_noop_kw),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Run the main execution flow of the application."),
     },
     PyMethodDef{
@@ -748,16 +751,15 @@ auto run_main(AppModuleState *state, PyObject *lib_obj, PyObject *args_obj, PyOb
     return PyLong_FromLong(code);
 }
 
-auto py_clingo_main(PyObject *module, PyObject *args, PyObject *kwargs) -> PyObject * {
-    auto *state = get_state(module);
-    if (state == nullptr) {
+auto py_clingo_main(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *lib = unset_arg();
+    PyObject *arguments = unset_arg();
+    PyObject *app = Py_None;
+    if (!parse_args("clingo_main", {"lib", "arguments"}, {"app"}, args, nargs, kwnames, {&lib, &arguments, &app})) {
         return nullptr;
     }
-    static constexpr auto kwlist = std::array<char const *, 4>{"lib", "arguments", "app", nullptr};
-    PyObject *lib = nullptr;
-    PyObject *arguments = nullptr;
-    PyObject *app = Py_None;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO|O:clingo_main", cast_kw(kwlist), &lib, &arguments, &app) == 0) {
+    auto *state = get_state(module);
+    if (state == nullptr) {
         return nullptr;
     }
     return run_main(state, lib, arguments, app);
@@ -802,7 +804,7 @@ auto app_module_methods = std::array{
     PyMethodDef{
         "clingo_main",
         method_cast(py_clingo_main),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Entry point for running a clingo application; returns the exit code."),
     },
     PyMethodDef{

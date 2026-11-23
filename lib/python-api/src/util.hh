@@ -9,6 +9,7 @@
 #include <cassert>
 #include <concepts>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -142,9 +143,14 @@ template <size_t N> auto cast_kw(std::array<char const *, N> const &kwlist) -> c
     return const_cast<char **>(kwlist.data());
 }
 
+using PyCFunctionFast = PyObject *(*)(PyObject *, PyObject *const *, Py_ssize_t);
 using PyCFunctionFastWithKeywords = PyObject *(*)(PyObject *, PyObject *const *, Py_ssize_t, PyObject *);
 
 inline auto method_cast(PyCFunctionWithKeywords fun) noexcept -> PyCFunction {
+    return reinterpret_cast<PyCFunction>(reinterpret_cast<void *>(fun)); // NOLINT
+}
+
+inline auto method_cast(PyCFunctionFast fun) noexcept -> PyCFunction {
     return reinterpret_cast<PyCFunction>(reinterpret_cast<void *>(fun)); // NOLINT
 }
 
@@ -244,6 +250,37 @@ template <std::integral T> auto parse_num(PyObject *obj, T *out, char const *wha
         }
         *out = static_cast<T>(v);
     }
+    return true;
+}
+
+//! Parse a Boolean argument; absent arguments keep the output untouched.
+inline auto parse_bool(PyObject *obj, bool *out) -> bool {
+    if (obj == nullptr) {
+        return true;
+    }
+    auto res = PyObject_IsTrue(obj);
+    if (res < 0) {
+        return false;
+    }
+    *out = res != 0;
+    return true;
+}
+
+//! Parse a string argument; absent arguments keep the output untouched.
+inline auto parse_str(PyObject *obj, std::string_view *out, char const *what) -> bool {
+    if (obj == nullptr) {
+        return true;
+    }
+    if (PyUnicode_Check(obj) == 0) {
+        PyErr_Format(PyExc_TypeError, "%s must be a str", what);
+        return false;
+    }
+    Py_ssize_t size = 0;
+    auto const *str = PyUnicode_AsUTF8AndSize(obj, &size);
+    if (str == nullptr) {
+        return false;
+    }
+    *out = std::string_view{str, static_cast<size_t>(size)};
     return true;
 }
 
@@ -532,22 +569,25 @@ inline auto unset_arg() -> PyObject * {
 }
 
 //! Parse required and optional arguments passed with the METH_FASTCALL | METH_KEYWORDS convention.
+//!
+//! Outputs of absent optional arguments keep their values, so they can be
+//! initialized with defaults.
 inline auto parse_args(char const *fname, std::initializer_list<char const *> req,
                        std::initializer_list<char const *> opt, PyObject *const *args, Py_ssize_t nargs,
                        PyObject *kwnames, std::initializer_list<PyObject **> out) -> bool {
     assert(req.size() + opt.size() == out.size());
     auto n = out.size();
+    assert(n <= 64);
     auto const *outs = out.begin();
     auto name = [&](size_t j) { return j < req.size() ? req.begin()[j] : opt.begin()[j - req.size()]; };
-    for (auto *x : out) {
-        *x = nullptr;
-    }
+    uint64_t seen = 0;
     if (std::cmp_greater(nargs, n)) {
         PyErr_Format(PyExc_TypeError, "%s() takes at most %zu arguments (%zd given)", fname, n, nargs);
         return false;
     }
     for (Py_ssize_t i = 0; i < nargs; ++i) {
         *outs[i] = args[i];
+        seen |= uint64_t{1} << static_cast<size_t>(i);
     }
     if (kwnames != nullptr) {
         auto nkw = PyTuple_Size(kwnames);
@@ -567,20 +607,28 @@ inline auto parse_args(char const *fname, std::initializer_list<char const *> re
                 PyErr_Format(PyExc_TypeError, "%s() got an unexpected keyword argument '%U'", fname, key);
                 return false;
             }
-            if (*outs[j] != nullptr) {
+            if ((seen & (uint64_t{1} << j)) != 0) {
                 PyErr_Format(PyExc_TypeError, "%s() got multiple values for argument '%s'", fname, name(j));
                 return false;
             }
             *outs[j] = args[nargs + k];
+            seen |= uint64_t{1} << j;
         }
     }
     for (size_t j = 0; j < req.size(); ++j) {
-        if (*outs[j] == nullptr) {
+        if ((seen & (uint64_t{1} << j)) == 0) {
             PyErr_Format(PyExc_TypeError, "%s() missing required argument '%s'", fname, name(j));
             return false;
         }
     }
     return true;
+}
+
+//! Parse required and optional arguments passed with the METH_FASTCALL convention.
+inline auto parse_args(char const *fname, std::initializer_list<char const *> req,
+                       std::initializer_list<char const *> opt, PyObject *const *args, Py_ssize_t nargs,
+                       std::initializer_list<PyObject **> out) -> bool {
+    return parse_args(fname, req, opt, args, nargs, nullptr, out);
 }
 
 } // namespace PyClingo

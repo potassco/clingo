@@ -288,21 +288,26 @@ auto py_symbol_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
     Py_RETURN_FALSE;
 }
 
-auto py_symbol_match(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 4>{"name", "arity", "is_positive", nullptr};
-
-    const char *name = nullptr;
-    Py_ssize_t name_len = 0;
-    Py_ssize_t arity = 0;
-    int is_positive = 1;
-
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#|np:match", cast_kw(kwlist), &name, &name_len, &arity,
-                                    &is_positive) != 0) {
-        auto *s = cast_symbol(self);
+auto py_symbol_match(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    auto *s = cast_symbol(self);
+    if (nargs > 0 && PyUnicode_Check(args[0]) != 0) {
+        PyObject *name_obj = unset_arg();
+        PyObject *arity_obj{};
+        PyObject *pos_obj{};
+        if (!parse_args("match", {"name"}, {"arity", "is_positive"}, args, nargs, kwnames,
+                        {&name_obj, &arity_obj, &pos_obj})) {
+            return nullptr;
+        }
+        std::string_view name;
+        Py_ssize_t arity = 0;
+        auto is_positive = true;
+        if (!parse_str(name_obj, &name, "name") || !parse_num(arity_obj, &arity, "arity") ||
+            !parse_bool(pos_obj, &is_positive)) {
+            return nullptr;
+        }
         if (symbol_type(s->sym) != clingo_symbol_type_function) {
             Py_RETURN_FALSE;
         }
-
         clingo_string_t n;
         clingo_symbol_t const *fn_args = nullptr;
         size_t fn_arity = 0;
@@ -311,35 +316,31 @@ auto py_symbol_match(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObje
             !clingo_symbol_is_positive(s->sym, &fn_pos)) {
             return py_handle_error();
         }
-
-        bool ok = (std::string_view(n.data, n.size) == std::string_view(name, static_cast<size_t>(name_len))) &&
-                  std::cmp_equal(arity, fn_arity) && (fn_pos == (is_positive != 0));
-        if (ok) {
+        if (std::string_view(n.data, n.size) == name && std::cmp_equal(arity, fn_arity) && fn_pos == is_positive) {
             Py_RETURN_TRUE;
         }
         Py_RETURN_FALSE;
     }
-    PyErr_Clear();
-    {
-        static constexpr auto kwlist = std::array<char const *, 2>{"arity", nullptr};
-        arity = 0;
-        if (PyArg_ParseTupleAndKeywords(args, kwargs, "|n:match", cast_kw(kwlist), &arity) == 0) {
-            return nullptr;
-        }
-        auto *s = cast_symbol(self);
-        if (symbol_type(s->sym) != clingo_symbol_type_tuple) {
-            Py_RETURN_FALSE;
-        }
-        clingo_symbol_t const *tuple_args = nullptr;
-        size_t tuple_arity = 0;
-        if (!clingo_symbol_arguments(s->sym, &tuple_args, &tuple_arity)) {
-            return py_handle_error();
-        }
-        if (std::cmp_equal(tuple_arity, arity)) {
-            Py_RETURN_TRUE;
-        }
+    PyObject *arity_obj{};
+    if (!parse_args("match", {}, {"arity"}, args, nargs, kwnames, {&arity_obj})) {
+        return nullptr;
+    }
+    Py_ssize_t arity = 0;
+    if (!parse_num(arity_obj, &arity, "arity")) {
+        return nullptr;
+    }
+    if (symbol_type(s->sym) != clingo_symbol_type_tuple) {
         Py_RETURN_FALSE;
     }
+    clingo_symbol_t const *tuple_args = nullptr;
+    size_t tuple_arity = 0;
+    if (!clingo_symbol_arguments(s->sym, &tuple_args, &tuple_arity)) {
+        return py_handle_error();
+    }
+    if (std::cmp_equal(tuple_arity, arity)) {
+        Py_RETURN_TRUE;
+    }
+    Py_RETURN_FALSE;
 }
 
 auto py_symbol_get_signature(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
@@ -481,10 +482,10 @@ auto py_symbol_get_is_negative(PyObject *self, [[maybe_unused]] void *closure) -
     Py_RETURN_FALSE;
 }
 
-auto py_number([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * {
-    PyObject *lib_obj = nullptr;
-    PyObject *num_obj = nullptr;
-    if (PyArg_ParseTuple(args, "OO:Number", &lib_obj, &num_obj) == 0) {
+auto py_number(PyObject *module, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *lib_obj = unset_arg();
+    PyObject *num_obj = unset_arg();
+    if (!parse_args("Number", {"lib", "number"}, {}, args, nargs, {&lib_obj, &num_obj})) {
         return nullptr;
     }
 
@@ -525,11 +526,14 @@ auto py_number([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * 
     return py_symbol_new(state->symbol_type, sym, false);
 }
 
-auto py_string([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * {
-    PyObject *lib_obj = nullptr;
-    const char *s = nullptr;
-    Py_ssize_t n = 0;
-    if (PyArg_ParseTuple(args, "Os#:String", &lib_obj, &s, &n) == 0) {
+auto py_string(PyObject *module, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *lib_obj = unset_arg();
+    PyObject *str_obj = unset_arg();
+    if (!parse_args("String", {"lib", "string"}, {}, args, nargs, {&lib_obj, &str_obj})) {
+        return nullptr;
+    }
+    std::string_view str;
+    if (!parse_str(str_obj, &str, "string")) {
         return nullptr;
     }
 
@@ -543,7 +547,7 @@ auto py_string([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * 
     }
 
     clingo_symbol_t sym = 0;
-    if (!clingo_symbol_create_string(lib, s, static_cast<size_t>(n), &sym)) {
+    if (!clingo_symbol_create_string(lib, str.data(), str.size(), &sym)) {
         return py_handle_error();
     }
     return py_symbol_new(state->symbol_type, sym, false);
@@ -606,10 +610,10 @@ auto py_symbol_sequence(PyObject *obj, PyObject *symbol_type, SymbolSeq &out) ->
     return true;
 }
 
-auto py_tuple([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * {
-    PyObject *lib_obj = nullptr;
-    PyObject *args_obj = nullptr;
-    if (PyArg_ParseTuple(args, "OO:Tuple_", &lib_obj, &args_obj) == 0) {
+auto py_tuple(PyObject *module, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *lib_obj = unset_arg();
+    PyObject *args_obj = unset_arg();
+    if (!parse_args("Tuple_", {"lib", "arguments"}, {}, args, nargs, {&lib_obj, &args_obj})) {
         return nullptr;
     }
 
@@ -634,17 +638,18 @@ auto py_tuple([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * {
     return py_symbol_new(state->symbol_type, sym, false);
 }
 
-auto py_function([[maybe_unused]] PyObject *module, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 5>{"lib", "name", "arguments", "is_positive", nullptr};
-
-    PyObject *lib_obj = nullptr;
-    const char *name = nullptr;
-    Py_ssize_t name_len = 0;
-    PyObject *args_obj = nullptr;
-    int is_positive = 1;
-
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "Os#|Op:Function", cast_kw(kwlist), &lib_obj, &name, &name_len,
-                                    &args_obj, &is_positive) == 0) {
+auto py_function(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *lib_obj = unset_arg();
+    PyObject *name_obj = unset_arg();
+    PyObject *args_obj{};
+    PyObject *pos_obj{};
+    if (!parse_args("Function", {"lib", "name"}, {"arguments", "is_positive"}, args, nargs, kwnames,
+                    {&lib_obj, &name_obj, &args_obj, &pos_obj})) {
+        return nullptr;
+    }
+    std::string_view name;
+    auto is_positive = true;
+    if (!parse_str(name_obj, &name, "name") || !parse_bool(pos_obj, &is_positive)) {
         return nullptr;
     }
 
@@ -663,18 +668,20 @@ auto py_function([[maybe_unused]] PyObject *module, PyObject *args, PyObject *kw
         return nullptr;
     }
     clingo_symbol_t sym = 0;
-    if (!clingo_symbol_create_function(lib, name, static_cast<size_t>(name_len), syms.data, syms.size, is_positive != 0,
-                                       &sym)) {
+    if (!clingo_symbol_create_function(lib, name.data(), name.size(), syms.data, syms.size, is_positive, &sym)) {
         return py_handle_error();
     }
     return py_symbol_new(state->symbol_type, sym, false);
 }
 
-auto py_parse_term([[maybe_unused]] PyObject *module, PyObject *args) -> PyObject * {
-    PyObject *lib_obj = nullptr;
-    const char *s = nullptr;
-    Py_ssize_t n = 0;
-    if (PyArg_ParseTuple(args, "Os#:parse_term", &lib_obj, &s, &n) == 0) {
+auto py_parse_term(PyObject *module, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *lib_obj = unset_arg();
+    PyObject *str_obj = unset_arg();
+    if (!parse_args("parse_term", {"lib", "string"}, {}, args, nargs, {&lib_obj, &str_obj})) {
+        return nullptr;
+    }
+    std::string_view str;
+    if (!parse_str(str_obj, &str, "string")) {
         return nullptr;
     }
 
@@ -688,7 +695,7 @@ auto py_parse_term([[maybe_unused]] PyObject *module, PyObject *args) -> PyObjec
     }
 
     clingo_symbol_t sym = 0;
-    if (!clingo_parse_term(lib, s, static_cast<size_t>(n), &sym)) {
+    if (!clingo_parse_term(lib, str.data(), str.size(), &sym)) {
         return py_handle_error();
     }
     return py_symbol_new(state->symbol_type, sym, false);
@@ -698,7 +705,7 @@ auto py_symbol_methods = std::array{
     PyMethodDef{
         "match",
         method_cast(py_symbol_match),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Match functions or tuples against a given signature."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
@@ -827,32 +834,32 @@ auto py_symbol_spec = PyType_Spec{
 auto symbol_module_methods = std::array{
     PyMethodDef{
         "Number",
-        py_number,
-        METH_VARARGS,
+        method_cast(py_number),
+        METH_FASTCALL,
         PyDoc_STR("Construct a numeric symbol given a number."),
     },
     PyMethodDef{
         "String",
-        py_string,
-        METH_VARARGS,
+        method_cast(py_string),
+        METH_FASTCALL,
         PyDoc_STR("Construct a string symbol given a string."),
     },
     PyMethodDef{
         "Tuple_",
-        py_tuple,
-        METH_VARARGS,
+        method_cast(py_tuple),
+        METH_FASTCALL,
         PyDoc_STR("Construct a tuple symbol."),
     },
     PyMethodDef{
         "Function",
         method_cast(py_function),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Construct a function symbol."),
     },
     PyMethodDef{
         "parse_term",
-        py_parse_term,
-        METH_VARARGS,
+        method_cast(py_parse_term),
+        METH_FASTCALL,
         PyDoc_STR("Parse the given string using clingo's term parser for ground terms."),
     },
     PyMethodDef{

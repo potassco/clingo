@@ -595,21 +595,23 @@ auto not_implemented(PyObject *self, char const *name) -> PyObject * {
     return nullptr;
 }
 
-auto py_script_execute(PyObject *self, [[maybe_unused]] PyObject *args, [[maybe_unused]] PyObject *kwargs)
-    -> PyObject * {
+auto py_script_execute(PyObject *self, [[maybe_unused]] PyObject *const *args, [[maybe_unused]] Py_ssize_t nargs,
+                       [[maybe_unused]] PyObject *kwnames) -> PyObject * {
     return not_implemented(self, "execute");
 }
 
-auto py_script_call(PyObject *self, [[maybe_unused]] PyObject *args, [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+auto py_script_call(PyObject *self, [[maybe_unused]] PyObject *const *args, [[maybe_unused]] Py_ssize_t nargs,
+                    [[maybe_unused]] PyObject *kwnames) -> PyObject * {
     return not_implemented(self, "call");
 }
 
-auto py_script_callable([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
-                        [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+auto py_script_callable([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *const *args,
+                        [[maybe_unused]] Py_ssize_t nargs, [[maybe_unused]] PyObject *kwnames) -> PyObject * {
     Py_RETURN_FALSE;
 }
 
-auto py_script_main(PyObject *self, [[maybe_unused]] PyObject *args, [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+auto py_script_main(PyObject *self, [[maybe_unused]] PyObject *const *args, [[maybe_unused]] Py_ssize_t nargs,
+                    [[maybe_unused]] PyObject *kwnames) -> PyObject * {
     return not_implemented(self, "main");
 }
 
@@ -625,25 +627,25 @@ auto py_script_methods = std::array{
     PyMethodDef{
         "execute",
         method_cast(py_script_execute),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Execute the given code."),
     },
     PyMethodDef{
         "call",
         method_cast(py_script_call),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Call the function with the given name and arguments and return a symbol or list of symbols."),
     },
     PyMethodDef{
         "callable",
         method_cast(py_script_callable),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Check if a function with the given name and number of arguments is callable."),
     },
     PyMethodDef{
         "main",
         method_cast(py_script_main),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Run the main function with the given library and control object."),
     },
     PyMethodDef{
@@ -714,11 +716,10 @@ auto fetch_string(PyObject *script, PyObject *method, clingo_string_t &out) -> b
     return true;
 }
 
-auto py_register(PyObject *module, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 3>{"lib", "script", nullptr};
-    PyObject *lib = nullptr;
-    PyObject *script = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO:register", cast_kw(kwlist), &lib, &script) == 0) {
+auto py_register(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *lib = unset_arg();
+    PyObject *script = unset_arg();
+    if (!parse_args("register", {"lib", "script"}, {}, args, nargs, kwnames, {&lib, &script})) {
         return nullptr;
     }
     auto *state = get_state(module);
@@ -744,10 +745,9 @@ auto py_register(PyObject *module, PyObject *args, PyObject *kwargs) -> PyObject
     return register_handle(state->lib_type, lib, handle.get(), &custom_script);
 }
 
-auto py_enable_python(PyObject *module, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 2>{"lib", nullptr};
-    PyObject *lib = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O:enable_python", cast_kw(kwlist), &lib) == 0) {
+auto py_enable_python(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *lib = unset_arg();
+    if (!parse_args("enable_python", {"lib"}, {}, args, nargs, kwnames, {&lib})) {
         return nullptr;
     }
     auto *state = get_state(module);
@@ -769,13 +769,13 @@ auto script_module_methods = std::array{
     PyMethodDef{
         "register",
         method_cast(py_register),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Register a script language which can then be embedded into a logic program."),
     },
     PyMethodDef{
         "enable_python",
         method_cast(py_enable_python),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Enable embedded python scripts."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},

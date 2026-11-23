@@ -566,33 +566,23 @@ void config_entry_free(void *data) {
     PyMem_Free(entry);
 }
 
-auto py_config_add_entry(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 6>{"name", "description", "get", "set", "size", nullptr};
-
-    auto *cfg = py_config_checked(self);
-    if (cfg == nullptr) {
-        return nullptr;
-    }
-    PyObject *name_obj = nullptr;
-    PyObject *desc_obj = nullptr;
+auto py_config_add_entry(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *name_obj = unset_arg();
+    PyObject *desc_obj = unset_arg();
     PyObject *get = Py_None;
     PyObject *set = Py_None;
     PyObject *size = Py_None;
-
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO|OOO:add_entry", cast_kw(kwlist), &name_obj, &desc_obj, &get, &set,
-                                    &size) == 0) {
+    if (!parse_args("add_entry", {"name", "description"}, {"get", "set", "size"}, args, nargs, kwnames,
+                    {&name_obj, &desc_obj, &get, &set, &size})) {
         return nullptr;
     }
-
-    char const *name = nullptr;
-    Py_ssize_t name_n = 0;
-    if (!unicode_to_str(name_obj, &name, &name_n, "name must be a string")) {
+    std::string_view name;
+    std::string_view desc;
+    if (!parse_str(name_obj, &name, "name") || !parse_str(desc_obj, &desc, "description")) {
         return nullptr;
     }
-
-    char const *desc = nullptr;
-    Py_ssize_t desc_n = 0;
-    if (!unicode_to_str(desc_obj, &desc, &desc_n, "description must be a string")) {
+    auto *cfg = py_config_checked(self);
+    if (cfg == nullptr) {
         return nullptr;
     }
 
@@ -636,8 +626,8 @@ auto py_config_add_entry(PyObject *self, PyObject *args, PyObject *kwargs) -> Py
     };
 
     auto *o = py_config_cast(self);
-    if (!clingo_config_add(o->config, o->key, name, static_cast<size_t>(name_n), desc, static_cast<size_t>(desc_n),
-                           &entry, entry_data.release())) {
+    if (!clingo_config_add(o->config, o->key, name.data(), name.size(), desc.data(), desc.size(), &entry,
+                           entry_data.release())) {
         return py_handle_error();
     }
 
@@ -648,7 +638,7 @@ auto py_config_methods = std::array{
     PyMethodDef{
         "add_entry",
         method_cast(py_config_add_entry),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Add a custom configuration entry."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},

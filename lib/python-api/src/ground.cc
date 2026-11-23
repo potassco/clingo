@@ -253,10 +253,9 @@ auto py_handle_cancel(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObjec
     Py_RETURN_NONE;
 }
 
-auto py_handle_wait(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 2>{"timeout", nullptr};
+auto py_handle_wait(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
     PyObject *timeout_obj = Py_None;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "|O:wait", cast_kw(kwlist), &timeout_obj) == 0) {
+    if (!parse_args("wait", {}, {"timeout"}, args, nargs, kwnames, {&timeout_obj})) {
         return nullptr;
     }
     double timeout = -1;
@@ -292,11 +291,11 @@ auto py_handle_enter(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject
     return self;
 }
 
-auto py_handle_exit(PyObject *self, PyObject *args) -> PyObject * {
-    PyObject *type = nullptr;
-    PyObject *value = nullptr;
-    PyObject *traceback = nullptr;
-    if (PyArg_ParseTuple(args, "OOO:__exit__", &type, &value, &traceback) == 0) {
+auto py_handle_exit(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *type = unset_arg();
+    PyObject *value = unset_arg();
+    PyObject *traceback = unset_arg();
+    if (!parse_args("__exit__", {"type", "value", "traceback"}, {}, args, nargs, {&type, &value, &traceback})) {
         return nullptr;
     }
     if (!close_handle(py_handle_cast(self))) {
@@ -315,7 +314,7 @@ auto py_handle_methods = std::array{
     PyMethodDef{
         "wait",
         method_cast(py_handle_wait),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Wait for the ground call to finish or the next result with an optional timeout."),
     },
     PyMethodDef{
@@ -326,7 +325,12 @@ auto py_handle_methods = std::array{
     },
     PyMethodDef{"close", py_handle_close, METH_NOARGS, PyDoc_STR("Stop grounding and close the handle.")},
     PyMethodDef{"__enter__", py_handle_enter, METH_NOARGS, PyDoc_STR("Return self.")},
-    PyMethodDef{"__exit__", py_handle_exit, METH_VARARGS, PyDoc_STR("Stop grounding and close the handle.")},
+    PyMethodDef{
+        "__exit__",
+        method_cast(py_handle_exit),
+        METH_FASTCALL,
+        PyDoc_STR("Stop grounding and close the handle."),
+    },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
 

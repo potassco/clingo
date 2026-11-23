@@ -542,15 +542,14 @@ auto rewrite_ast_cb(clingo_ast_t *ast, void *data) -> bool {
     return true;
 }
 
-auto py_theory_rewrite(PyObject *self, PyObject *args) -> PyObject * {
-    auto *o = py_theory_check(self);
-    if (o == nullptr) {
+auto py_theory_rewrite(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *stm_obj = unset_arg();
+    PyObject *callback = unset_arg();
+    if (!parse_args("rewrite", {"statement", "callback"}, {}, args, nargs, {&stm_obj, &callback})) {
         return nullptr;
     }
-
-    PyObject *stm_obj = nullptr;
-    PyObject *callback = nullptr;
-    if (PyArg_ParseTuple(args, "OO:rewrite", &stm_obj, &callback) == 0) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
     if (PyCallable_Check(callback) == 0) {
@@ -597,17 +596,19 @@ auto parse_rewrite_cb(clingo_ast_t *ast, void *data) -> bool {
         d->prg);
 }
 
-auto py_theory_rewrite_string(PyObject *self, PyObject *args) -> PyObject * {
-    auto *o = py_theory_check(self);
-    if (o == nullptr) {
+auto py_theory_rewrite_string(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *lib_obj = unset_arg();
+    PyObject *ctl_obj = unset_arg();
+    PyObject *prg_obj = unset_arg();
+    if (!parse_args("rewrite_string", {"lib", "control", "program"}, {}, args, nargs, {&lib_obj, &ctl_obj, &prg_obj})) {
         return nullptr;
     }
-
-    PyObject *lib_obj = nullptr;
-    PyObject *ctl_obj = nullptr;
-    char const *text = nullptr;
-    Py_ssize_t n = 0;
-    if (PyArg_ParseTuple(args, "OOs#:rewrite_string", &lib_obj, &ctl_obj, &text, &n) == 0) {
+    std::string_view text;
+    if (!parse_str(prg_obj, &text, "program")) {
+        return nullptr;
+    }
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
 
@@ -627,7 +628,7 @@ auto py_theory_rewrite_string(PyObject *self, PyObject *args) -> PyObject * {
     auto guard = Guard<clingo_program_t *, clingo_program_free>(prg);
 
     ParseData data{prg, &o->theory};
-    if (!clingo_ast_parse_string(lib, text, static_cast<size_t>(n), ctl, parse_rewrite_cb, &data)) {
+    if (!clingo_ast_parse_string(lib, text.data(), text.size(), ctl, parse_rewrite_cb, &data)) {
         return py_handle_error();
     }
     if (!clingo_control_join(ctl, prg)) {
@@ -637,16 +638,15 @@ auto py_theory_rewrite_string(PyObject *self, PyObject *args) -> PyObject * {
     Py_RETURN_NONE;
 }
 
-auto py_theory_rewrite_files(PyObject *self, PyObject *args) -> PyObject * {
-    auto *o = py_theory_check(self);
-    if (o == nullptr) {
+auto py_theory_rewrite_files(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *lib_obj = unset_arg();
+    PyObject *ctl_obj = unset_arg();
+    PyObject *files_obj = unset_arg();
+    if (!parse_args("rewrite_files", {"lib", "control", "files"}, {}, args, nargs, {&lib_obj, &ctl_obj, &files_obj})) {
         return nullptr;
     }
-
-    PyObject *lib_obj = nullptr;
-    PyObject *ctl_obj = nullptr;
-    PyObject *files_obj = nullptr;
-    if (PyArg_ParseTuple(args, "OOO:rewrite_files", &lib_obj, &ctl_obj, &files_obj) == 0) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
 
@@ -757,17 +757,16 @@ auto py_theory_on_model(PyObject *self, PyObject *arg) -> PyObject * {
     Py_RETURN_NONE;
 }
 
-auto py_theory_on_stats(PyObject *self, PyObject *args) -> PyObject * {
+auto py_theory_on_stats(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *step = unset_arg();
+    PyObject *accu = unset_arg();
+    if (!parse_args("on_stats", {"step", "accu"}, {}, args, nargs, {&step, &accu})) {
+        return nullptr;
+    }
     auto *o = py_theory_check(self);
     if (o == nullptr) {
         return nullptr;
     }
-    PyObject *step = nullptr;
-    PyObject *accu = nullptr;
-    if (PyArg_ParseTuple(args, "OO:on_stats", &step, &accu) == 0) {
-        return nullptr;
-    }
-    (void)accu;
 
     auto *state = get_state_from_self(self);
     if (state == nullptr) {
@@ -788,15 +787,14 @@ auto py_theory_on_stats(PyObject *self, PyObject *args) -> PyObject * {
     Py_RETURN_NONE;
 }
 
-auto py_theory_value(PyObject *self, PyObject *args) -> PyObject * {
-    auto *o = py_theory_check(self);
-    if (o == nullptr) {
+auto py_theory_value(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *thread_id_obj = unset_arg();
+    PyObject *symbol_obj = unset_arg();
+    if (!parse_args("value", {"thread_id", "symbol"}, {}, args, nargs, {&thread_id_obj, &symbol_obj})) {
         return nullptr;
     }
-
-    PyObject *thread_id_obj = nullptr;
-    PyObject *symbol_obj = nullptr;
-    if (PyArg_ParseTuple(args, "OO:value", &thread_id_obj, &symbol_obj) == 0) {
+    auto *o = py_theory_check(self);
+    if (o == nullptr) {
         return nullptr;
     }
 
@@ -954,25 +952,25 @@ auto py_theory_assignment_spec = PyType_Spec{
 
 auto py_theory_methods = std::array{
     PyMethodDef{"register", py_theory_register, METH_O, PyDoc_STR("")},
-    PyMethodDef{"rewrite", py_theory_rewrite, METH_VARARGS, PyDoc_STR("")},
+    PyMethodDef{"rewrite", method_cast(py_theory_rewrite), METH_FASTCALL, PyDoc_STR("")},
     PyMethodDef{
         "rewrite_string",
-        py_theory_rewrite_string,
-        METH_VARARGS,
+        method_cast(py_theory_rewrite_string),
+        METH_FASTCALL,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "rewrite_files",
-        py_theory_rewrite_files,
-        METH_VARARGS,
+        method_cast(py_theory_rewrite_files),
+        METH_FASTCALL,
         PyDoc_STR(""),
     },
     PyMethodDef{"register_options", py_theory_register_options, METH_O, PyDoc_STR("")},
     PyMethodDef{"validate_options", py_theory_validate_options, METH_NOARGS, PyDoc_STR("")},
     PyMethodDef{"prepare", py_theory_prepare, METH_O, PyDoc_STR("")},
     PyMethodDef{"on_model", py_theory_on_model, METH_O, PyDoc_STR("")},
-    PyMethodDef{"on_stats", py_theory_on_stats, METH_VARARGS, PyDoc_STR("")},
-    PyMethodDef{"value", py_theory_value, METH_VARARGS, PyDoc_STR("")},
+    PyMethodDef{"on_stats", method_cast(py_theory_on_stats), METH_FASTCALL, PyDoc_STR("")},
+    PyMethodDef{"value", method_cast(py_theory_value), METH_FASTCALL, PyDoc_STR("")},
     PyMethodDef{"assignment", py_theory_assignment, METH_O, PyDoc_STR("")},
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };

@@ -73,8 +73,8 @@ template <ViewTypeGetter Type, ViewIter Keys, ViewIter Values, ViewIter Items> s
 //! Get an item or a list of items for a slice (Py_mp_subscript slot).
 auto py_sequence_subscript(PyObject *self, PyObject *key) -> PyObject *;
 
-//! Get the first index of a value (index method, METH_VARARGS).
-auto py_sequence_index(PyObject *self, PyObject *args) -> PyObject *;
+//! Get the first index of a value (index method, METH_FASTCALL).
+auto py_sequence_index(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject *;
 
 //! Count the occurrences of a value (count method, METH_O).
 auto py_sequence_count(PyObject *self, PyObject *value) -> PyObject *;

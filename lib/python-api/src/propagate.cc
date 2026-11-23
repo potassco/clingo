@@ -135,18 +135,6 @@ auto alloc_object(PyObject *type) -> PyObject * {
 
 // argument parsing
 
-auto parse_bool(PyObject *obj, bool *out) -> bool {
-    if (obj == nullptr) {
-        return true;
-    }
-    auto res = PyObject_IsTrue(obj);
-    if (res < 0) {
-        return false;
-    }
-    *out = res != 0;
-    return true;
-}
-
 auto parse_literal_arg(char const *fname, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames,
                        clingo_literal_t *lit) -> bool {
     PyObject *lit_obj{};
@@ -591,7 +579,7 @@ void py_assignment_dealloc(PyObject *self) {
 }
 
 auto py_assignment_methods = std::array{
-    PyMethodDef{"index", py_sequence_index, METH_VARARGS, PyDoc_STR("Get the first index of a value.")},
+    PyMethodDef{"index", method_cast(py_sequence_index), METH_FASTCALL, PyDoc_STR("Get the first index of a value.")},
     PyMethodDef{"count", py_sequence_count, METH_O, PyDoc_STR("Count the occurrences of a value.")},
     PyMethodDef{
         "decision",
@@ -836,7 +824,7 @@ auto py_trail_end(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObj
 }
 
 auto py_trail_methods = std::array{
-    PyMethodDef{"index", py_sequence_index, METH_VARARGS, PyDoc_STR("Get the first index of a value.")},
+    PyMethodDef{"index", method_cast(py_sequence_index), METH_FASTCALL, PyDoc_STR("Get the first index of a value.")},
     PyMethodDef{"count", py_sequence_count, METH_O, PyDoc_STR("Count the occurrences of a value.")},
     PyMethodDef{
         "level",
@@ -934,7 +922,7 @@ void py_view_dealloc(PyObject *self) {
 }
 
 auto py_view_methods = std::array{
-    PyMethodDef{"index", py_sequence_index, METH_VARARGS, PyDoc_STR("Get the first index of a value.")},
+    PyMethodDef{"index", method_cast(py_sequence_index), METH_FASTCALL, PyDoc_STR("Get the first index of a value.")},
     PyMethodDef{"count", py_sequence_count, METH_O, PyDoc_STR("Count the occurrences of a value.")},
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };

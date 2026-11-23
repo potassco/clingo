@@ -50,16 +50,23 @@ target_sources(clingo-python PRIVATE ${source})
 clingo_target_properties(TARGETS clingo-python FOLDER lib)
 # the bindings use the limited API of Python 3.11 and the corresponding
 # stable ABI if FindPython provides it (Development.SABIModule)
+#
+# NOTE: the limited API is only enabled together with the stable ABI because
+# on Windows pyconfig.h then links against python3.lib, which is not
+# available otherwise
 if(TARGET Python::SABIModule)
     set(pyclingo_python_target Python::SABIModule)
     set(pyclingo_sabi USE_SABI 3.11)
+    target_compile_definitions(clingo-python PRIVATE Py_LIMITED_API=0x030b0000)
 else()
     set(pyclingo_python_target Python::Module)
     set(pyclingo_sabi "")
 endif()
-target_compile_definitions(clingo-python
-    PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}"
-    PUBLIC Py_LIMITED_API=0x030b0000)
+target_compile_definitions(clingo-python PRIVATE CLINGO_PYTHON_VERSION="${Python_VERSION}")
+if(WIN32)
+    # rely on CMake for linking instead of the pragma in pyconfig.h (Python 3.14+)
+    target_compile_definitions(clingo-python PUBLIC Py_NO_LINK_LIB)
+endif()
 target_link_libraries(clingo-python PRIVATE clingo ${pyclingo_python_target})
 
 # the standalone module

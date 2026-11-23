@@ -620,10 +620,11 @@ auto stats_map_subscript_impl(PyObject *self, PyObject *key, PyObject *out_type)
     return py_stats_alloc(o->owner, o->valid, out_type, o->stats, subkey);
 }
 
-auto stats_map_get_impl(PyObject *self, PyObject *args, PyObject *out_type) -> PyObject * {
-    PyObject *key = nullptr;
+auto stats_map_get_impl(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, PyObject *out_type)
+    -> PyObject * {
+    PyObject *key = unset_arg();
     PyObject *def = Py_None;
-    if (PyArg_ParseTuple(args, "O|O:get", &key, &def) == 0) {
+    if (!parse_args("get", {"key"}, {"default"}, args, nargs, kwnames, {&key, &def})) {
         return nullptr;
     }
 
@@ -1190,26 +1191,26 @@ auto py_stats_map_subscript(PyObject *self, PyObject *key) -> PyObject * {
     return stats_map_subscript_impl(self, key, state->stats_type);
 }
 
-auto py_stats_map_view_get(PyObject *self, PyObject *args) -> PyObject * {
+auto py_stats_map_view_get(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
     auto *state = get_state_from_self(self);
     if (state == nullptr) {
         return nullptr;
     }
-    return stats_map_get_impl(self, args, state->stats_view_type);
+    return stats_map_get_impl(self, args, nargs, kwnames, state->stats_view_type);
 }
 
-auto py_stats_map_get(PyObject *self, PyObject *args) -> PyObject * {
+auto py_stats_map_get(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
     auto *state = get_state_from_self(self);
     if (state == nullptr) {
         return nullptr;
     }
-    return stats_map_get_impl(self, args, state->stats_type);
+    return stats_map_get_impl(self, args, nargs, kwnames, state->stats_type);
 }
 
-auto py_stats_map_setdefault(PyObject *self, PyObject *args) -> PyObject * {
-    PyObject *key = nullptr;
-    PyObject *def = nullptr;
-    if (PyArg_ParseTuple(args, "OO:setdefault", &key, &def) == 0) {
+auto py_stats_map_setdefault(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *key = unset_arg();
+    PyObject *def = unset_arg();
+    if (!parse_args("setdefault", {"key", "default"}, {}, args, nargs, {&key, &def})) {
         return nullptr;
     }
 
@@ -1442,7 +1443,7 @@ auto py_stats_view_spec = PyType_Spec{
 };
 
 auto py_stats_array_view_methods = std::array{
-    PyMethodDef{"index", py_sequence_index, METH_VARARGS, PyDoc_STR("Get the first index of a value.")},
+    PyMethodDef{"index", method_cast(py_sequence_index), METH_FASTCALL, PyDoc_STR("Get the first index of a value.")},
     PyMethodDef{"count", py_sequence_count, METH_O, PyDoc_STR("Count the occurrences of a value.")},
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
@@ -1470,7 +1471,7 @@ auto py_stats_array_view_spec = PyType_Spec{
 };
 
 auto py_stats_array_methods = std::array{
-    PyMethodDef{"index", py_sequence_index, METH_VARARGS, PyDoc_STR("Get the first index of a value.")},
+    PyMethodDef{"index", method_cast(py_sequence_index), METH_FASTCALL, PyDoc_STR("Get the first index of a value.")},
     PyMethodDef{"count", py_sequence_count, METH_O, PyDoc_STR("Count the occurrences of a value.")},
     PyMethodDef{"append", py_stats_array_append, METH_O, PyDoc_STR("Append a value to the array.")},
     PyMethodDef{"extend", py_stats_array_extend, METH_O, PyDoc_STR("Append values from an iterable to the array.")},
@@ -1495,7 +1496,12 @@ auto py_stats_array_spec = PyType_Spec{
 };
 
 auto py_stats_map_view_methods = std::array{
-    PyMethodDef{"get", py_stats_map_view_get, METH_VARARGS, PyDoc_STR("Get value for key or default.")},
+    PyMethodDef{
+        "get",
+        method_cast(py_stats_map_view_get),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Get value for key or default."),
+    },
     PyMethodDef{"keys", StatsMapViewProtocol::keys, METH_NOARGS, PyDoc_STR("Get a view on the keys.")},
     PyMethodDef{"values", StatsMapViewProtocol::values, METH_NOARGS, PyDoc_STR("Get a view on the values.")},
     PyMethodDef{"items", StatsMapViewProtocol::items, METH_NOARGS, PyDoc_STR("Get a view on the items.")},
@@ -1528,14 +1534,14 @@ auto py_stats_map_view_spec = PyType_Spec{
 auto py_stats_map_methods = std::array{
     PyMethodDef{
         "get",
-        py_stats_map_get,
-        METH_VARARGS,
+        method_cast(py_stats_map_get),
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Get value for key or default."),
     },
     PyMethodDef{
         "setdefault",
-        py_stats_map_setdefault,
-        METH_VARARGS,
+        method_cast(py_stats_map_setdefault),
+        METH_FASTCALL,
         PyDoc_STR("Insert key with default if not already in the map."),
     },
     PyMethodDef{

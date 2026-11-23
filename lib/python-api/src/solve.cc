@@ -325,18 +325,25 @@ auto symbols_cb(clingo_symbol_t const *symbols, size_t size, void *data) -> bool
     return true;
 }
 
-auto py_model_symbols(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    auto const *mdl = model_get(self, false);
-    if (mdl == nullptr) {
+auto py_model_symbols(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *shown_obj{};
+    PyObject *atoms_obj{};
+    PyObject *terms_obj{};
+    PyObject *theory_obj{};
+    if (!parse_args("symbols", {}, {"shown", "atoms", "terms", "theory"}, args, nargs, kwnames,
+                    {&shown_obj, &atoms_obj, &terms_obj, &theory_obj})) {
         return nullptr;
     }
-    static constexpr auto kwlist = std::array<char const *, 5>{"shown", "atoms", "terms", "theory", nullptr};
-    int shown = 0;
-    int atoms = 0;
-    int terms = 0;
-    int theory = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "|pppp:symbols", cast_kw(kwlist), &shown, &atoms, &terms, &theory) ==
-        0) {
+    auto shown = false;
+    auto atoms = false;
+    auto terms = false;
+    auto theory = false;
+    if (!parse_bool(shown_obj, &shown) || !parse_bool(atoms_obj, &atoms) || !parse_bool(terms_obj, &terms) ||
+        !parse_bool(theory_obj, &theory)) {
+        return nullptr;
+    }
+    auto const *mdl = model_get(self, false);
+    if (mdl == nullptr) {
         return nullptr;
     }
     auto *state = state_of(self);
@@ -344,16 +351,16 @@ auto py_model_symbols(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObj
         return nullptr;
     }
     clingo_show_type_bitset_t show = 0;
-    if (shown != 0) {
+    if (shown) {
         show |= clingo_show_type_shown;
     }
-    if (atoms != 0) {
+    if (atoms) {
         show |= clingo_show_type_atoms;
     }
-    if (terms != 0) {
+    if (terms) {
         show |= clingo_show_type_terms;
     }
-    if (theory != 0) {
+    if (theory) {
         show |= clingo_show_type_theory;
     }
     auto list = steal(PyList_New(0));
@@ -367,14 +374,13 @@ auto py_model_symbols(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObj
     return list.release();
 }
 
-auto py_model_contains(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    auto const *mdl = model_get(self, false);
-    if (mdl == nullptr) {
+auto py_model_contains(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *atom = unset_arg();
+    if (!parse_args("contains", {"atom"}, {}, args, nargs, kwnames, {&atom})) {
         return nullptr;
     }
-    static constexpr auto kwlist = std::array<char const *, 2>{"atom", nullptr};
-    PyObject *atom = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O:contains", cast_kw(kwlist), &atom) == 0) {
+    auto const *mdl = model_get(self, false);
+    if (mdl == nullptr) {
         return nullptr;
     }
     auto *state = state_of(self);
@@ -397,35 +403,41 @@ auto py_model_contains(PyObject *self, PyObject *args, PyObject *kwargs) -> PyOb
     return PyBool_FromLong(res ? 1 : 0);
 }
 
-auto py_model_is_true(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+auto py_model_is_true(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *lit_obj = unset_arg();
+    if (!parse_args("is_true", {"literal"}, {}, args, nargs, kwnames, {&lit_obj})) {
+        return nullptr;
+    }
+    clingo_literal_t lit = 0;
+    if (!parse_num(lit_obj, &lit, "literal")) {
+        return nullptr;
+    }
     auto const *mdl = model_get(self, false);
     if (mdl == nullptr) {
         return nullptr;
     }
-    static constexpr auto kwlist = std::array<char const *, 2>{"literal", nullptr};
-    int lit = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "i:is_true", cast_kw(kwlist), &lit) == 0) {
-        return nullptr;
-    }
     bool res = false;
-    if (!clingo_model_is_true(mdl, static_cast<clingo_literal_t>(lit), &res)) {
+    if (!clingo_model_is_true(mdl, lit, &res)) {
         return py_handle_error();
     }
     return PyBool_FromLong(res ? 1 : 0);
 }
 
-auto py_model_is_consequence(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+auto py_model_is_consequence(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *lit_obj = unset_arg();
+    if (!parse_args("is_consequence", {"literal"}, {}, args, nargs, kwnames, {&lit_obj})) {
+        return nullptr;
+    }
+    clingo_literal_t lit = 0;
+    if (!parse_num(lit_obj, &lit, "literal")) {
+        return nullptr;
+    }
     auto const *mdl = model_get(self, false);
     if (mdl == nullptr) {
         return nullptr;
     }
-    static constexpr auto kwlist = std::array<char const *, 2>{"literal", nullptr};
-    int lit = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "i:is_consequence", cast_kw(kwlist), &lit) == 0) {
-        return nullptr;
-    }
     clingo_consequence_t res = 0;
-    if (!clingo_model_is_consequence(mdl, static_cast<clingo_literal_t>(lit), &res)) {
+    if (!clingo_model_is_consequence(mdl, lit, &res)) {
         return py_handle_error();
     }
     if (res == clingo_consequence_unknown) {
@@ -467,14 +479,13 @@ auto parse_symbols(SolveModuleState *state, PyObject *obj, PyGuard &keep, PyBuff
     return true;
 }
 
-auto py_model_extend(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    auto *mdl = model_get(self, true);
-    if (mdl == nullptr) {
+auto py_model_extend(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *symbols = unset_arg();
+    if (!parse_args("extend", {"symbols"}, {}, args, nargs, kwnames, {&symbols})) {
         return nullptr;
     }
-    static constexpr auto kwlist = std::array<char const *, 2>{"symbols", nullptr};
-    PyObject *symbols = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O:extend", cast_kw(kwlist), &symbols) == 0) {
+    auto *mdl = model_get(self, true);
+    if (mdl == nullptr) {
         return nullptr;
     }
     auto *state = state_of(self);
@@ -651,31 +662,31 @@ auto py_model_methods = std::array{
     PyMethodDef{
         "symbols",
         method_cast(py_model_symbols),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Get the symbols in the model."),
     },
     PyMethodDef{
         "contains",
         method_cast(py_model_contains),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Check if the model contains the given atom."),
     },
     PyMethodDef{
         "is_true",
         method_cast(py_model_is_true),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Check if the given program literal is true."),
     },
     PyMethodDef{
         "is_consequence",
         method_cast(py_model_is_consequence),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Check if the given program literal is a consequence."),
     },
     PyMethodDef{
         "extend",
         method_cast(py_model_extend),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Extend a model with the given symbols."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
@@ -795,19 +806,17 @@ auto control_add(PyObject *self, PyObject *lits, bool negate) -> PyObject * {
     Py_RETURN_NONE;
 }
 
-auto py_control_add_clause(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 2>{"clause", nullptr};
-    PyObject *lits = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O:add_clause", cast_kw(kwlist), &lits) == 0) {
+auto py_control_add_clause(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *lits = unset_arg();
+    if (!parse_args("add_clause", {"clause"}, {}, args, nargs, kwnames, {&lits})) {
         return nullptr;
     }
     return control_add(self, lits, false);
 }
 
-auto py_control_add_nogood(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 2>{"nogood", nullptr};
-    PyObject *lits = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O:add_nogood", cast_kw(kwlist), &lits) == 0) {
+auto py_control_add_nogood(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *lits = unset_arg();
+    if (!parse_args("add_nogood", {"nogood"}, {}, args, nargs, kwnames, {&lits})) {
         return nullptr;
     }
     return control_add(self, lits, true);
@@ -817,13 +826,13 @@ auto py_control_methods = std::array{
     PyMethodDef{
         "add_clause",
         method_cast(py_control_add_clause),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Add a clause that applies to the current solving step."),
     },
     PyMethodDef{
         "add_nogood",
         method_cast(py_control_add_nogood),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Add a nogood that applies to the current solving step."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
@@ -1126,10 +1135,9 @@ auto py_handle_core(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject 
     return int_list(lits, size);
 }
 
-auto py_handle_wait(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 2>{"timeout", nullptr};
+auto py_handle_wait(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
     PyObject *timeout_obj = Py_None;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "|O:wait", cast_kw(kwlist), &timeout_obj) == 0) {
+    if (!parse_args("wait", {}, {"timeout"}, args, nargs, kwnames, {&timeout_obj})) {
         return nullptr;
     }
     model_clear(handle_cast(self)->cur_model);
@@ -1164,11 +1172,11 @@ auto py_handle_enter(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject
     return self;
 }
 
-auto py_handle_exit(PyObject *self, PyObject *args) -> PyObject * {
-    PyObject *type = nullptr;
-    PyObject *value = nullptr;
-    PyObject *traceback = nullptr;
-    if (PyArg_ParseTuple(args, "OOO:__exit__", &type, &value, &traceback) == 0) {
+auto py_handle_exit(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *type = unset_arg();
+    PyObject *value = unset_arg();
+    PyObject *traceback = unset_arg();
+    if (!parse_args("__exit__", {"type", "value", "traceback"}, {}, args, nargs, {&type, &value, &traceback})) {
         return nullptr;
     }
     close_handle(handle_cast(self));
@@ -1243,7 +1251,7 @@ auto py_handle_methods = std::array{
     PyMethodDef{
         "wait",
         method_cast(py_handle_wait),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Wait for the solve call to finish or the next result with an optional timeout."),
     },
     PyMethodDef{
@@ -1261,8 +1269,8 @@ auto py_handle_methods = std::array{
     PyMethodDef{"__enter__", py_handle_enter, METH_NOARGS, PyDoc_STR("Return self.")},
     PyMethodDef{
         "__exit__",
-        py_handle_exit,
-        METH_VARARGS,
+        method_cast(py_handle_exit),
+        METH_FASTCALL,
         PyDoc_STR("Stop the search and close the handle."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},

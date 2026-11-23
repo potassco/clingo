@@ -502,11 +502,10 @@ auto py_atom_base_subscript(PyObject *self, PyObject *key) -> PyObject * {
                        idx);
 }
 
-auto py_atom_base_get(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 3>{"key", "default", nullptr};
-    PyObject *key = nullptr;
+auto py_atom_base_get(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *key = unset_arg();
     PyObject *def = Py_None;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O|O:get", cast_kw(kwlist), &key, &def) == 0) {
+    if (!parse_args("get", {"key"}, {"default"}, args, nargs, kwnames, {&key, &def})) {
         return nullptr;
     }
 
@@ -552,7 +551,7 @@ auto py_atom_base_methods = std::array{
     PyMethodDef{
         "get",
         method_cast(py_atom_base_get),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Get value or default."),
     },
     PyMethodDef{"keys", AtomBaseProtocol::keys, METH_NOARGS, PyDoc_STR("Get a view on the keys.")},
@@ -915,11 +914,10 @@ auto py_term_base_contains(PyObject *self, PyObject *key) -> int {
     return res == 1 && std::cmp_less(idx, n) ? 1 : 0;
 }
 
-auto py_term_base_get(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 3>{"key", "default", nullptr};
-    PyObject *key = nullptr;
+auto py_term_base_get(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *key = unset_arg();
     PyObject *def = Py_None;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O|O:get", cast_kw(kwlist), &key, &def) == 0) {
+    if (!parse_args("get", {"key"}, {"default"}, args, nargs, kwnames, {&key, &def})) {
         return nullptr;
     }
     auto n = py_term_base_len(self);
@@ -964,7 +962,7 @@ auto py_term_base_methods = std::array{
     PyMethodDef{
         "get",
         method_cast(py_term_base_get),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Get value or default."),
     },
     PyMethodDef{"keys", TermBaseProtocol::keys, METH_NOARGS, PyDoc_STR("Get a view on the keys.")},
@@ -1575,7 +1573,7 @@ auto py_theory_base_iter(PyObject *self) -> PyObject * {
 }
 
 auto py_theory_base_methods = std::array{
-    PyMethodDef{"index", py_sequence_index, METH_VARARGS, PyDoc_STR("Get the first index of a value.")},
+    PyMethodDef{"index", method_cast(py_sequence_index), METH_FASTCALL, PyDoc_STR("Get the first index of a value.")},
     PyMethodDef{"count", py_sequence_count, METH_O, PyDoc_STR("Count the occurrences of a value.")},
     PyMethodDef{
         nullptr,
@@ -1907,11 +1905,10 @@ auto base_get(PyObject *self, PyObject *key, PyObject *def) -> PyObject * {
                        reinterpret_cast<PyTypeObject *>(state->atom_type), idx);
 }
 
-auto py_base_get(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 3>{"key", "default", nullptr};
-    PyObject *key = nullptr;
+auto py_base_get(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *key = unset_arg();
     PyObject *def = Py_None;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O|O:get", cast_kw(kwlist), &key, &def) == 0) {
+    if (!parse_args("get", {"key"}, {"default"}, args, nargs, kwnames, {&key, &def})) {
         return nullptr;
     }
     return base_get(self, key, def);
@@ -1948,11 +1945,14 @@ auto base_items(PyObject *self) -> PyObject * {
 
 using BaseProtocol = MappingProtocol<view_type, base_keys, base_values, base_items>;
 
-auto base_predicate(PyObject *self, PyObject *args, PyObject *kwargs,
+auto base_predicate(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
                     bool (*fun)(clingo_base_t const *, clingo_literal_t, bool *), char const *name) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 2>{"literal", nullptr};
+    PyObject *lit_obj = unset_arg();
+    if (!parse_args(name, {"literal"}, {}, args, nargs, {&lit_obj})) {
+        return nullptr;
+    }
     clingo_literal_t lit = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "i", cast_kw(kwlist), &lit) == 0) {
+    if (!parse_num(lit_obj, &lit, "literal")) {
         return nullptr;
     }
     auto *b = reinterpret_cast<PyBaseObject *>(self);
@@ -1960,31 +1960,30 @@ auto base_predicate(PyObject *self, PyObject *args, PyObject *kwargs,
     if (!fun(b->base, lit, &val)) {
         return py_handle_error();
     }
-    (void)name;
     if (val) {
         Py_RETURN_TRUE;
     }
     Py_RETURN_FALSE;
 }
 
-auto py_base_is_external(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    return base_predicate(self, args, kwargs, clingo_base_is_external, "is_external");
+auto py_base_is_external(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    return base_predicate(self, args, nargs, clingo_base_is_external, "is_external");
 }
 
-auto py_base_is_fact(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    return base_predicate(self, args, kwargs, clingo_base_is_fact, "is_fact");
+auto py_base_is_fact(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    return base_predicate(self, args, nargs, clingo_base_is_fact, "is_fact");
 }
 
-auto py_base_is_shown(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    return base_predicate(self, args, kwargs, clingo_base_is_shown, "is_shown");
+auto py_base_is_shown(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    return base_predicate(self, args, nargs, clingo_base_is_shown, "is_shown");
 }
 
-auto py_base_is_projected(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    return base_predicate(self, args, kwargs, clingo_base_is_projected, "is_projected");
+auto py_base_is_projected(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    return base_predicate(self, args, nargs, clingo_base_is_projected, "is_projected");
 }
 
-auto py_base_is_current(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    return base_predicate(self, args, kwargs, clingo_base_is_current, "is_current");
+auto py_base_is_current(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    return base_predicate(self, args, nargs, clingo_base_is_current, "is_current");
 }
 
 auto py_base_get_terms(PyObject *self, [[maybe_unused]] void *arg) -> PyObject * {
@@ -2015,7 +2014,7 @@ auto py_base_methods = std::array{
     PyMethodDef{
         "get",
         method_cast(py_base_get),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Get value or default."),
     },
     PyMethodDef{
@@ -2039,31 +2038,31 @@ auto py_base_methods = std::array{
     PyMethodDef{
         "is_external",
         method_cast(py_base_is_external),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL,
         PyDoc_STR("Check external."),
     },
     PyMethodDef{
         "is_fact",
         method_cast(py_base_is_fact),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL,
         PyDoc_STR("Check fact."),
     },
     PyMethodDef{
         "is_shown",
         method_cast(py_base_is_shown),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL,
         PyDoc_STR("Check shown."),
     },
     PyMethodDef{
         "is_projected",
         method_cast(py_base_is_projected),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL,
         PyDoc_STR("Check projected."),
     },
     PyMethodDef{
         "is_current",
         method_cast(py_base_is_current),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL,
         PyDoc_STR("Check current."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},

@@ -851,22 +851,39 @@ auto py_ast_richcompare(PyObject *a, PyObject *b, int op) -> PyObject * {
     Py_RETURN_RICHCOMPARE(clingo_ast_compare(x, y), 0, op);
 }
 
-//! Call the function with the given object followed by the extra arguments.
-auto call_with(PyObject *fun, PyObject *obj, PyObject *extra, PyObject *kwargs) -> PyObject * {
-    auto n = PyTuple_Size(extra);
-    if (n < 0) {
-        return nullptr;
+//! Collect the keyword arguments passed with the METH_FASTCALL | METH_KEYWORDS convention in a dictionary.
+auto collect_kwargs(PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames, PyGuard &kwargs) -> bool {
+    if (kwnames == nullptr) {
+        return true;
     }
-    auto args = steal(PyTuple_New(n + 1));
+    auto n = PyTuple_Size(kwnames);
+    if (n < 0) {
+        return false;
+    }
+    kwargs = steal(PyDict_New());
+    if (kwargs.get() == nullptr) {
+        return false;
+    }
+    auto values = std::span{args, static_cast<size_t>(nargs + n)}.subspan(static_cast<size_t>(nargs));
+    for (Py_ssize_t i = 0; i < n; ++i) {
+        if (PyDict_SetItem(kwargs.get(), PyTuple_GetItem(kwnames, i), values[static_cast<size_t>(i)]) < 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+//! Call the function with the given object followed by the extra arguments.
+auto call_with(PyObject *fun, PyObject *obj, std::span<PyObject *const> extra, PyObject *kwargs) -> PyObject * {
+    auto args = steal(PyTuple_New(static_cast<Py_ssize_t>(extra.size() + 1)));
     if (args.get() == nullptr) {
         return nullptr;
     }
     Py_INCREF(obj);
     PyTuple_SetItem(args.get(), 0, obj);
-    for (Py_ssize_t i = 0; i < n; ++i) {
-        auto *item = PyTuple_GetItem(extra, i);
-        Py_INCREF(item);
-        PyTuple_SetItem(args.get(), i + 1, item);
+    for (size_t i = 0; i < extra.size(); ++i) {
+        Py_INCREF(extra[i]);
+        PyTuple_SetItem(args.get(), static_cast<Py_ssize_t>(i + 1), extra[i]);
     }
     return PyObject_Call(fun, args.get(), kwargs);
 }
@@ -877,32 +894,29 @@ auto has_ast(clingo_ast_argument_info_t const &arg) -> bool {
            arg.type == clingo_ast_value_type_ast_array;
 }
 
-//! Split the given arguments into the leading required ones and the extra ones.
-auto split_args(char const *fname, PyObject *args, std::span<PyObject *> out, PyGuard &extra) -> bool {
-    auto nargs = PyTuple_Size(args);
-    if (nargs < 0) {
-        return false;
-    }
+//! Split the given positional arguments into the leading required ones and the extra ones.
+auto split_args(char const *fname, PyObject *const *args, Py_ssize_t nargs, std::span<PyObject *> out,
+                std::span<PyObject *const> &extra) -> bool {
     if (std::cmp_less(nargs, out.size())) {
         PyErr_Format(PyExc_TypeError, "%s() takes at least %zu positional arguments (%zd given)", fname, out.size(),
                      nargs);
         return false;
     }
-    for (size_t i = 0; i < out.size(); ++i) {
-        out[i] = PyTuple_GetItem(args, static_cast<Py_ssize_t>(i));
-    }
-    extra = steal(PyTuple_GetSlice(args, static_cast<Py_ssize_t>(out.size()), nargs));
-    return extra.get() != nullptr;
+    auto all = std::span{args, static_cast<size_t>(nargs)};
+    std::ranges::copy(all.first(out.size()), out.begin());
+    extra = all.subspan(out.size());
+    return true;
 }
 
-auto py_ast_visit(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+auto py_ast_visit(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
     auto *state = state_of(self);
     if (state == nullptr) {
         return nullptr;
     }
     auto visitor = std::array<PyObject *, 1>{};
-    auto extra = PyGuard{nullptr};
-    if (!split_args("visit", args, visitor, extra)) {
+    auto extra = std::span<PyObject *const>{};
+    auto kwargs = PyGuard{nullptr};
+    if (!split_args("visit", args, nargs, visitor, extra) || !collect_kwargs(args, nargs, kwnames, kwargs)) {
         return nullptr;
     }
     size_t index = 0;
@@ -922,13 +936,13 @@ auto py_ast_visit(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject 
         if (arg.type == clingo_ast_value_type_ast_array) {
             auto n = PyList_Size(value.get());
             for (Py_ssize_t j = 0; j < n; ++j) {
-                auto res = steal(call_with(visitor[0], PyList_GetItem(value.get(), j), extra.get(), kwargs));
+                auto res = steal(call_with(visitor[0], PyList_GetItem(value.get(), j), extra, kwargs.get()));
                 if (res.get() == nullptr) {
                     return nullptr;
                 }
             }
         } else if (value.get() != Py_None) {
-            auto res = steal(call_with(visitor[0], value.get(), extra.get(), kwargs));
+            auto res = steal(call_with(visitor[0], value.get(), extra, kwargs.get()));
             if (res.get() == nullptr) {
                 return nullptr;
             }
@@ -937,14 +951,15 @@ auto py_ast_visit(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject 
     Py_RETURN_NONE;
 }
 
-auto py_ast_transform(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+auto py_ast_transform(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
     auto *state = state_of(self);
     if (state == nullptr) {
         return nullptr;
     }
     auto req = std::array<PyObject *, 2>{};
-    auto extra = PyGuard{nullptr};
-    if (!split_args("transform", args, req, extra)) {
+    auto extra = std::span<PyObject *const>{};
+    auto kwargs = PyGuard{nullptr};
+    if (!split_args("transform", args, nargs, req, extra) || !collect_kwargs(args, nargs, kwnames, kwargs)) {
         return nullptr;
     }
     auto [lib, transformer] = req;
@@ -968,7 +983,7 @@ auto py_ast_transform(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObj
             // NOTE: the list is freshly created and can be modified
             auto n = PyList_Size(value);
             for (Py_ssize_t j = 0; j < n; ++j) {
-                auto *res = call_with(transformer, PyList_GetItem(value, j), extra.get(), kwargs);
+                auto *res = call_with(transformer, PyList_GetItem(value, j), extra, kwargs.get());
                 if (res == nullptr) {
                     return nullptr;
                 }
@@ -980,7 +995,7 @@ auto py_ast_transform(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObj
                 changed = true;
             }
         } else {
-            auto *res = call_with(transformer, value, extra.get(), kwargs);
+            auto *res = call_with(transformer, value, extra, kwargs.get());
             if (res == nullptr) {
                 return nullptr;
             }
@@ -998,34 +1013,36 @@ auto py_ast_transform(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObj
     return ast_construct(state, index, lib, values);
 }
 
-auto py_ast_update(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
+auto py_ast_update(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
     auto *state = state_of(self);
     if (state == nullptr) {
         return nullptr;
     }
-    auto nargs = PyTuple_Size(args);
     if (nargs != 1) {
         PyErr_Format(PyExc_TypeError, "update() takes exactly one positional argument (%zd given)", nargs);
         return nullptr;
     }
-    auto *lib = PyTuple_GetItem(args, 0);
+    auto *lib = args[0];
     size_t index = 0;
     auto const *record = ast_record(self, &index);
     if (record == nullptr) {
         return nullptr;
     }
     auto values = Arguments{};
-    if (kwargs != nullptr) {
-        PyObject *key = nullptr;
-        PyObject *value = nullptr;
-        Py_ssize_t pos = 0;
-        while (PyDict_Next(kwargs, &pos, &key, &value) != 0) {
+    if (kwnames != nullptr) {
+        auto n = PyTuple_Size(kwnames);
+        if (n < 0) {
+            return nullptr;
+        }
+        auto kwvalues = std::span{args, static_cast<size_t>(nargs + n)}.subspan(static_cast<size_t>(nargs));
+        for (Py_ssize_t i = 0; i < n; ++i) {
+            auto *key = PyTuple_GetItem(kwnames, i);
             auto j = find_argument(*record, key);
             if (j == record->size) {
                 PyErr_Format(PyExc_TypeError, "update() got an unexpected keyword argument '%U'", key);
                 return nullptr;
             }
-            values.objs[j] = value;
+            values.objs[j] = kwvalues[static_cast<size_t>(i)];
         }
     }
     for (size_t i = 0; i < record->size; ++i) {
@@ -1046,19 +1063,19 @@ auto py_ast_methods = std::array{
     PyMethodDef{
         "visit",
         method_cast(py_ast_visit),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Call the visitor with each child node followed by the given arguments."),
     },
     PyMethodDef{
         "transform",
         method_cast(py_ast_transform),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Replace child nodes by the non-None results of the transformer."),
     },
     PyMethodDef{
         "update",
         method_cast(py_ast_update),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR("Create a copy of the node with the given arguments replaced."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},

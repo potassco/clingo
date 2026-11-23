@@ -171,19 +171,6 @@ auto alloc_object(PyObject *type) -> PyObject * {
     return PyType_GenericAlloc(reinterpret_cast<PyTypeObject *>(type), 0);
 }
 
-//! Parse an optional flag keeping the default if the object is nullptr.
-auto parse_flag(PyObject *obj, bool *out) -> bool {
-    if (obj == nullptr) {
-        return true;
-    }
-    auto res = PyObject_IsTrue(obj);
-    if (res < 0) {
-        return false;
-    }
-    *out = res != 0;
-    return true;
-}
-
 // ownership
 
 auto owner_tag(ControlModuleState *state) -> void const * {
@@ -607,8 +594,8 @@ auto py_control_write_aspif(PyObject *self, PyObject *const *args, Py_ssize_t na
     auto preamble = false;
     auto preprocess = true;
     auto auto_preamble = preamble_obj == nullptr || preamble_obj == Py_None;
-    if (!parse_flag(symbols_obj, &symbols) || !parse_flag(append_obj, &append) ||
-        (!auto_preamble && !parse_flag(preamble_obj, &preamble)) || !parse_flag(preprocess_obj, &preprocess)) {
+    if (!parse_bool(symbols_obj, &symbols) || !parse_bool(append_obj, &append) ||
+        (!auto_preamble && !parse_bool(preamble_obj, &preamble)) || !parse_bool(preprocess_obj, &preprocess)) {
         return nullptr;
     }
     clingo_write_aspif_mode_t mode = 0;
@@ -765,7 +752,7 @@ auto py_control_start_solve(PyObject *self, PyObject *const *args, Py_ssize_t na
     }
     auto yield = false;
     auto async = false;
-    if (!parse_flag(yield_obj, &yield) || !parse_flag(async_obj, &async)) {
+    if (!parse_bool(yield_obj, &yield) || !parse_bool(async_obj, &async)) {
         return nullptr;
     }
     auto *state = state_of(self);
@@ -809,7 +796,7 @@ auto py_control_observe(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
         return nullptr;
     }
     auto preprocess = true;
-    if (!parse_flag(preprocess_obj, &preprocess)) {
+    if (!parse_bool(preprocess_obj, &preprocess)) {
         return nullptr;
     }
     auto *state = state_of(self);
@@ -834,7 +821,7 @@ auto py_control_discard(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
     }
     auto minimize = false;
     auto project = false;
-    if (!parse_flag(minimize_obj, &minimize) || !parse_flag(project_obj, &project)) {
+    if (!parse_bool(minimize_obj, &minimize) || !parse_bool(project_obj, &project)) {
         return nullptr;
     }
     clingo_discard_type_t type = 0;

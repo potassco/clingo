@@ -477,8 +477,8 @@ auto observer_trampoline() -> clingo_observer_t const * {
     return &obs;
 }
 
-auto py_observer_init_program([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
-                              [[maybe_unused]] PyObject *kwargs) -> PyObject * {
+auto py_observer_noop([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *const *args,
+                      [[maybe_unused]] Py_ssize_t nargs, [[maybe_unused]] PyObject *kwnames) -> PyObject * {
     Py_RETURN_NONE;
 }
 
@@ -486,56 +486,11 @@ auto py_observer_begin_step([[maybe_unused]] PyObject *self, [[maybe_unused]] Py
     Py_RETURN_NONE;
 }
 
-auto py_observer_end_step([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
-                          [[maybe_unused]] PyObject *kwargs) -> PyObject * {
-    Py_RETURN_NONE;
-}
-
-auto py_observer_rule([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
-                      [[maybe_unused]] PyObject *kwargs) -> PyObject * {
-    Py_RETURN_NONE;
-}
-
-auto py_observer_weight_rule([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
-                             [[maybe_unused]] PyObject *kwargs) -> PyObject * {
-    Py_RETURN_NONE;
-}
-
-auto py_observer_minimize([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
-                          [[maybe_unused]] PyObject *kwargs) -> PyObject * {
-    Py_RETURN_NONE;
-}
-
-auto py_observer_project([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
-                         [[maybe_unused]] PyObject *kwargs) -> PyObject * {
-    Py_RETURN_NONE;
-}
-
-auto py_observer_external([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
-                          [[maybe_unused]] PyObject *kwargs) -> PyObject * {
-    Py_RETURN_NONE;
-}
-
-auto py_observer_assume([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
-                        [[maybe_unused]] PyObject *kwargs) -> PyObject * {
-    Py_RETURN_NONE;
-}
-
-auto py_observer_heuristic([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
-                           [[maybe_unused]] PyObject *kwargs) -> PyObject * {
-    Py_RETURN_NONE;
-}
-
-auto py_observer_edge([[maybe_unused]] PyObject *self, [[maybe_unused]] PyObject *args,
-                      [[maybe_unused]] PyObject *kwargs) -> PyObject * {
-    Py_RETURN_NONE;
-}
-
 auto py_observer_methods = std::array{
     PyMethodDef{
         "init_program",
-        method_cast(py_observer_init_program),
-        METH_VARARGS | METH_KEYWORDS,
+        method_cast(py_observer_noop),
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
@@ -546,56 +501,56 @@ auto py_observer_methods = std::array{
     },
     PyMethodDef{
         "end_step",
-        method_cast(py_observer_end_step),
-        METH_VARARGS | METH_KEYWORDS,
+        method_cast(py_observer_noop),
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "rule",
-        method_cast(py_observer_rule),
-        METH_VARARGS | METH_KEYWORDS,
+        method_cast(py_observer_noop),
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "weight_rule",
-        method_cast(py_observer_weight_rule),
-        METH_VARARGS | METH_KEYWORDS,
+        method_cast(py_observer_noop),
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "minimize",
-        method_cast(py_observer_minimize),
-        METH_VARARGS | METH_KEYWORDS,
+        method_cast(py_observer_noop),
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "project",
-        method_cast(py_observer_project),
-        METH_VARARGS | METH_KEYWORDS,
+        method_cast(py_observer_noop),
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "external",
-        method_cast(py_observer_external),
-        METH_VARARGS | METH_KEYWORDS,
+        method_cast(py_observer_noop),
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "assume",
-        method_cast(py_observer_assume),
-        METH_VARARGS | METH_KEYWORDS,
+        method_cast(py_observer_noop),
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "heuristic",
-        method_cast(py_observer_heuristic),
-        METH_VARARGS | METH_KEYWORDS,
+        method_cast(py_observer_noop),
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "edge",
-        method_cast(py_observer_edge),
-        METH_VARARGS | METH_KEYWORDS,
+        method_cast(py_observer_noop),
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
@@ -651,10 +606,9 @@ auto ensure_backend_open(PyObject *self) -> clingo_backend_t * {
     return b->backend;
 }
 
-auto py_backend_atom(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 2>{"symbol", nullptr};
+auto py_backend_atom(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
     PyObject *sym_obj = Py_None;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "|O:atom", cast_kw(kwlist), &sym_obj) == 0) {
+    if (!parse_args("atom", {}, {"symbol"}, args, nargs, kwnames, {&sym_obj})) {
         return nullptr;
     }
 
@@ -684,12 +638,15 @@ auto py_backend_atom(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObje
     return PyLong_FromSize_t(static_cast<size_t>(atom));
 }
 
-auto py_backend_rule(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 4>{"head", "body", "choice", nullptr};
-    PyObject *head_obj = nullptr;
+auto py_backend_rule(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *head_obj = unset_arg();
     PyObject *body_obj = Py_None;
-    int choice = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O|Op:rule", cast_kw(kwlist), &head_obj, &body_obj, &choice) == 0) {
+    PyObject *choice_obj{};
+    if (!parse_args("rule", {"head"}, {"body", "choice"}, args, nargs, kwnames, {&head_obj, &body_obj, &choice_obj})) {
+        return nullptr;
+    }
+    auto choice = false;
+    if (!parse_bool(choice_obj, &choice)) {
         return nullptr;
     }
 
@@ -706,20 +663,23 @@ auto py_backend_rule(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObje
     if (backend == nullptr) {
         return nullptr;
     }
-    if (!clingo_backend_rule(backend, choice != 0, head.data(), head.size(), body.data(), body.size())) {
+    if (!clingo_backend_rule(backend, choice, head.data(), head.size(), body.data(), body.size())) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
 }
 
-auto py_backend_weight_rule(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 5>{"head", "lower_bound", "body", "choice", nullptr};
-    PyObject *head_obj = nullptr;
-    PyObject *lower_obj = nullptr;
-    PyObject *body_obj = nullptr;
-    int choice = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OOO|p:weight_rule", cast_kw(kwlist), &head_obj, &lower_obj,
-                                    &body_obj, &choice) == 0) {
+auto py_backend_weight_rule(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *head_obj = unset_arg();
+    PyObject *lower_obj = unset_arg();
+    PyObject *body_obj = unset_arg();
+    PyObject *choice_obj{};
+    if (!parse_args("weight_rule", {"head", "lower_bound", "body"}, {"choice"}, args, nargs, kwnames,
+                    {&head_obj, &lower_obj, &body_obj, &choice_obj})) {
+        return nullptr;
+    }
+    auto choice = false;
+    if (!parse_bool(choice_obj, &choice)) {
         return nullptr;
     }
 
@@ -740,18 +700,21 @@ auto py_backend_weight_rule(PyObject *self, PyObject *args, PyObject *kwargs) ->
     if (backend == nullptr) {
         return nullptr;
     }
-    if (!clingo_backend_weight_rule(backend, choice != 0, head.data(), head.size(),
-                                    static_cast<clingo_weight_t>(lower_i), body.data(), body.size())) {
+    if (!clingo_backend_weight_rule(backend, choice, head.data(), head.size(), static_cast<clingo_weight_t>(lower_i),
+                                    body.data(), body.size())) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
 }
 
-auto py_backend_minimize(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 3>{"literals", "priority", nullptr};
-    PyObject *lits_obj = nullptr;
-    int priority = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O|i:minimize", cast_kw(kwlist), &lits_obj, &priority) == 0) {
+auto py_backend_minimize(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *lits_obj = unset_arg();
+    PyObject *priority_obj{};
+    if (!parse_args("minimize", {"literals"}, {"priority"}, args, nargs, kwnames, {&lits_obj, &priority_obj})) {
+        return nullptr;
+    }
+    clingo_weight_t priority = 0;
+    if (!parse_num(priority_obj, &priority, "priority")) {
         return nullptr;
     }
 
@@ -764,16 +727,15 @@ auto py_backend_minimize(PyObject *self, PyObject *args, PyObject *kwargs) -> Py
     if (backend == nullptr) {
         return nullptr;
     }
-    if (!clingo_backend_minimize(backend, static_cast<clingo_weight_t>(priority), lits.data(), lits.size())) {
+    if (!clingo_backend_minimize(backend, priority, lits.data(), lits.size())) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
 }
 
-auto py_backend_project(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 2>{"atoms", nullptr};
-    PyObject *atoms_obj = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O:project", cast_kw(kwlist), &atoms_obj) == 0) {
+auto py_backend_project(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *atoms_obj = unset_arg();
+    if (!parse_args("project", {"atoms"}, {}, args, nargs, kwnames, {&atoms_obj})) {
         return nullptr;
     }
 
@@ -792,11 +754,10 @@ auto py_backend_project(PyObject *self, PyObject *args, PyObject *kwargs) -> PyO
     Py_RETURN_NONE;
 }
 
-auto py_backend_external(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 3>{"atom", "type", nullptr};
-    PyObject *atom_obj = nullptr;
-    PyObject *type_obj = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO:external", cast_kw(kwlist), &atom_obj, &type_obj) == 0) {
+auto py_backend_external(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *atom_obj = unset_arg();
+    PyObject *type_obj = unset_arg();
+    if (!parse_args("external", {"atom", "type"}, {}, args, nargs, kwnames, {&atom_obj, &type_obj})) {
         return nullptr;
     }
 
@@ -819,10 +780,9 @@ auto py_backend_external(PyObject *self, PyObject *args, PyObject *kwargs) -> Py
     Py_RETURN_NONE;
 }
 
-auto py_backend_assume(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 2>{"literals", nullptr};
-    PyObject *lits_obj = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O:assume", cast_kw(kwlist), &lits_obj) == 0) {
+auto py_backend_assume(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *lits_obj = unset_arg();
+    if (!parse_args("assume", {"literals"}, {}, args, nargs, kwnames, {&lits_obj})) {
         return nullptr;
     }
 
@@ -841,16 +801,14 @@ auto py_backend_assume(PyObject *self, PyObject *args, PyObject *kwargs) -> PyOb
     Py_RETURN_NONE;
 }
 
-auto py_backend_heuristic(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist =
-        std::array<char const *, 6>{"atom", "type", "weight", "priority", "condition", nullptr};
-    PyObject *atom_obj = nullptr;
-    PyObject *type_obj = nullptr;
-    PyObject *weight_obj = nullptr;
-    PyObject *priority_obj = nullptr;
+auto py_backend_heuristic(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *atom_obj = unset_arg();
+    PyObject *type_obj = unset_arg();
+    PyObject *weight_obj = unset_arg();
+    PyObject *priority_obj{};
     PyObject *cond_obj = Py_None;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OOO|OO:heuristic", cast_kw(kwlist), &atom_obj, &type_obj,
-                                    &weight_obj, &priority_obj, &cond_obj) == 0) {
+    if (!parse_args("heuristic", {"atom", "type", "weight"}, {"priority", "condition"}, args, nargs, kwnames,
+                    {&atom_obj, &type_obj, &weight_obj, &priority_obj, &cond_obj})) {
         return nullptr;
     }
 
@@ -878,12 +836,11 @@ auto py_backend_heuristic(PyObject *self, PyObject *args, PyObject *kwargs) -> P
     Py_RETURN_NONE;
 }
 
-auto py_backend_edge(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 4>{"node_u", "node_v", "condition", nullptr};
-    PyObject *u_obj = nullptr;
-    PyObject *v_obj = nullptr;
-    PyObject *cond_obj = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OOO:edge", cast_kw(kwlist), &u_obj, &v_obj, &cond_obj) == 0) {
+auto py_backend_edge(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *u_obj = unset_arg();
+    PyObject *v_obj = unset_arg();
+    PyObject *cond_obj = unset_arg();
+    if (!parse_args("edge", {"node_u", "node_v", "condition"}, {}, args, nargs, kwnames, {&u_obj, &v_obj, &cond_obj})) {
         return nullptr;
     }
 
@@ -908,10 +865,14 @@ auto py_backend_edge(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObje
     Py_RETURN_NONE;
 }
 
-auto py_backend_theory_number(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 2>{"number", nullptr};
+auto py_backend_theory_number(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *number_obj = unset_arg();
+    if (!parse_args("theory_number", {"number"}, {}, args, nargs, kwnames, {&number_obj})) {
+        return nullptr;
+    }
     int number = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "i:theory_number", cast_kw(kwlist), &number) == 0) {
+    if (!parse_num(number_obj, &number, "number")) {
         return nullptr;
     }
 
@@ -927,11 +888,14 @@ auto py_backend_theory_number(PyObject *self, PyObject *args, PyObject *kwargs) 
     return PyLong_FromSize_t(static_cast<size_t>(id));
 }
 
-auto py_backend_theory_string(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 2>{"string", nullptr};
-    char const *text = nullptr;
-    Py_ssize_t n = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#:theory_string", cast_kw(kwlist), &text, &n) == 0) {
+auto py_backend_theory_string(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *text_obj = unset_arg();
+    if (!parse_args("theory_string", {"string"}, {}, args, nargs, kwnames, {&text_obj})) {
+        return nullptr;
+    }
+    std::string_view text;
+    if (!parse_str(text_obj, &text, "string")) {
         return nullptr;
     }
 
@@ -941,16 +905,16 @@ auto py_backend_theory_string(PyObject *self, PyObject *args, PyObject *kwargs) 
     }
 
     clingo_id_t id = 0;
-    if (!clingo_backend_theory_term_string(backend, text, static_cast<size_t>(n), &id)) {
+    if (!clingo_backend_theory_term_string(backend, text.data(), text.size(), &id)) {
         return py_handle_error();
     }
     return PyLong_FromSize_t(static_cast<size_t>(id));
 }
 
-auto py_backend_theory_symbol(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 2>{"symbol", nullptr};
-    PyObject *sym_obj = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "O:theory_symbol", cast_kw(kwlist), &sym_obj) == 0) {
+auto py_backend_theory_symbol(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *sym_obj = unset_arg();
+    if (!parse_args("theory_symbol", {"symbol"}, {}, args, nargs, kwnames, {&sym_obj})) {
         return nullptr;
     }
 
@@ -976,11 +940,11 @@ auto py_backend_theory_symbol(PyObject *self, PyObject *args, PyObject *kwargs) 
     return PyLong_FromSize_t(static_cast<size_t>(id));
 }
 
-auto py_backend_theory_sequence(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 3>{"type", "elements", nullptr};
-    PyObject *type_obj = nullptr;
-    PyObject *elems_obj = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO:theory_sequence", cast_kw(kwlist), &type_obj, &elems_obj) == 0) {
+auto py_backend_theory_sequence(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *type_obj = unset_arg();
+    PyObject *elems_obj = unset_arg();
+    if (!parse_args("theory_sequence", {"type", "elements"}, {}, args, nargs, kwnames, {&type_obj, &elems_obj})) {
         return nullptr;
     }
 
@@ -1006,13 +970,15 @@ auto py_backend_theory_sequence(PyObject *self, PyObject *args, PyObject *kwargs
     return PyLong_FromSize_t(static_cast<size_t>(id));
 }
 
-auto py_backend_theory_function(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 3>{"name", "arguments", nullptr};
-    char const *name = nullptr;
-    Py_ssize_t name_n = 0;
-    PyObject *args_obj = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "s#O:theory_function", cast_kw(kwlist), &name, &name_n, &args_obj) ==
-        0) {
+auto py_backend_theory_function(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *name_obj = unset_arg();
+    PyObject *args_obj = unset_arg();
+    if (!parse_args("theory_function", {"name", "arguments"}, {}, args, nargs, kwnames, {&name_obj, &args_obj})) {
+        return nullptr;
+    }
+    std::string_view name;
+    if (!parse_str(name_obj, &name, "name")) {
         return nullptr;
     }
 
@@ -1027,18 +993,17 @@ auto py_backend_theory_function(PyObject *self, PyObject *args, PyObject *kwargs
     }
 
     clingo_id_t id = 0;
-    if (!clingo_backend_theory_term_function(backend, name, static_cast<size_t>(name_n), arg_ids.data(), arg_ids.size(),
-                                             &id)) {
+    if (!clingo_backend_theory_term_function(backend, name.data(), name.size(), arg_ids.data(), arg_ids.size(), &id)) {
         return py_handle_error();
     }
     return PyLong_FromSize_t(static_cast<size_t>(id));
 }
 
-auto py_backend_theory_element(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 3>{"tuple", "condition", nullptr};
-    PyObject *tuple_obj = nullptr;
-    PyObject *cond_obj = nullptr;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OO:theory_element", cast_kw(kwlist), &tuple_obj, &cond_obj) == 0) {
+auto py_backend_theory_element(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+    -> PyObject * {
+    PyObject *tuple_obj = unset_arg();
+    PyObject *cond_obj = unset_arg();
+    if (!parse_args("theory_element", {"tuple", "condition"}, {}, args, nargs, kwnames, {&tuple_obj, &cond_obj})) {
         return nullptr;
     }
 
@@ -1063,14 +1028,13 @@ auto py_backend_theory_element(PyObject *self, PyObject *args, PyObject *kwargs)
     return PyLong_FromSize_t(static_cast<size_t>(id));
 }
 
-auto py_backend_theory_atom(PyObject *self, PyObject *args, PyObject *kwargs) -> PyObject * {
-    static constexpr auto kwlist = std::array<char const *, 5>{"atom", "name", "elements", "guard", nullptr};
-    PyObject *atom_obj = nullptr;
-    PyObject *name_obj = nullptr;
-    PyObject *elems_obj = nullptr;
+auto py_backend_theory_atom(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *atom_obj = unset_arg();
+    PyObject *name_obj = unset_arg();
+    PyObject *elems_obj = unset_arg();
     PyObject *guard_obj = Py_None;
-    if (PyArg_ParseTupleAndKeywords(args, kwargs, "OOO|O:theory_atom", cast_kw(kwlist), &atom_obj, &name_obj,
-                                    &elems_obj, &guard_obj) == 0) {
+    if (!parse_args("theory_atom", {"atom", "name", "elements"}, {"guard"}, args, nargs, kwnames,
+                    {&atom_obj, &name_obj, &elems_obj, &guard_obj})) {
         return nullptr;
     }
 
@@ -1154,97 +1118,97 @@ auto py_backend_methods = std::array{
     PyMethodDef{
         "atom",
         method_cast(py_backend_atom),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "rule",
         method_cast(py_backend_rule),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "weight_rule",
         method_cast(py_backend_weight_rule),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "minimize",
         method_cast(py_backend_minimize),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "project",
         method_cast(py_backend_project),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "external",
         method_cast(py_backend_external),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "assume",
         method_cast(py_backend_assume),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "heuristic",
         method_cast(py_backend_heuristic),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "edge",
         method_cast(py_backend_edge),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_number",
         method_cast(py_backend_theory_number),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_string",
         method_cast(py_backend_theory_string),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_symbol",
         method_cast(py_backend_theory_symbol),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_sequence",
         method_cast(py_backend_theory_sequence),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_function",
         method_cast(py_backend_theory_function),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_element",
         method_cast(py_backend_theory_element),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{
         "theory_atom",
         method_cast(py_backend_theory_atom),
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         PyDoc_STR(""),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
@@ -1325,17 +1289,13 @@ auto py_backend_manager_enter(PyObject *self, [[maybe_unused]] PyObject *args) -
     return obj.release();
 }
 
-auto py_backend_manager_exit(PyObject *self, PyObject *args) -> PyObject * {
-    PyObject *type = nullptr;
-    PyObject *value = nullptr;
-    PyObject *traceback = nullptr;
-    if (PyArg_ParseTuple(args, "OOO:__exit__", &type, &value, &traceback) == 0) {
+auto py_backend_manager_exit(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
+    PyObject *type = unset_arg();
+    PyObject *value = unset_arg();
+    PyObject *traceback = unset_arg();
+    if (!parse_args("__exit__", {"type", "value", "traceback"}, {}, args, nargs, {&type, &value, &traceback})) {
         return nullptr;
     }
-    (void)type;
-    (void)value;
-    (void)traceback;
-
     auto *mgr = py_backend_manager_cast(self);
     auto *old = std::exchange(mgr->backend, nullptr);
     py_backend_manager_invalidate(mgr);
@@ -1347,7 +1307,7 @@ auto py_backend_manager_exit(PyObject *self, PyObject *args) -> PyObject * {
 
 auto py_backend_manager_methods = std::array{
     PyMethodDef{"__enter__", py_backend_manager_enter, METH_NOARGS, PyDoc_STR("")},
-    PyMethodDef{"__exit__", py_backend_manager_exit, METH_VARARGS, PyDoc_STR("")},
+    PyMethodDef{"__exit__", method_cast(py_backend_manager_exit), METH_FASTCALL, PyDoc_STR("")},
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
 
