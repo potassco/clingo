@@ -997,7 +997,7 @@ auto make_ptr(clingo_ast_t *ast) -> ASTPtr {
     return {ast, clingo_ast_free};
 }
 
-//! Rebuild the given AST from its arguments using clingo_ast_construct_values().
+//! Rebuild the given AST from its arguments using clingo_ast_construct().
 //!
 //! The arguments are read according to the AST description and child ASTs are
 //! rebuilt recursively. The types of the visited ASTs are collected.
@@ -1080,7 +1080,7 @@ auto rebuild(clingo_lib_t *lib, clingo_ast_t *ast, std::set<clingo_ast_type_t> &
         }
     }
     clingo_ast_t *res = nullptr;
-    auto constructed = clingo_ast_construct_values(lib, type, values.data(), values.size(), &res);
+    auto constructed = clingo_ast_construct(lib, type, values.data(), values.size(), &res);
     if (!constructed) {
         auto code = clingo_result_t{};
         auto msg = clingo_string_t{};
@@ -1162,8 +1162,8 @@ TEST_CASE("ast info", "[cxx][ast][info]") {
         REQUIRE(clingo_ast_attribute_get_location(c_cast(x), clingo_ast_attribute_location, &loc));
         auto check = [&](std::vector<clingo_ast_value_t> const &values) {
             clingo_ast_t *res = nullptr;
-            REQUIRE(!clingo_ast_construct_values(c_lib, clingo_ast_type_term_unary_operation, values.data(),
-                                                 values.size(), &res));
+            REQUIRE(
+                !clingo_ast_construct(c_lib, clingo_ast_type_term_unary_operation, values.data(), values.size(), &res));
             REQUIRE(res == nullptr);
             clingo_clear_error();
         };
@@ -1177,12 +1177,11 @@ TEST_CASE("ast info", "[cxx][ast][info]") {
         auto vop = value(clingo_ast_value_type_enum, [](auto &val) { val.number = 0; });
         auto vx = value(clingo_ast_value_type_ast, [&](auto &val) { val.ast = c_cast(x); });
         clingo_ast_t *proj = nullptr;
-        REQUIRE(clingo_ast_construct_values(c_lib, clingo_ast_type_projection, &vloc, 1, &proj));
+        REQUIRE(clingo_ast_construct(c_lib, clingo_ast_type_projection, &vloc, 1, &proj));
         auto p = make_ptr(proj);
         clingo_ast_t *res = nullptr;
         auto valid = std::vector{vloc, vop, vx};
-        REQUIRE(
-            clingo_ast_construct_values(c_lib, clingo_ast_type_term_unary_operation, valid.data(), valid.size(), &res));
+        REQUIRE(clingo_ast_construct(c_lib, clingo_ast_type_term_unary_operation, valid.data(), valid.size(), &res));
         clingo_ast_free(res);
         // wrong number of values, wrong order, invalid enumeration value, missing AST, and wrong AST type
         check({vloc, vop});
@@ -1190,7 +1189,7 @@ TEST_CASE("ast info", "[cxx][ast][info]") {
         check({vloc, value(clingo_ast_value_type_enum, [](auto &val) { val.number = 42; }), vx});
         check({vloc, vop, value(clingo_ast_value_type_ast, [](auto &val) { val.ast = nullptr; })});
         check({vloc, vop, value(clingo_ast_value_type_ast, [&](auto &val) { val.ast = p.get(); })});
-        REQUIRE(!clingo_ast_construct_values(c_lib, -1, nullptr, 0, &res));
+        REQUIRE(!clingo_ast_construct(c_lib, -1, nullptr, 0, &res));
         clingo_clear_error();
     }
 }

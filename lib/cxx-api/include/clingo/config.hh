@@ -4,10 +4,23 @@
 
 #include <clingo/config.h>
 
+#include <optional>
+#include <string>
+#include <string_view>
+
 namespace Clingo {
+
+//! @example config.cc
+//! The example shows how to configure the solver.
+//!
+//! This is the C++ version of @ref config.c and produces the same output.
+//!
+//! ## Code ##
 
 //! @addtogroup cpp_config
 //! Configuration of search and enumeration algorithms.
+//!
+//! For an example, see @ref config.cc.
 //!
 //! Entries in a configuration are organized hierarchically. Subentries are
 //! either accessed by name for map entries or by offset for array entries.

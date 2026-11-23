@@ -1,92 +1,106 @@
-#include <clingo.h>
+#include <clingo/control.h>
+#include <clingo/solve.h>
 
-// NOLINTNEXTLINE(STDC_FORMAT_MACROS)
-#define STDC_FORMAT_MACROS
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef _MSC_VER
-#define GC(f) __attribute__((cleanup(f)))
-#else
-#define GC(f)
-#endif
-void free_lib(clingo_lib_t **lib) {
-    clingo_lib_release(*lib);
-}
-void free_ctl(clingo_control_t **ctl) {
-    clingo_control_release(*ctl);
-}
-void handle_error(bool ret) {
-    if (!ret) {
-        exit(1);
-    }
-}
+#define CHECK(call)                                                                                                    \
+    do {                                                                                                               \
+        if (!(call)) {                                                                                                 \
+            status = false;                                                                                            \
+            goto cleanup;                                                                                              \
+        }                                                                                                              \
+    } while (0)
+#define ERROR(cond, type, msg)                                                                                         \
+    do {                                                                                                               \
+        if (cond) {                                                                                                    \
+            clingo_set_error(clingo_result_##type, msg, strlen(msg));                                                  \
+            status = false;                                                                                            \
+            goto cleanup;                                                                                              \
+        }                                                                                                              \
+    } while (0)
 
-bool print_symbols(clingo_symbol_t const *symbols, size_t size, void *data) {
-    (void)data;
-    clingo_string_t str;
-    bool res = true;
-    clingo_string_builder_t *bld = NULL;
-    res = clingo_string_builder_new(&bld);
-    if (!res) {
-        goto out;
-    }
-    for (size_t i = 0; i != size; ++i) {
+//! Print the given symbols.
+static bool print_symbols(clingo_symbol_t const *symbols, size_t size, void *data) {
+    bool status = true;
+    clingo_string_builder_t *bld = (clingo_string_builder_t *)data;
+    for (size_t i = 0; i < size; ++i) {
+        clingo_string_t str = {NULL, 0};
         clingo_string_builder_clear(bld);
-        res = clingo_symbol_to_string(symbols[i], bld);
-        if (!res) {
-            goto out;
-        }
-        res = clingo_string_builder_string(bld, &str);
-        if (!res) {
-            goto out;
-        }
+        CHECK(clingo_symbol_to_string(symbols[i], bld));
+        CHECK(clingo_string_builder_string(bld, &str));
         printf(" %.*s", (int)str.size, str.data);
     }
-
-out:
-    clingo_string_builder_free(bld);
-    return res;
+cleanup:
+    return status;
 }
 
-bool on_model(clingo_model_t *mdl, void *data, bool *goon) {
-    (void)data;
-    printf("Answer:");
-    bool res = clingo_model_symbols(mdl, clingo_show_type_shown, print_symbols, NULL);
-    if (!res) {
-        return res;
-    }
-    printf("\n");
+//! Print the given model.
+static bool on_model(clingo_model_t *model, void *data, bool *goon) {
+    bool status = true;
     *goon = true;
-    return true;
+    printf("Model:");
+    CHECK(clingo_model_symbols(model, clingo_show_type_shown, &print_symbols, data));
+    printf("\n");
+cleanup:
+    return status;
 }
 
-int main(int argc, char *argv[]) {
-    (void)argc;
-    (void)argv;
+//! Simple example showing how to ground and solve a logic program.
+//!
+//! The command line arguments are passed on to the control object.
+int main(int argc, char const **argv) {
+    bool status = true;
 
-    clingo_lib_t *lib GC(free_lib) = NULL;
-    handle_error(clingo_lib_new(0, clingo_log_level_info, NULL, NULL, 0, &lib));
-
-    clingo_control_t *ctl GC(free_ctl) = NULL;
-    handle_error(clingo_control_new(lib, NULL, 0, &ctl));
+    clingo_lib_t *lib = NULL;
+    clingo_control_t *ctl = NULL;
+    clingo_solve_handle_t *hnd = NULL;
+    clingo_string_builder_t *bld = NULL;
+    clingo_string_t *args = NULL;
+    size_t const nargs = argc > 1 ? (size_t)argc - 1 : 0;
 
     char const *prg = "1 {a; b} 1.";
-    handle_error(clingo_control_parse_string(ctl, prg, strlen(prg)));
+    char const *part_name = "base";
+    clingo_part_t part = {part_name, strlen(part_name), NULL, 0};
+    clingo_solve_event_handler_t seh = {&on_model, NULL, NULL, NULL, NULL};
+    clingo_solve_result_bitset_t res = clingo_solve_result_empty;
 
-    clingo_part_t const parts[] = {{"base", 4, NULL, 0}};
-    handle_error(clingo_control_ground(ctl, parts, 1, NULL, NULL));
+    // convert the command line arguments
+    args = (clingo_string_t *)malloc((nargs + 1) * sizeof(clingo_string_t));
+    ERROR(args == NULL, bad_alloc, "failed to allocate memory for arguments");
+    for (size_t i = 0; i < nargs; ++i) {
+        args[i].data = argv[i + 1];
+        args[i].size = strlen(argv[i + 1]);
+    }
 
-    clingo_solve_event_handler_t const seh = {on_model, NULL, NULL, NULL, NULL};
+    // create a library and a control object
+    CHECK(clingo_string_builder_new(&bld));
+    CHECK(clingo_lib_new(clingo_lib_flags_fast_release | clingo_lib_flags_slotted, clingo_log_level_info, NULL, NULL,
+                         20, &lib));
+    CHECK(clingo_control_new(lib, args, nargs, &ctl));
 
-    clingo_solve_handle_t *hnd = NULL;
-    handle_error(clingo_control_solve(ctl, clingo_solve_mode_async, NULL, 0, &seh, NULL, &hnd));
+    // parse and ground the program
+    CHECK(clingo_control_parse_string(ctl, prg, strlen(prg)));
+    CHECK(clingo_control_ground(ctl, &part, 1, NULL, NULL));
 
-    clingo_solve_result_bitset_t res = 0;
-    clingo_solve_handle_get(hnd, &res);
+    // solve printing models with the event handler
+    CHECK(clingo_control_solve(ctl, clingo_solve_mode_default, NULL, 0, &seh, bld, &hnd));
+    CHECK(clingo_solve_handle_get(hnd, &res));
 
-    printf("solving finished with result: %d\n", res);
+cleanup:
+    if (!status) {
+        clingo_string_t err_msg = {NULL, 0};
+        clingo_result_t code = 0;
+        clingo_get_error(&code, &err_msg);
+        fprintf(stderr, "Error: %.*s\n", (int)err_msg.size, err_msg.data);
+    }
 
-    return 0;
+    clingo_solve_handle_close(hnd);
+    clingo_control_release(ctl);
+    clingo_lib_release(lib);
+    clingo_string_builder_free(bld);
+    free(args);
+
+    return status ? EXIT_SUCCESS : EXIT_FAILURE;
 }

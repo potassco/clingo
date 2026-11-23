@@ -42,6 +42,9 @@ cleanup:
 }
 
 // Build ":- not a." as a statement AST.
+//
+// The values passed to clingo_ast_construct() have to follow the order and
+// types of the node's record as given by clingo_ast_info().
 bool build_constraint(clingo_lib_t *lib, clingo_location_t const *loc, clingo_ast_t **rule) {
     bool status = true;
     char const *atom_str = "a";
@@ -52,21 +55,66 @@ bool build_constraint(clingo_lib_t *lib, clingo_location_t const *loc, clingo_as
     clingo_ast_t *body = NULL;
     clingo_ast_t *head = NULL;
 
-    // Construct emty argument tuple "()".
-    CHECK(clingo_ast_construct(lib, clingo_ast_type_argument_tuple, &args, NULL, (size_t)0));
+    // Construct empty argument tuple "()".
+    {
+        clingo_ast_value_t const values[] = {
+            {.type = clingo_ast_value_type_ast_array, .ast_array = {NULL, 0}},
+        };
+        CHECK(clingo_ast_construct(lib, clingo_ast_type_argument_tuple, values, 1, &args));
+    }
     // Construct function term "a()" equivalent to "a".
-    CHECK(clingo_ast_construct(lib, clingo_ast_type_term_function, &term, loc, atom_str, strlen(atom_str), &args,
-                               (size_t)1, 0));
-    // Construct simple literal "not a".
-    CHECK(clingo_ast_construct(lib, clingo_ast_type_literal_symbolic, &atom, loc, 1, term));
+    {
+        clingo_ast_t const *pool[] = {args};
+        clingo_ast_value_t const values[] = {
+            {.type = clingo_ast_value_type_location, .location = loc},
+            {.type = clingo_ast_value_type_string, .string = {atom_str, strlen(atom_str)}},
+            {.type = clingo_ast_value_type_ast_array, .ast_array = {pool, 1}},
+            {.type = clingo_ast_value_type_bool, .number = 0},
+        };
+        CHECK(clingo_ast_construct(lib, clingo_ast_type_term_function, values, 4, &term));
+    }
+    // Construct simple literal "not a" (sign 1 stands for "not").
+    {
+        clingo_ast_value_t const values[] = {
+            {.type = clingo_ast_value_type_location, .location = loc},
+            {.type = clingo_ast_value_type_enum, .number = 1},
+            {.type = clingo_ast_value_type_ast, .ast = term},
+        };
+        CHECK(clingo_ast_construct(lib, clingo_ast_type_literal_symbolic, values, 3, &atom));
+    }
     // Construct body literal "not a".
-    CHECK(clingo_ast_construct(lib, clingo_ast_type_body_simple_literal, &body, atom));
-    // Construct simple literal "#false".
-    CHECK(clingo_ast_construct(lib, clingo_ast_type_literal_boolean, &fail, loc, 0, false));
+    {
+        clingo_ast_value_t const values[] = {
+            {.type = clingo_ast_value_type_ast, .ast = atom},
+        };
+        CHECK(clingo_ast_construct(lib, clingo_ast_type_body_simple_literal, values, 1, &body));
+    }
+    // Construct simple literal "#false" (sign 0 stands for no sign).
+    {
+        clingo_ast_value_t const values[] = {
+            {.type = clingo_ast_value_type_location, .location = loc},
+            {.type = clingo_ast_value_type_enum, .number = 0},
+            {.type = clingo_ast_value_type_bool, .number = 0},
+        };
+        CHECK(clingo_ast_construct(lib, clingo_ast_type_literal_boolean, values, 3, &fail));
+    }
     // Construct head literal "#false".
-    CHECK(clingo_ast_construct(lib, clingo_ast_type_head_simple_literal, &head, fail));
+    {
+        clingo_ast_value_t const values[] = {
+            {.type = clingo_ast_value_type_ast, .ast = fail},
+        };
+        CHECK(clingo_ast_construct(lib, clingo_ast_type_head_simple_literal, values, 1, &head));
+    }
     // Construct integrity constraint ":- not a.".
-    CHECK(clingo_ast_construct(lib, clingo_ast_type_statement_rule, rule, loc, head, &body, (size_t)1));
+    {
+        clingo_ast_t const *elems[] = {body};
+        clingo_ast_value_t const values[] = {
+            {.type = clingo_ast_value_type_location, .location = loc},
+            {.type = clingo_ast_value_type_ast, .ast = head},
+            {.type = clingo_ast_value_type_ast_array, .ast_array = {elems, 1}},
+        };
+        CHECK(clingo_ast_construct(lib, clingo_ast_type_statement_rule, values, 3, rule));
+    }
 
 cleanup:
     clingo_ast_free(args);

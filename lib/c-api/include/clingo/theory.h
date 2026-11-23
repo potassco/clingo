@@ -14,6 +14,17 @@ extern "C" {
 //! @example theory.c
 //! The example shows a partial theory implementation.
 //!
+//! Only some of the callbacks of ::clingo_theory_t are implemented and the
+//! example drives the theory itself.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! $ ./theory
+//! theory counter version 1.0.0
+//! models counted by theory: 7
+//! ~~~~~~~~~~~~
+//!
 //! ## Code ##
 
 //! @addtogroup c_theory

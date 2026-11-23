@@ -10,33 +10,17 @@ extern "C" {
 typedef struct clingo_control clingo_control_t;
 
 //! @example stats.c
-//! The example shows how to inspect stats.
+//! The example shows how to add user statistics and inspect statistics.
 //!
-//! ## Output ##
+//! ## Output (approximately) ##
 //!
-//! ~~~~~~~~
-//! ./stats 0
+//! ~~~~~~~~~~~~
+//! $ ./stats
 //! Model: a
 //! Model: b
-//! problem:
-//!   lp:
-//!     atoms:
-//!       2
-//!     atoms_aux:
-//!       0
-//!     ...
-//! solving:
-//!   ...
-//! summary:
-//!   ...
-//! accu:
-//!   times:
-//!     ...
-//!   models:
-//!     ...
-//!   solving:
-//!     ...
-//! ~~~~~~~~
+//! enumerated models: 2
+//! ...
+//! ~~~~~~~~~~~~
 //!
 //! ## Code ##
 

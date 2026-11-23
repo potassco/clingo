@@ -9,8 +9,24 @@
 
 namespace Clingo {
 
+//! @example base-atoms.cc
+//! The example shows how to iterate over symbolic atoms.
+//!
+//! This is the C++ version of @ref base-atoms.c and produces the same output.
+//!
+//! ## Code ##
+
+//! @example base-theory.cc
+//! The example shows how to inspect theory atoms.
+//!
+//! This is the C++ version of @ref base-theory.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_base
 //! Inspection of atoms occurring in ground logic programs.
+//!
+//! For an example, see @ref base-atoms.cc and @ref base-theory.cc.
 //! @{
 
 //! Class to provide access to symbolic atoms.
@@ -669,7 +685,7 @@ class Base {
     //! @param lit the program literal to check
     //! @return whether the literal is projected
     [[nodiscard]] auto is_projected(ProgramLiteral lit) const -> bool {
-        return Detail::call<clingo_base_is_fact>(base_, lit);
+        return Detail::call<clingo_base_is_projected>(base_, lit);
     }
 
     //! Check whether the program literals belongs to the current solving step.

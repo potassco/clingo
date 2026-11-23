@@ -165,20 +165,19 @@ typedef struct clingo_ast clingo_ast_t;
 
 //! Enumeration of the value types of AST arguments.
 //!
-//! The comments state how values are passed to clingo_ast_construct() and
-//! which member of ::clingo_ast_value_t holds them.
+//! The comments state which member of ::clingo_ast_value_t holds them.
 enum clingo_ast_value_type_e {
-    clingo_ast_value_type_number,       //!< an `int` (member number)
-    clingo_ast_value_type_bool,         //!< an `int` that is zero or one (member number)
-    clingo_ast_value_type_enum,         //!< an `int` holding an enumeration value (member number)
-    clingo_ast_value_type_symbol,       //!< a `clingo_symbol_t` (member symbol)
-    clingo_ast_value_type_location,     //!< a `clingo_location_t const *` (member location)
-    clingo_ast_value_type_string,       //!< a `char const *` followed by a `size_t` (member string)
-    clingo_ast_value_type_string_array, //!< a `clingo_string_t const *` followed by a `size_t` (member string_array)
-    clingo_ast_value_type_symbol_array, //!< a `clingo_symbol_t const *` followed by a `size_t` (member symbol_array)
-    clingo_ast_value_type_ast,          //!< a `clingo_ast_t const *` (member ast)
-    clingo_ast_value_type_optional_ast, //!< a `clingo_ast_t const *` that might be NULL (member ast)
-    clingo_ast_value_type_ast_array,    //!< a `clingo_ast_t const **` followed by a `size_t` (member ast_array)
+    clingo_ast_value_type_number,       //!< a number (member number)
+    clingo_ast_value_type_bool,         //!< a number that is zero or one (member number)
+    clingo_ast_value_type_enum,         //!< a number holding an enumeration value (member number)
+    clingo_ast_value_type_symbol,       //!< a symbol (member symbol)
+    clingo_ast_value_type_location,     //!< a location (member location)
+    clingo_ast_value_type_string,       //!< a string (member string)
+    clingo_ast_value_type_string_array, //!< an array of strings (member string_array)
+    clingo_ast_value_type_symbol_array, //!< an array of symbols (member symbol_array)
+    clingo_ast_value_type_ast,          //!< an AST (member ast)
+    clingo_ast_value_type_optional_ast, //!< an AST or NULL (member ast)
+    clingo_ast_value_type_ast_array,    //!< an array of ASTs (member ast_array)
 };
 //! Corresponding type to ::clingo_ast_value_type_e.
 typedef int clingo_ast_value_type_t;
@@ -203,7 +202,7 @@ typedef struct clingo_ast_array {
 
 //! A value to construct an AST.
 //!
-//! @see clingo_ast_construct_values()
+//! @see clingo_ast_construct()
 typedef struct clingo_ast_value {
     //! The type of the value.
     clingo_ast_value_type_t type;
@@ -219,23 +218,10 @@ typedef struct clingo_ast_value {
     };
 } clingo_ast_value_t;
 
-//! Construct an AST of the given type.
-//!
-//! The arguments of the AST follow in the order given by its record
-//! description (see clingo_ast_info() and ::clingo_ast_value_type_e).
-//!
-//! @param[in] lib the library object to store symbols
-//! @param[in] type the type of AST to construct
-//! @param[out] ast the resulting AST
-//! @return whether the call was successful
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type, clingo_ast_t **ast, ...);
-
 //! Construct an AST of the given type from an array of values.
 //!
-//! This function is equivalent to clingo_ast_construct() but takes the
-//! arguments as an array, which is easier to use for language bindings. The
-//! values must match the arguments of the record description of the type
-//! (see clingo_ast_info()).
+//! The values must match the arguments of the record description of the type
+//! in order and type (see clingo_ast_info() and ::clingo_ast_value_type_e).
 //!
 //! @param[in] lib the library object to store symbols
 //! @param[in] type the type of AST to construct
@@ -245,9 +231,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_as
 //! @return whether the call was successful; might set one of the following error codes:
 //! - ::clingo_result_invalid if the values do not match the record description
 //! - ::clingo_result_bad_alloc
-CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct_values(clingo_lib_t *lib, clingo_ast_type_t type,
-                                                           clingo_ast_value_t const *values, size_t size,
-                                                           clingo_ast_t **ast);
+CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_ast_type_t type,
+                                                    clingo_ast_value_t const *values, size_t size, clingo_ast_t **ast);
 
 //! Copy the given AST node.
 //!

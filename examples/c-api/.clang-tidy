@@ -21,6 +21,7 @@ Checks: >
   -readability-function-size,
   -readability-identifier-length,
   -readability-suspicious-call-argument,
+  -bugprone-signed-bitwise,
 WarningsAsErrors: ""
 HeaderFilterRegex: ""
 FormatStyle: none

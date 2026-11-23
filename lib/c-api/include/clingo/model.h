@@ -12,20 +12,20 @@ extern "C" {
 //! @example model.c
 //! The example shows how to inspect a model.
 //!
-//! ## Output ##
+//! ## Output (approximately) ##
 //!
 //! ~~~~~~~~~~~~
-//! $ ./model 0
-//! Stable model:
+//! $ ./model
+//! Model 1 (stable model):
 //!   shown: c
 //!   atoms: b
 //!   terms: c
-//!  ~atoms: a
-//! Stable model:
+//!   contains a: no
+//! Model 2 (stable model):
 //!   shown: a
 //!   atoms: a
 //!   terms:
-//!  ~atoms: b
+//!   contains a: yes
 //! ~~~~~~~~~~~~
 //!
 //! ## Code ##

@@ -10,12 +10,15 @@ extern "C" {
 #endif
 
 //! @example ground.c
-//! The example shows how to ground in the background.
+//! The example shows how to ground in the background and how to implement external functions.
 //!
 //! ## Output (approximately) ##
 //!
 //! ~~~~~~~~~~~~
-//! ./ground
+//! $ ./ground
+//! grounding running
+//! grounding result: ok
+//! Model: p(11) q(1) q(2)
 //! ~~~~~~~~~~~~
 //!
 //! ## Code ##
@@ -105,12 +108,11 @@ typedef struct clingo_ground_event_handler {
     //!      void *data,
     //!      clingo_symbol_callback_t symbol_callback,
     //!      void *symbol_callback_data) {
-    //!   if (size == 1 && strncmp(name, "f", 1) == 0 && arguments_size == 0) {
-    //!     clingo_symbol_t sym;
-    //!     sym = clingo_symbol_create_number(42);
+    //!   if (name_size == 1 && strncmp(name, "f", 1) == 0 && arguments_size == 0) {
+    //!     clingo_symbol_t sym = clingo_symbol_create_number(42);
     //!     return symbol_callback(&sym, 1, symbol_callback_data);
     //!   }
-    //!   return clingo_set_error(lib, clingo_result_runtime, "function not found", 18);
+    //!   return clingo_set_error(clingo_result_runtime, "function not found", 18);
     //! }
     //! ~~~~~~~~~~~~~~~
     bool (*call)(clingo_lib_t *lib, clingo_location_t const *location, char const *name, size_t name_size,

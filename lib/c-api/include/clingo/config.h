@@ -12,13 +12,20 @@ typedef struct clingo_control clingo_control_t;
 //! @example config.c
 //! The example shows how to configure the solver.
 //!
-//! ## Output ##
+//! ## Output (approximately) ##
 //!
-//! ~~~~~~~~
-//! ./config
+//! ~~~~~~~~~~~~
+//! $ ./config
+//! solve options:
+//! solve_limit: "umax,umax"
+//! ...
+//! models: "-1"
+//! ...
+//! description: Compute at most <n> models (0 for all)
+//! value: -1
 //! Model: a
 //! Model: b
-//! ~~~~~~~~
+//! ~~~~~~~~~~~~
 //!
 //! ## Code ##
 

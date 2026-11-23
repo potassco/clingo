@@ -474,8 +474,17 @@ template <class Seq> class RandomAccessIterator {
 
 } // namespace Detail
 
+//! @example version.cc
+//! The example shows how to get version information.
+//!
+//! This is the C++ version of @ref version.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_core
 //! Core types and functions used throughout all modules and version information.
+//!
+//! For an example, see @ref version.cc.
 //! @{
 
 //! A program id used for various kinds of indices.

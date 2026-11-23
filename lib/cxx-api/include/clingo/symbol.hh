@@ -10,8 +10,17 @@
 
 namespace Clingo {
 
+//! @example symbol.cc
+//! The example shows how to create and inspect symbols.
+//!
+//! This is the C++ version of @ref symbol.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_symbol
 //! Working with (evaluated) ground terms and related functions.
+//!
+//! For an example, see @ref symbol.cc.
 //!
 //! @note Functions to create symbols are only thread-safe if library flags
 //! have been requested accordingly.

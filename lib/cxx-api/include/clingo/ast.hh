@@ -13,8 +13,17 @@
 
 namespace Clingo::AST {
 
+//! @example ast.cc
+//! The example shows how to work with the AST.
+//!
+//! This is the C++ version of @ref ast.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_ast
 //! Functions and data structures to work with program ASTs.
+//!
+//! For an example, see @ref ast.cc.
 //!
 //! @{
 
@@ -498,7 +507,7 @@ class Node {
     // Convert strings and string arrays into mappable types.
     template <class Arg> [[nodiscard]] static auto convert_(Arg const &arg) -> decltype(auto) {
         if constexpr (Detail::is_contiguous_range_over<Arg, char> || std::is_same_v<Arg, char const *>) {
-            return std::string_view{arg};
+            return std::string_view{arg}; // NOLINT(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
         } else if constexpr (Detail::is_range_over<Arg, char const *>) {
             return Detail::transform(arg, [](auto str) { return clingo_string_t{str, std::strlen(str)}; });
         } else if constexpr (Detail::is_range_over<Arg, std::string_view>) {
@@ -511,52 +520,67 @@ class Node {
     }
 
     // Map arguments to their C representation.
-    template <Detail::Arg::Type Type, class Arg> [[nodiscard]] static auto map_(Arg const &arg) {
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access,cppcoreguidelines-pro-type-reinterpret-cast)
+    template <Detail::Arg::Type Type, class Arg>
+    [[nodiscard]] static auto value_(Arg const &arg, clingo_ast_value_type_t type) -> clingo_ast_value_t {
+        auto val = clingo_ast_value_t{};
+        val.type = type;
         if constexpr (Detail::is_contiguous_range_over<Arg, Symbol>) {
             static_assert(Type == Detail::Arg::symbol_array);
-            return std::make_tuple(std::ranges::data(arg), std::ranges::size(arg));
+            val.symbol_array = {c_cast(std::ranges::data(arg)), std::ranges::size(arg)};
         } else if constexpr (Detail::is_contiguous_range_over<Arg, Node>) {
             static_assert(Type == Detail::Arg::node_array);
-            return std::make_tuple(std::ranges::data(arg), std::ranges::size(arg));
+            static_assert(sizeof(Node) == sizeof(clingo_ast_t *), "nodes must be layout compatible with pointers");
+            val.ast_array = {
+                reinterpret_cast<clingo_ast_t const *const *>(std::ranges::data(arg)),
+                std::ranges::size(arg),
+            };
         } else if constexpr (std::is_same_v<Arg, std::string_view>) {
             static_assert(Type == Detail::Arg::string);
-            return std::make_tuple(std::ranges::data(arg), std::ranges::size(arg));
+            val.string = {std::ranges::data(arg), std::ranges::size(arg)};
         } else if constexpr (Detail::is_range_over<Arg, clingo_string_t>) {
             static_assert(Type == Detail::Arg::string_array);
-            return std::make_tuple(std::ranges::data(arg), std::ranges::size(arg));
+            val.string_array = {std::ranges::data(arg), std::ranges::size(arg)};
         } else if constexpr (std::is_same_v<Arg, Node>) {
             static_assert(Type == Detail::Arg::node || Type == Detail::Arg::optional_node);
-            return std::make_tuple(c_cast(arg));
+            val.ast = c_cast(arg);
         } else if constexpr (std::is_same_v<Arg, std::nullopt_t>) {
             static_assert(Type == Detail::Arg::optional_node);
-            return std::make_tuple(nullptr);
+            val.ast = nullptr;
         } else if constexpr (std::is_same_v<Arg, std::optional<Node>>) {
             static_assert(Type == Detail::Arg::optional_node);
-            return std::make_tuple(arg ? c_cast(*arg) : nullptr);
+            val.ast = arg ? c_cast(*arg) : nullptr;
         } else if constexpr (std::is_same_v<Arg, Symbol>) {
             static_assert(Type == Detail::Arg::symbol);
-            return std::make_tuple(c_cast(arg));
+            val.symbol = c_cast(arg);
         } else if constexpr (std::is_same_v<Arg, Location>) {
             static_assert(Type == Detail::Arg::location);
-            return std::make_tuple(c_cast(arg));
+            val.location = c_cast(arg);
         } else if constexpr (std::is_same_v<Arg, int>) {
             static_assert(Type == Detail::Arg::integer);
-            return std::make_tuple(arg);
+            val.number = arg;
         } else {
             static_assert(Detail::always_false<Arg>, "unsupported argument type");
         }
+        return val;
     }
+    // NOLINTEND(cppcoreguidelines-pro-type-union-access,cppcoreguidelines-pro-type-reinterpret-cast)
 
     //! Construct a node of the given type.
     template <size_t Type, size_t... Is, class... Args>
     [[nodiscard]] static auto create_(Library const &lib, [[maybe_unused]] std::index_sequence<Is...> seq,
                                       Args const &...args) -> clingo_ast_t * {
         constexpr auto const &cons = Detail::cons.at(Type);
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        auto const *types = clingo_ast_info()->records[Type].arguments;
         clingo_ast_t *ast = nullptr;
-        Detail::handle_error(
-            std::apply(clingo_ast_construct,
-                       std::tuple_cat(std::make_tuple(c_cast(lib), static_cast<clingo_ast_type_t>(Type), &ast),
-                                      map_<cons[Is].type>(convert_(args))...)));
+        // NOTE: the converted arguments have to live until the AST is constructed
+        Detail::handle_error(clingo_ast_construct(
+            c_cast(lib), static_cast<clingo_ast_type_t>(Type),
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+            std::array<clingo_ast_value_t, sizeof...(Is)>{value_<cons[Is].type>(convert_(args), types[Is].type)...}
+                .data(),
+            sizeof...(Is), &ast));
         return ast;
     }
 
@@ -774,7 +798,7 @@ class RewriteContext {
     //! Check whether projection in negative literals is enabled.
     //!
     //! @return whether projection is enabled
-    auto project_anonymous() -> bool { return clingo_ast_rewrite_context_get_project_mode(ctx_.get()) != 0; }
+    auto project_anonymous() -> bool { return clingo_ast_rewrite_context_get_project_anonymous(ctx_.get()); }
 
     //! Protect a parameter from simplification.
     //!

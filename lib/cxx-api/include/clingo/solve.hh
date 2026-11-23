@@ -8,8 +8,24 @@
 
 namespace Clingo {
 
+//! @example model.cc
+//! The example shows how to inspect a model.
+//!
+//! This is the C++ version of @ref model.c and produces the same output.
+//!
+//! ## Code ##
+
+//! @example solve.cc
+//! The example shows how to solve iteratively and in the background.
+//!
+//! This is the C++ version of @ref solve.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_solve Solving
 //! Intercept models and interact with a running search.
+//!
+//! For an example, see @ref model.cc and @ref solve.cc.
 //! @{
 
 //! Class to capture the result of solve calls.

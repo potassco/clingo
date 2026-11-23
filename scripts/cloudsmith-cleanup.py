@@ -2,10 +2,12 @@
 
 import argparse
 import json
+import os
 import re
 import subprocess as sp
 import sys
 from collections import defaultdict
+from pathlib import Path
 
 from packaging import version
 
@@ -13,19 +15,42 @@ ACCOUNT = "potassco"
 REPO = "wip-20"
 DRY_RUN = True
 
+# The cloudsmith CLI reads and writes config.ini and credentials.ini in the
+# current working directory first. Running it from a fixed directory keeps the
+# API key out of whatever folder this script is called from. The directory is
+# also on the CLI's own search path, so plain cloudsmith calls find it too.
+CONFIG_DIR = (
+    Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "cloudsmith"
+)
+
+
+def cloudsmith(args, capture=True):
+    """Run the cloudsmith CLI from the configuration directory"""
+    CONFIG_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+    return sp.run(
+        ["cloudsmith", *args],
+        cwd=CONFIG_DIR,
+        capture_output=capture,
+        text=True,
+        check=False,
+    )
+
+
+def login():
+    """Log in interactively storing the credentials in the configuration directory"""
+    result = cloudsmith(["login"], capture=False)
+    creds = CONFIG_DIR / "credentials.ini"
+    if creds.exists():
+        creds.chmod(0o600)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+
 
 def get_packages():
     """Fetch all packages from Cloudsmith as JSON"""
-    cmd = [
-        "cloudsmith",
-        "list",
-        "packages",
-        f"{ACCOUNT}/{REPO}",
-        "--show-all",
-        "-F",
-        "json",
-    ]
-    result = sp.run(cmd, capture_output=True, text=True, check=False)
+    result = cloudsmith(
+        ["list", "packages", f"{ACCOUNT}/{REPO}", "--show-all", "-F", "json"]
+    )
     if result.returncode != 0:
         print(f"Error fetching packages: {result.stderr}")
         sys.exit(1)
@@ -64,8 +89,7 @@ def delete_package(pkg):
     """Delete a package by slug"""
     slug_perm = pkg["slug_perm"]
     version = pkg["version"]
-    cmd = ["cloudsmith", "delete", f"{ACCOUNT}/{REPO}/{slug_perm}", "--yes"]
-    result = sp.run(cmd, capture_output=True, text=True, check=False)
+    result = cloudsmith(["delete", f"{ACCOUNT}/{REPO}/{slug_perm}", "--yes"])
     if result.returncode != 0:
         print(f"  ❌ Error deleting {version} {slug_perm}: {result.stderr}")
         return False
@@ -119,8 +143,15 @@ def main():
         action="store_true",
         help="Execute deletions for real. Default is dry-run mode.",
     )
+    parser.add_argument(
+        "--login",
+        action="store_true",
+        help=f"Log in and store the credentials in {CONFIG_DIR} before running.",
+    )
 
     args = parser.parse_args()
+    if args.login:
+        login()
     run(args.execute)
 
 

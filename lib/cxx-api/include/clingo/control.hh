@@ -30,12 +30,22 @@ auto c_cast(Program const &x) -> clingo_program_t *;
 
 namespace Detail {
 
-void join(clingo_control_t *ctx, clingo_program_t const *prg);
+void join(clingo_control_t *ctl, clingo_program_t const *prg);
 
 } // namespace Detail
 
+//! @example control.cc
+//! The example shows how to ground and solve a simple logic program, and print
+//! its answer sets.
+//!
+//! This is the C++ version of @ref control.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_control
 //! Functions to control the grounding and solving process.
+//!
+//! For an example, see @ref control.cc.
 //!
 //! @{
 

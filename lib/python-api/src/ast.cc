@@ -643,8 +643,8 @@ auto ast_construct(ASTModuleState *state, size_t index, PyObject *lib_obj, Argum
         return nullptr;
     }
     clingo_ast_t *ast = nullptr;
-    if (!clingo_ast_construct_values(lib, static_cast<clingo_ast_type_t>(index), buffer.values(record.size),
-                                     record.size, &ast)) {
+    if (!clingo_ast_construct(lib, static_cast<clingo_ast_type_t>(index), buffer.values(record.size), record.size,
+                              &ast)) {
         return py_handle_error();
     }
     return ast_new(state, ast);

@@ -9,8 +9,17 @@
 
 namespace Clingo {
 
+//! @example backend.cc
+//! The example shows how to use the backend to extend a grounded program.
+//!
+//! This is the C++ version of @ref backend.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_backend
 //! Extend the logic program with ground statements (in aspif-like format).
+//!
+//! For an example, see @ref backend.cc.
 //! @{
 
 //! Enumeration of available theory sequence types.

@@ -8,8 +8,18 @@
 
 namespace Clingo {
 
+//! @example ground.cc
+//! The example shows how to ground in the background and how to implement
+//! external functions.
+//!
+//! This is the C++ version of @ref ground.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_ground
 //! Grounding logic programs.
+//!
+//! For an example, see @ref ground.cc.
 //! @{
 
 //! A program part to provide inputs to program directives.

@@ -8,8 +8,20 @@
 
 namespace Clingo {
 
+//! @example app.cc
+//! The example shows how to extend the clingo application.
+//!
+//! It behaves like a normal clingo but adds one option to override the default
+//! program part to ground.
+//!
+//! This is the C++ version of @ref app.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_app
 //! Support for building applications on top of clingo.
+//!
+//! For an example, see @ref app.cc.
 //!
 //! @{
 

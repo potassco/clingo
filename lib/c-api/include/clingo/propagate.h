@@ -13,14 +13,15 @@ extern "C" {
 typedef struct clingo_control clingo_control_t;
 
 //! @example propagate.c
-//! The example shows how to write a simple propagator for the pigeonhole problem. For
-//! a detailed description of what is implemented here and some background, take a look at the following paper:
-//!
-//! https://www.cs.uni-potsdam.de/wv/publications/#DBLP:conf/iclp/GebserKKOSW16x
+//! The example shows how to write a simple propagator enforcing that atom `a`
+//! holds if and only if atom `b` holds.
 //!
 //! ## Output ##
 //!
-//! The output is empty because the pigeonhole problem is unsatisfiable.
+//! ~~~~~~~~~~~~
+//! $ ./propagate
+//! Model: a b
+//! ~~~~~~~~~~~~
 //!
 //! ## Code ##
 

@@ -6,8 +6,17 @@
 
 namespace Clingo {
 
+//! @example stats.cc
+//! The example shows how to add user statistics and inspect statistics.
+//!
+//! This is the C++ version of @ref stats.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_stats
 //! Inspect search and problem stats.
+//!
+//! For an example, see @ref stats.cc.
 //! @{
 
 //! Enumeration of statistics types.

@@ -10,9 +10,9 @@
 //! For information about the syntax and semantics of the clingo language, take
 //! a look the [Potassco Guide](https://github.com/potassco/guide/releases/).
 //!
-//! @note Each module in the C API comes with an example highlighting key
-//! functionality. The example should be studied along with the module
-//! documentation.
+//! @note Each module in the C and C++ API comes with an example highlighting
+//! key functionality. The example should be studied along with the module
+//! documentation. The C++ examples mirror the C examples.
 
 //! @defgroup c_api C API
 //! API providing a stable interface for applications using Clingo.

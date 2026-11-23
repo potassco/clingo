@@ -1,129 +1,100 @@
-// NOLINTNEXTLINE(STDC_FORMAT_MACROS)
-#define STDC_FORMAT_MACROS
-
 #include <clingo/symbol.h>
 
-#include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-enum constants {
-    message_limit = 25,
-    example_number = 42,
-};
+#define CHECK(call)                                                                                                    \
+    do {                                                                                                               \
+        if (!(call)) {                                                                                                 \
+            status = false;                                                                                            \
+            goto cleanup;                                                                                              \
+        }                                                                                                              \
+    } while (0)
+#define ERROR(cond, type, msg)                                                                                         \
+    do {                                                                                                               \
+        if (cond) {                                                                                                    \
+            clingo_set_error(clingo_result_##type, msg, strlen(msg));                                                  \
+            status = false;                                                                                            \
+            goto cleanup;                                                                                              \
+        }                                                                                                              \
+    } while (0)
 
-bool handle_result(clingo_result_t res) {
-    if (res != clingo_result_success) {
-        clingo_string_t str;
-        clingo_result_string(res, &str);
-        printf("%.*s\n", (int)str.size, str.data);
-        return false;
-    }
-    return true;
-}
+//! Print the given symbol.
+static bool print_symbol(clingo_symbol_t symbol, clingo_string_builder_t *bld) {
+    bool status = true;
+    clingo_string_t str = {NULL, 0};
 
-clingo_result_t print_symbol(clingo_symbol_t symbol, clingo_string_builder_t *builder) {
-    clingo_result_t ret = clingo_result_success;
-    clingo_string_t str;
-
-    // clear the string builder
-    clingo_string_builder_clear(builder);
-
-    // retrieve the symbol's string
-    ret = clingo_symbol_to_string(symbol, builder);
-    if (ret != clingo_result_success) {
-        return ret;
-    }
-
-    // obtain the string stored in the builder
-    ret = clingo_string_builder_string(builder, &str);
-    if (ret != clingo_result_success) {
-        return ret;
-    }
-
-    // print the string
+    clingo_string_builder_clear(bld);
+    CHECK(clingo_symbol_to_string(symbol, bld));
+    CHECK(clingo_string_builder_string(bld, &str));
     printf("%.*s", (int)str.size, str.data);
-    return clingo_result_success;
+
+cleanup:
+    return status;
 }
 
-int main(int argc, char *argv[]) {
-    (void)argc;
-    (void)argv;
-    clingo_result_t res = clingo_result_success;
-    int ret = 0;
+//! Simple example showing how to create, print, and compare symbols.
+int main(void) {
+    bool status = true;
+
     clingo_lib_t *lib = NULL;
+    clingo_string_builder_t *bld = NULL;
     clingo_symbol_t symbols[] = {0, 0, 0};
-    clingo_string_builder_t *builder = NULL;
+    size_t const n = sizeof(symbols) / sizeof(*symbols);
     clingo_symbol_t const *args = NULL;
     size_t size = 0;
+    int32_t const number = 42;
 
-    res = clingo_string_builder_new(&builder);
-    if (res != clingo_result_success) {
-        handle_result(res);
-        goto out;
-    }
+    CHECK(clingo_string_builder_new(&bld));
+    CHECK(clingo_lib_new(0, clingo_log_level_info, NULL, NULL, 20, &lib));
 
-    res = clingo_lib_new(0, clingo_log_level_info, NULL, NULL, message_limit, &lib);
-    if (res != clingo_result_success) {
-        handle_result(res);
-        goto out;
-    }
-
-    // create a number, identifier (function without arguments), and a function symbol
-    symbols[0] = clingo_symbol_create_number(example_number);
-
-    res = clingo_symbol_create_id(lib, "x", 1, true, &symbols[1]);
-    if (!handle_result(res)) {
-        goto out;
-    }
-    res = clingo_symbol_create_function(lib, "x", 1, symbols, 2, true, &symbols[2]);
-    if (!handle_result(res)) {
-        goto out;
-    }
+    // create a number, an identifier (function without arguments), and a function symbol
+    //
+    // Numbers do not need reference counting while symbols created with
+    // functions taking a library object have to be released again.
+    symbols[0] = clingo_symbol_create_number(number);
+    CHECK(clingo_symbol_create_id(lib, "x", 1, true, &symbols[1]));
+    CHECK(clingo_symbol_create_function(lib, "x", 1, symbols, 2, true, &symbols[2]));
 
     // print the symbols along with their hash values
-    for (size_t i = 0; i < sizeof(symbols) / sizeof(*symbols); ++i) {
+    for (size_t i = 0; i < n; ++i) {
         printf("the hash of ");
-        res = print_symbol(symbols[i], builder);
-        if (!handle_result(res)) {
-            goto out;
-        }
+        CHECK(print_symbol(symbols[i], bld));
         printf(" is %zu\n", clingo_symbol_hash(symbols[i]));
     }
 
-    // compare symbols
-    res = clingo_symbol_arguments(symbols[2], &args, &size);
-    if (!handle_result(res)) {
-        goto out;
-    }
-    assert(size == 2);
+    // inspect the arguments of the function symbol
+    CHECK(clingo_symbol_arguments(symbols[2], &args, &size));
+    ERROR(size != 2, logic, "unexpected number of arguments");
+
     // equal to comparison
     for (size_t i = 0; i < size; ++i) {
-        res = print_symbol(symbols[0], builder);
-        if (!handle_result(res)) {
-            goto out;
-        }
+        CHECK(print_symbol(symbols[0], bld));
         printf(" %s ", clingo_symbol_equal(symbols[0], args[i]) ? "is equal to" : "is not equal to");
-        res = print_symbol(args[i], builder);
-        if (!handle_result(res)) {
-            goto out;
-        }
+        CHECK(print_symbol(args[i], bld));
         printf("\n");
     }
+
     // less than comparison
-    res = print_symbol(symbols[0], builder);
-    if (!handle_result(res)) {
-        goto out;
-    }
+    CHECK(print_symbol(symbols[0], bld));
     printf(" %s ", clingo_symbol_compare(symbols[0], symbols[1]) < 0 ? "is less than" : "is not less than");
-    res = print_symbol(symbols[1], builder);
-    if (!handle_result(res)) {
-        goto out;
-    }
+    CHECK(print_symbol(symbols[1], bld));
     printf("\n");
-out:
-    clingo_string_builder_free(builder);
+
+cleanup:
+    if (!status) {
+        clingo_string_t err_msg = {NULL, 0};
+        clingo_result_t code = 0;
+        clingo_get_error(&code, &err_msg);
+        fprintf(stderr, "Error: %.*s\n", (int)err_msg.size, err_msg.data);
+    }
+
+    clingo_symbol_release(symbols[1]);
+    clingo_symbol_release(symbols[2]);
+    clingo_string_builder_free(bld);
     clingo_lib_release(lib);
 
-    return ret;
+    return status ? EXIT_SUCCESS : EXIT_FAILURE;
 }

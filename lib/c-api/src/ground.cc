@@ -52,8 +52,8 @@ class Handler : public CppClingo::Control::GroundEventHandler {
     CHandler<clingo_ground_event_handler_t> handler_;
 };
 
-auto cpp_cast(clingo_ground_handle_t *hnd) -> CppClingo::Control::GroundHandle * {
-    if (hnd == nullptr) {
+auto cpp_cast(clingo_ground_handle_t *hnd, bool not_null = true) -> CppClingo::Control::GroundHandle * {
+    if (hnd == nullptr && not_null) {
         throw std::logic_error("ground handle is null");
     }
     return reinterpret_cast<CppClingo::Control::GroundHandle *>(hnd); // NOLINT
@@ -96,7 +96,7 @@ extern "C" auto clingo_ground_handle_cancel(clingo_ground_handle_t *handle) -> b
 }
 
 extern "C" void clingo_ground_handle_close(clingo_ground_handle_t *handle) {
-    delete cpp_cast(handle);
+    delete cpp_cast(handle, false);
 }
 
 extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t size,

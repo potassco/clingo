@@ -10,7 +10,15 @@
 
 namespace Clingo {
 
+//! @example theory.cc
+//! The example shows a partial theory implementation.
+//!
+//! This is the C++ version of @ref theory.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_theory
+//! For an example, see @ref theory.cc.
 //!
 //! This module defines a well-specified C interface that must be implemented
 //! by external theory plugins. The interface is designed to allow efficient
@@ -166,7 +174,7 @@ class Theory {
     //! @param lib the library to store symbols
     //! @param create the function to create the theory
     Theory(Library const &lib, bool (*create)(clingo_lib_t *lib, clingo_theory_t *theory)) {
-        create(c_cast(lib), &theory_);
+        Detail::handle_error(create(c_cast(lib), &theory_));
     }
 
     //! Get the underlying C representation of the theory.

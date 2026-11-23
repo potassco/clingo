@@ -16,31 +16,33 @@ typedef struct clingo_control clingo_control_t;
 //! ## Output ##
 //!
 //! ~~~~~~~~~~~~
-//! ./base 0
+//! $ ./base-atoms
 //! Symbolic atoms:
-//!   b
-//!   c, external
-//!   a, fact
+//!   a/0:
+//!     a, fact
+//!   b/0:
+//!     b
+//!   c/0:
+//!     c, external
 //! ~~~~~~~~~~~~
 //!
 //! ## Code ##
 
 //! @example base-theory.c
-//! The example shows how to inspect and use theory atoms.
+//! The example shows how to inspect theory atoms.
 //!
-//! This is a very simple example that uses the @link c_backend ProgramBuilder@endlink to let theory atoms affect answer
-//! sets. In general, the backend can be used to implement a custom theory by translating it to a logic program. On the
-//! other hand, a @link c_propagate Propagator@endlink can be used to implement a custom theory without adding any
-//! constraints in advance. Or both approaches can be combined.
-//!
-//! ## Output ##
+//! ## Output (approximately) ##
 //!
 //! ~~~~~~~~~~~~
-//! ./theory-atoms 0
+//! $ ./base-theory
 //! number of grounded theory atoms: 2
-//! theory atom b/1 has a guard: true
-//! Model: y
-//! Model: x y
+//! theory atom: &a{1+2: x}
+//!   literal: ...
+//!   element: 1+2: x
+//! theory atom: &b(3){4} = 17
+//!   literal: ...
+//!   element: 4
+//!   guard: = 17
 //! ~~~~~~~~~~~~
 //!
 //! ## Code ##

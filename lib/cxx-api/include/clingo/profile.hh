@@ -9,8 +9,17 @@
 
 namespace Clingo {
 
+//! @example profile.cc
+//! The example shows how to inspect profiling data.
+//!
+//! This is the C++ version of @ref profile.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_profile
 //! Functions to profile the grounding process.
+//!
+//! For an example, see @ref profile.cc.
 //!
 //! @{
 

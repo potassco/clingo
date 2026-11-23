@@ -23,9 +23,11 @@ set(source
 # ]]]
 
 foreach(file ${source})
-    get_filename_component(target ${file} NAME_WE)
-    add_executable(${target} ${file})
+    get_filename_component(name ${file} NAME_WE)
+    set(target "example-c-${name}")
+    add_executable(${target})
     target_sources(${target} PRIVATE ${file})
-    clingo_target_properties(TARGETS ${target} FOLDER example SUBDIR examples)
+    set_target_properties(${target} PROPERTIES OUTPUT_NAME ${name})
+    clingo_target_properties(TARGETS ${target} FOLDER example/c SUBDIR examples/c)
     target_link_libraries(${target} PRIVATE clingo)
 endforeach()

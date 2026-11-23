@@ -7,8 +7,18 @@
 
 namespace Clingo {
 
+//! @example propagate.cc
+//! The example shows how to write a simple propagator enforcing that atom `a`
+//! holds if and only if atom `b` holds.
+//!
+//! This is the C++ version of @ref propagate.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_propagate
 //! Extend the search with propagators for arbitrary theories.
+//!
+//! For an example, see @ref propagate.cc.
 //!
 //! @{
 
@@ -525,10 +535,6 @@ class Propagator {
   public:
     //! The default constructor.
     Propagator() = default;
-    //! Disable copy and move operations.
-    Propagator(Propagator &&other) = delete;
-    //! Disable copy and move operations.
-    auto operator=(Propagator &&other) -> Propagator & = delete;
     //! The destructor.
     virtual ~Propagator() = default;
 
@@ -583,6 +589,12 @@ class Propagator {
     //! @param assignment the current assignment of the solver
     //! @param ctl the propagate control object
     void check(Assignment assignment, PropagateControl ctl) { do_check(assignment, ctl); }
+
+  protected:
+    //! Allow derived classes to be moved so that propagators can be passed by value.
+    Propagator(Propagator &&other) noexcept = default;
+    //! Allow derived classes to be moved so that propagators can be passed by value.
+    auto operator=(Propagator &&other) noexcept -> Propagator & = default;
 
   private:
     virtual void do_init([[maybe_unused]] Assignment assignment, [[maybe_unused]] PropagateInit init) {}

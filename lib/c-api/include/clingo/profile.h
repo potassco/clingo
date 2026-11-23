@@ -12,12 +12,8 @@ typedef struct clingo_control clingo_control_t;
 //! @example profile.c
 //! The example shows how to inspect profiling data.
 //!
-//! ## Output ##
-//!
-//! ~~~~~~~~
-//! ./profile
-//! TODO
-//! ~~~~~~~~
+//! The output lists the profiled program parts and statements along with the
+//! number of matches and instances.
 //!
 //! ## Code ##
 
