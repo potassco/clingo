@@ -221,14 +221,15 @@ class ClingoOptions {
             return false;
         };
 
-        auto group_grounder = OptionGroup{"Grounder Options"};
-        group_grounder.addOptions() //
-            ("-c,const", parse(parse_const).arg("<id>=<term>").composing(),
-             "Replace term occurrences of <id> with <term>")                                     //
-            ("parts", parse(parse_parts), "Parse comma-separated program parts to ground")       //
-            ("imin", parse(parse_imin).arg("<n>"), "Minimum number of steps for incmode")        //
-            ("imax", parse(parse_imax).arg("{none|<n>}"), "Maximum number of steps for incmode") //
-            ("@3,iquery", parse(parse_iquery), "The name of the query atom")                     //
+        root.addOptions("Grounder Options") //
+            ("-c+,const", parse(parse_const).arg("<id>=<term>"),
+             "Replace term occurrences of <id> with <term>")                                       //
+            ("parts", parse(parse_parts).arg("<list>"), "Ground comma-separated program parts %A") //
+            ("imin", parse(parse_imin).arg("<n>"), "Run incmode for at least %A steps")            //
+            ("imax", parse(parse_imax).arg("<n>"),
+             "Run incmode for at most %A steps [none]") //
+            ("@2,iquery", parse(parse_iquery).arg("<id>"),
+             "Use %A as query atom in incmode [query]") //
             ("istop",
              storeTo(solver_opts_.istop, values<Control::IStop>({
                                              {"none", Control::IStop::none},
@@ -236,8 +237,7 @@ class ClingoOptions {
                                              {"unsat", Control::IStop::unsat},
                                              {"unknown", Control::IStop::unknown},
                                          })),
-
-             "Stop when {none|sat|unsat|unknown} in incmode") //
+             "Stop incmode on {none|sat|unsat|unknown} [sat]") //
             ("@1,projection-mode",
              storeTo(solver_opts_.ropts.project_mode = Input::ProjectionMode::pure,
                      values<Input::ProjectionMode>({
@@ -245,7 +245,7 @@ class ClingoOptions {
                          {"anonymous", Input::ProjectionMode::anonymous},
                          {"pure", Input::ProjectionMode::pure},
                      })),
-             "Project {none|anonymous|pure} variables") //
+             "Project {none|anonymous|pure} variables [pure]") //
             ("@1,project-anonymous", flag(solver_opts_.ropts.project_anonymous = false),
              "Project anonymous variables in negative literals") //
             ("@1,estimate-function",
@@ -254,47 +254,45 @@ class ClingoOptions {
                                                                              {"max", EstimateFunction::maximum},
                                                                              {"avg", EstimateFunction::average},
                                                                          })),
-             "Use {min|max|avg} to combine estimates for recursive domains.") //
+             "Combine domain estimates with {min|max|avg} [avg]") //
             ("@1,estimate-selector",
              storeTo(solver_opts_.gopts.sel = EstimateSelector::pred, values<EstimateSelector>({
                                                                           {"predicate", EstimateSelector::pred},
                                                                           {"all", EstimateSelector::all},
                                                                       })),
-             "Use {predicate|all} literals for recursive domain estimation.")         //
-            ("show", parse(parse_sigs), "Comma-separated list of predicates to show") //
-            ("profile", parse(parse_profile).implicit("detailed").arg("off|<detail>[,<type>]"),
-             R"(Enable profiling of grounding
-      <detail>: {detailed|compact} [detailed]
-        detailed: output detailed profiling information
-        compact : output compact profiling information
-      <type>: {step|accu|both} [accu]
-        step    : output profiling information for each grounding step
-        accu    : output accumulated profiling information [default]
-        both    : enable both step and accu profiling)");
-        root.add(group_grounder);
+             "Use {predicate|all} literals in estimates [predicate]") //
+            ("show", parse(parse_sigs).arg("<sigs>"),
+             "Show comma-separated predicates %A") //
+            ("profile", parse(parse_profile).implicit("detailed"),
+             "Profile grounding\n"
+             "      %A: {off|detailed|compact}[,<type>] (implicit: %I)\n"
+             "        detailed: Print detailed profiling information\n"
+             "        compact : Print compact profiling information\n"
+             "        <type>  : Print profiles for {step|accu|both} [accu]\n"
+             "          step  : Each grounding step\n"
+             "          accu  : All grounding steps accumulated\n"
+             "          both  : Both of the above");
 
-        auto group_basic = OptionGroup{"Basic Options"};
-        group_basic.addOptions()                                                                   //
-            ("single-shot", flag(solver_opts_.single_shot = false), "Force single shot solving")   //
-            ("@1,log-level", parse(parse_level), "Select log level {error|warn|info|debug|trace}") //
-            ("@1-W,info", parse(parse_info).composing(), R"(Enable/disable specific info messages:
-      none                    : disable all
-      all                     : enable all
-      [no-]atom-undefined     : a :- b.
-      [no-]file-included      : #include "a.lp". #include "a.lp".
-      [no-]operation-undefined: p(1/0).
-      [no-]global-variable    : :- #count { X } = 1, X = 1.)")                                     //
+        root.addOptions("Basic Options")                                                                          //
+            ("single-shot", flag(solver_opts_.single_shot = false), "Force single shot solving")                  //
+            ("@1,log-level", parse(parse_level).arg("<level>"), "Set log level to {error|warn|info|debug|trace}") //
+            ("@1-W+,info", parse(parse_info),
+             "Enable or disable info messages\n"
+             "      %A: {all|none|[no-]<msg>}\n"
+             "        atom-undefined     : Undefined atom as in a :- b.\n"
+             "        file-included      : File included more than once\n"
+             "        operation-undefined: Undefined operation as in p(1/0).\n"
+             "        global-variable    : Global variable in aggregate") //
             ("convert", parse(parse_convert),
-             R"(Convert program, print and exit
-      %A: <format {text|aspif|smodels|reify}[,<opts>]|no>
-        text   : Print program in text format (ground)
-        aspif  : Print program in ASP intermediate format
-        smodels: Print program in smodels format
-        reify  : Print program as reified facts with <opts>
-          sccs  : Compute and print SCCs
-          steps : Add step numbers
-        no     : Disable conversion)");
-        root.add(group_basic);
+             "Print converted program and exit\n"
+             "      %A: {no|text|aspif|smodels|reify}[,<opts>]\n"
+             "        no     : Do not convert the program\n"
+             "        text   : Print ground program in text format\n"
+             "        aspif  : Print program in ASP intermediate format\n"
+             "        smodels: Print program in smodels format\n"
+             "        reify  : Print program as reified facts with <opts>\n"
+             "          sccs : Compute and print SCCs\n"
+             "          steps: Add step numbers");
     }
 
     void apply(Control::Solver &slv) {

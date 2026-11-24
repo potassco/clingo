@@ -43,18 +43,16 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
         // parse options
         auto ctx = OptionContext{"<libclingo>"};
         opts.init(ctx);
-        auto group_basic = OptionGroup{"Basic Options"};
 
         auto parse_mode = [&opts](std::string_view str) { return opts.init_app_mode(str); };
 
-        group_basic.addOptions() //
+        ctx.addOptions("Basic Options") //
             ("mode", parse(parse_mode),
-             "Run in mode\n"
-             "      %A: <mode {parse|rewrite|default}>\n"
-             "        parse   : Print parsed program and exit\n"
-             "        rewrite : Print rewritten program and exit\n"
-             "        default : Ground and solve the program");
-        ctx.add(group_basic);
+             "Set run mode [default]\n"
+             "      %A: {parse|rewrite|default}\n"
+             "        parse  : Print parsed program and exit\n"
+             "        rewrite: Print rewritten program and exit\n"
+             "        default: Ground and solve the program");
         slv_cfg->addOptions(ctx);
         auto pos_parser = [](std::string_view str, std::string &out) {
             if (int value = 0; Potassco::stringTo(str, value) == std::errc{}) {

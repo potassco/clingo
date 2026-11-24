@@ -206,7 +206,6 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
         using namespace Potassco::ProgramOptions;
         BaseType::initOptions(root);
         opts_.init(root);
-        auto group_basic = OptionGroup{"Basic Options"};
 
         auto parse_mode = [this](std::string_view str) {
             if (opts_.init_app_mode(str)) {
@@ -219,15 +218,14 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             }
             return false;
         };
-        group_basic.addOptions() //
+        root.addOptions("Basic Options") //
             ("mode", parse(parse_mode),
-             "Run in mode\n"
-             "      %A: <mode {parse|rewrite|default|clasp}>\n"
-             "        parse   : Print parsed program and exit\n"
-             "        rewrite : Print rewritten program and exit\n"
-             "        default : Ground and solve the program\n"
-             "        clasp   : Invoke clasp on the input");
-        root.add(group_basic);
+             "Set run mode [default]\n"
+             "      %A: {parse|rewrite|default|clasp}\n"
+             "        parse  : Print parsed program and exit\n"
+             "        rewrite: Print rewritten program and exit\n"
+             "        default: Ground and solve the program\n"
+             "        clasp  : Invoke clasp on the input");
         app_.register_options(root);
     }
 
