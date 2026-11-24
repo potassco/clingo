@@ -433,6 +433,8 @@ class Control:
             context: An optional object providing functions that can be called
                 during grounding.
             on_finish: An optional callback called once grounding has finished.
+                Exceptions raised by the callback are not propagated but reported
+                via `sys.unraisablehook`.
 
         Returns:
             A handle to interact with the running grounding.
@@ -476,7 +478,9 @@ class Control:
                 each step. Two `clingo.stats.Stats` objects are passed: the
                 step-specific and the accumulated stats.
             on_finish: An optional callback called once the search has finished.
-                A `clingo.solve.SolveResult` is passed to the callback.
+                A `clingo.solve.SolveResult` is passed to the callback. Exceptions
+                raised by the callback are not propagated but reported via
+                `sys.unraisablehook`.
             yield_: If `True`, the returned `clingo.solve.SolveHandle` is iterable,
                 yielding `clingo.solve.Model` objects during solving.
             async_: If `True`, solving runs asynchronously in a separate thread.

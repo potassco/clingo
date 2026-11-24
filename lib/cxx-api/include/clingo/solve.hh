@@ -459,6 +459,12 @@ class SolveHandle {
     //! This is a blocking operation.
     void cancel() { Detail::handle_error(clingo_solve_handle_cancel(hnd_.get())); }
 
+    //! Request the current search to stop without waiting for it.
+    //!
+    //! Use get() or wait() to wait until search has stopped. Like resume(),
+    //! this invalidates the current model.
+    void interrupt() { Detail::handle_error(clingo_solve_handle_interrupt(hnd_.get())); }
+
     //! Resume the current search.
     //!
     //! In a asynchronous context, this will start the search for the next

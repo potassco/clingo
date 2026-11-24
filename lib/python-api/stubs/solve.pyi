@@ -376,6 +376,16 @@ class SolveHandle:
         See also: `clingo.control.Control.interrupt`
         """
 
+    def interrupt(self) -> None:
+        """
+        Request the search to stop without waiting for it.
+
+        Use `clingo.solve.SolveHandle.wait` or `clingo.solve.SolveHandle.get`
+        to wait until the search has stopped. The result is then interrupted
+        unless the search finished before. Like `clingo.solve.SolveHandle.resume`,
+        this invalidates the current model.
+        """
+
     def core(self) -> Sequence[int]:
         """
         Get the subset of assumptions that made the problem unsatisfiable.
@@ -445,11 +455,12 @@ class AsyncSolveHandle:
     the solver thread. Their arguments are only valid during the call and they
     must not interact with the event loop.
 
-    Cancelling an awaiting task cancels the search. If the task awaited a
-    model, the result can still be awaited afterward.
+    Cancelling an awaiting task cancels the search. The result can still be
+    awaited afterward.
 
-    Cancelling the search blocks until it stopped. This is usually fast but
-    has to wait for callbacks that are still running.
+    Cancelling the search does not wait for it to stop. Awaiting the result
+    afterward waits until it stopped. Until then, callbacks might still be
+    called and the control object must not be used.
 
     See also: `clingo.control.Control.solve_async`
     """
@@ -500,9 +511,9 @@ class AsyncSolveHandle:
         Cancel the running search.
 
         No further models are handed out and awaiting the handle afterward
-        returns an interrupted result. The function blocks until the search
-        stopped, which is usually fast but has to wait for callbacks that are
-        still running.
+        returns the result once the search stopped. The result is interrupted
+        unless the search finished before. The function does not wait for the
+        search to stop; the control object must not be used before it stopped.
         """
 
     def core(self) -> Sequence[int]:

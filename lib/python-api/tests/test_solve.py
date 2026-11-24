@@ -2,6 +2,10 @@
 Unit tests for clingo.solve module.
 """
 
+import sys
+import threading
+import time
+
 from clingo.control import Control
 from clingo.core import Library
 from clingo.solve import Model, ModelType
@@ -90,6 +94,54 @@ class TestSolve:
             assert hnd.get().satisfiable
         assert mcb.symbols == res
         assert mcc.symbols == res
+
+    def test_finish_error(self, monkeypatch):
+        """
+        Test that errors in the finish callback are reported as unraisable.
+        """
+        errors = []
+        monkeypatch.setattr(
+            sys, "unraisablehook", lambda arg: errors.append(arg.exc_value)
+        )
+
+        def on_finish(_):
+            raise RuntimeError("on_finish")
+
+        ctl = Control(self.lib)
+        ctl.parse_string("a.")
+        ctl.ground()
+        assert ctl.solve(on_finish=on_finish).satisfiable
+        assert [str(e) for e in errors] == ["on_finish"]
+
+    @needs_threads
+    def test_interrupt(self):
+        """
+        Test interrupting a search without waiting for it.
+        """
+        ctl = Control(self.lib, ["0"])
+        ctl.parse_string("{ a(1..64) }.")
+        ctl.ground()
+
+        # interrupt while a model is held
+        with ctl.start_solve(yield_=True, async_=True) as hnd:
+            assert hnd.model() is not None
+            hnd.interrupt()
+            assert hnd.get().interrupted
+
+        # interrupt while a model is reported but not yet retrieved
+        done = threading.Event()
+        with ctl.start_solve(
+            yield_=True, async_=True, on_finish=lambda _: done.set()
+        ) as hnd:
+            time.sleep(0.1)
+            hnd.interrupt()
+            assert done.wait(2)
+
+        # interrupt a running search
+        with ctl.start_solve(on_model=lambda _: None, async_=True) as hnd:
+            assert not hnd.wait(0.01)
+            hnd.interrupt()
+            assert hnd.get().interrupted
 
     def test_core(self):
         """

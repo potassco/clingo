@@ -12,8 +12,6 @@
 
 #include <array>
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
 #include <utility>
 
 namespace PyClingo {
@@ -958,9 +956,8 @@ void on_finish_cb(clingo_solve_result_bitset_t result, void *data) {
             }
         }
     }
-    PyErr_Print();
-    fprintf(stderr, "panic: solve finish callback failed\n");
-    std::abort();
+    // NOTE: the callback is meant for synchronization and errors cannot be propagated
+    PyErr_WriteUnraisable(self);
 }
 
 // SolveHandle: object
@@ -1058,6 +1055,18 @@ auto py_handle_cancel(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObjec
     }
     model_clear(handle_cast(self)->cur_model);
     if (!with_gil_released([&] { return clingo_solve_handle_cancel(hnd); })) {
+        return py_handle_error();
+    }
+    Py_RETURN_NONE;
+}
+
+auto py_handle_interrupt(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
+    auto *hnd = ensure_handle_open(self);
+    if (hnd == nullptr) {
+        return nullptr;
+    }
+    model_clear(handle_cast(self)->cur_model);
+    if (!clingo_solve_handle_interrupt(hnd)) {
         return py_handle_error();
     }
     Py_RETURN_NONE;
@@ -1252,6 +1261,12 @@ auto py_handle_methods = std::array{
         PyDoc_STR("Cancel the running search."),
     },
     PyMethodDef{
+        "interrupt",
+        py_handle_interrupt,
+        METH_NOARGS,
+        PyDoc_STR("Request the search to stop without waiting for it."),
+    },
+    PyMethodDef{
         "close",
         py_handle_close,
         METH_NOARGS,
@@ -1330,25 +1345,22 @@ auto async_self(PyAsyncHandleObject *a) -> PyObject * {
 
 //! Cancel the search unless it already finished.
 //!
-//! This blocks until the search stopped, which is fast but has to wait for
-//! running callbacks. The result is still passed via the finish notification.
-//!
-//! NOTE: Once clasp's SolveHandle provides a non-blocking interrupt, it should
-//! be used here like for AsyncGroundHandle. Then each await needs its own
-//! future so that the result can still be awaited after cancelling, and the
-//! handle has to keep itself alive until the search finished.
-//! ClaspFacade::interrupt is not suitable because it queues the signal for the
-//! next solve call if the search already finished.
+//! This does not wait for the search to stop. The result is passed via the
+//! finish notification.
 auto async_cancel(PyAsyncHandleObject *a) -> bool {
     auto *hnd = a->base.hnd;
     if (a->cancelled || a->finished || hnd == nullptr) {
         return true;
     }
+    // NOTE: The handle keeps itself alive until the finish notification. Otherwise, dropping the handle after
+    // cancelling would block until the search stopped and a pending __aexit__ would never finish. The reference leaks
+    // if the loop is closed before.
+    Py_INCREF(async_self(a));
     a->cancelled = true;
     a->model_ready = false;
     a->need_resume = false;
     model_clear(a->base.cur_model);
-    if (!with_gil_released([&] { return clingo_solve_handle_cancel(hnd); })) {
+    if (!clingo_solve_handle_interrupt(hnd)) {
         py_handle_error();
         return false;
     }
@@ -1446,9 +1458,8 @@ auto py_async_notify_model(PyObject *self, [[maybe_unused]] PyObject *arg) -> Py
 
 auto py_async_notify_finish(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
     auto *a = async_cast(self);
-    if (a->base.hnd == nullptr || a->finished) {
-        Py_RETURN_NONE;
-    }
+    // release the reference taken when cancelling (the notification still holds one)
+    auto keep = steal(a->cancelled ? self : nullptr);
     a->finished = true;
     a->model_ready = false;
     model_clear(a->base.cur_model);
@@ -1655,11 +1666,17 @@ auto py_step_spec = PyType_Spec{
 };
 
 auto py_async_await(PyObject *self) -> PyObject * {
+    // NOTE: Each await uses its own future so that cancelling an awaiting task does not cancel the result, which can
+    // then still be awaited to wait until the search stopped.
     auto *a = async_cast(self);
     if (!async_drain(a)) {
         return nullptr;
     }
-    return step_new(self, a->result);
+    auto fut = steal(future_new(a->loop));
+    if (fut.get() == nullptr || !future_chain(a->result, fut.get())) {
+        return nullptr;
+    }
+    return step_new(self, fut.get());
 }
 
 auto py_async_aiter(PyObject *self) -> PyObject * {

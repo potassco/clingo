@@ -9,8 +9,6 @@
 #include <clingo/ground.h>
 
 #include <array>
-#include <cstdio>
-#include <cstdlib>
 #include <utility>
 
 namespace PyClingo {
@@ -186,9 +184,8 @@ void start_finish(clingo_ground_result_t result, void *data) {
     auto res = steal(PyObject_CallFunction(h->state->ground_result_enum, "i", static_cast<int>(result)));
     auto ret = steal(res.get() != nullptr ? PyObject_CallFunctionObjArgs(h->finish, res.get(), nullptr) : nullptr);
     if (ret.get() == nullptr) {
-        PyErr_Print();
-        fprintf(stderr, "panic: ground finish callback failed\n");
-        std::abort();
+        // NOTE: the callback is meant for synchronization and errors cannot be propagated
+        PyErr_WriteUnraisable(static_cast<PyObject *>(data));
     }
 }
 

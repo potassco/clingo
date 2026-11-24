@@ -161,6 +161,18 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_resume(clingo_solve_handle_t 
 //! @param[in] handle the target
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_cancel(clingo_solve_handle_t *handle);
+//! Request the running search to stop without waiting for it.
+//!
+//! Use clingo_solve_handle_wait() or clingo_solve_handle_get() to wait until
+//! the search has stopped. The solve result then indicates that the search was
+//! interrupted unless it finished before. Like clingo_solve_handle_resume(),
+//! this invalidates the current model.
+//!
+//! @note This function does not block.
+//!
+//! @param[in] handle the target
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_interrupt(clingo_solve_handle_t *handle);
 //! Stops the running search and releases the handle.
 //!
 //! Blocks until the search is stopped (as if an implicit cancel was called before the handle is released).

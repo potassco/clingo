@@ -171,5 +171,6 @@ if(CLINGO_BUILD_TESTS)
             $<TARGET_FILE_DIR:clingo>
         ENVIRONMENT
             PYCLINGO_FAKE_THEORY=$<TARGET_FILE:fake_theory>
+        PROPERTIES TIMEOUT 60
         DEPENDS pyclingo fake_theory)
 endif()
