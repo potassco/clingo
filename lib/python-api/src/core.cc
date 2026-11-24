@@ -5,7 +5,6 @@
 #include "util.hh"
 
 #include <array>
-#include <cassert>
 #include <cstdio>
 #include <tuple>
 #include <utility>
@@ -199,6 +198,8 @@ constexpr auto state_members = std::array{
 struct PyLibraryObject {
     PyObject_HEAD
     clingo_lib_t *lib;
+    //! The owner tag of the module (stored because the module state is unavailable at shutdown).
+    void const *tag;
     //! The logger data owned by the clingo library (borrowed, nullptr if there is none).
     PyObject *logger;
     //! Objects that have to live as long as the library object (e.g., scripts).
@@ -361,11 +362,9 @@ void library_invalidate(PyObject *self) noexcept {
     if (lib == nullptr) {
         return;
     }
-    auto *state = static_cast<CoreModuleState *>(PyType_GetModuleState(Py_TYPE(self)));
-    assert(state != nullptr);
-    if (library_owner(state, lib) == self) {
+    if (clingo_lib_get_owner(lib, l->tag) == self) {
         // NOTE: removing an owner does not allocate and cannot fail
-        std::ignore = clingo_lib_set_owner(lib, &state->owner_tag, nullptr);
+        std::ignore = clingo_lib_set_owner(lib, l->tag, nullptr);
     }
     if (l->owns) {
         clingo_lib_release(lib);
@@ -386,6 +385,7 @@ auto library_new(CoreModuleState *state, clingo_lib_t *lib, PyObject *logger, bo
     }
     auto *l = library_cast(obj.get());
     l->lib = lib;
+    l->tag = &state->owner_tag;
     l->logger = logger;
     l->owns = owns;
     l->keep = PyList_New(0);

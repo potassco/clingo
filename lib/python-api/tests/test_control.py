@@ -2,6 +2,7 @@
 Unit tests for clingo.control module.
 """
 
+import subprocess
 import sys
 from collections.abc import Mapping
 from textwrap import dedent
@@ -146,6 +147,25 @@ class TestControl:
             res = hnd.get()
             hnd.interrupt()
         assert res == GroundResult.Interrupted
+
+    def test_exit_cycle(self):
+        """
+        Test that objects in reference cycles can be collected at shutdown.
+        """
+        # the lambda's globals form a cycle with the handle owning the control
+        code = dedent("""\
+            from clingo.control import Control
+            from clingo.core import Library
+            ctl = Control(Library())
+            ctl.parse_string("a.")
+            ctl.ground()
+            with ctl.start_solve(on_finish=lambda _: None) as hnd:
+                hnd.get()
+            """)
+        res = subprocess.run(
+            [sys.executable, "-c", code], capture_output=True, text=True, check=False
+        )
+        assert res.returncode == 0, res.stderr
 
     @needs_threads
     def test_start_ground_finish_error(self, monkeypatch):

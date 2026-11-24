@@ -3,6 +3,8 @@ Unit tests for clingo.solve module.
 """
 
 import sys
+import threading
+import time
 
 from clingo.control import Control
 from clingo.core import Library
@@ -125,6 +127,15 @@ class TestSolve:
             assert hnd.model() is not None
             hnd.interrupt()
             assert hnd.get().interrupted
+
+        # interrupt while a model is reported but not yet retrieved
+        done = threading.Event()
+        with ctl.start_solve(
+            yield_=True, async_=True, on_finish=lambda _: done.set()
+        ) as hnd:
+            time.sleep(0.1)
+            hnd.interrupt()
+            assert done.wait(2)
 
         # interrupt a running search
         with ctl.start_solve(on_model=lambda _: None, async_=True) as hnd:

@@ -85,6 +85,8 @@ constexpr auto state_members = std::array{
 struct PyControlObject {
     PyObject_HEAD
     clingo_control_t *ctl;
+    //! The owner tag of the module (stored because the module state is unavailable at shutdown).
+    void const *tag;
     //! The library object, which has to outlive the clingo control object.
     PyObject *library;
     //! Objects that have to live as long as the clingo control object (e.g., propagators).
@@ -191,11 +193,9 @@ void control_invalidate(PyObject *self) noexcept {
     if (ctl == nullptr) {
         return;
     }
-    auto *state = static_cast<ControlModuleState *>(PyType_GetModuleState(Py_TYPE(self)));
-    assert(state != nullptr);
-    if (control_owner(state, ctl) == self) {
+    if (clingo_control_get_owner(ctl, c->tag) == self) {
         // NOTE: removing an owner does not allocate and cannot fail
-        std::ignore = clingo_control_set_owner(ctl, owner_tag(state), nullptr);
+        std::ignore = clingo_control_set_owner(ctl, c->tag, nullptr);
     }
     if (c->owns) {
         clingo_control_release(ctl);
@@ -216,6 +216,7 @@ auto control_new(ControlModuleState *state, PyObject *library, clingo_control_t 
     }
     auto *c = control_cast(obj.get());
     c->ctl = ctl;
+    c->tag = owner_tag(state);
     c->owns = owns;
     c->library = Py_NewRef(library);
     c->keep = PyList_New(0);
