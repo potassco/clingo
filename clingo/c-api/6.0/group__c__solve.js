@@ -30,7 +30,7 @@ var group__c__solve =
     [ "clingo_solve_handle_core", "group__c__solve.html#gab6a690f01b18670afbc788ff650543a9", null ],
     [ "clingo_solve_handle_get", "group__c__solve.html#gae4270b7d4d0174a479307438680007c5", null ],
     [ "clingo_solve_handle_last", "group__c__solve.html#gadb77de214f7dff6fd3923f9db51c5cf4", null ],
-    [ "clingo_solve_handle_model", "group__c__solve.html#gaf9353c14149a2a16adf0474796871ae1", null ],
+    [ "clingo_solve_handle_model", "group__c__solve.html#ga41635407591fcad87b474a9af32aacd4", null ],
     [ "clingo_solve_handle_resume", "group__c__solve.html#ga73d71df7adeee92f1d515f52cdcbbac0", null ],
     [ "clingo_solve_handle_wait", "group__c__solve.html#gadf4d566899254971ab4a5fd6cad0e000", null ]
 ];

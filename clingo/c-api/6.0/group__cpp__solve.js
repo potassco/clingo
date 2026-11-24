@@ -70,7 +70,7 @@ var group__cpp__solve =
       [ "end", "classClingo_1_1SolveHandle.html#a56bce407fee662dde2c036733586fc4a", null ],
       [ "get", "classClingo_1_1SolveHandle.html#a7f1dcc765795a758e0323edbd99f71c3", null ],
       [ "last", "classClingo_1_1SolveHandle.html#abd5dd730aff0eec352365dfeff7c0b12", null ],
-      [ "model", "classClingo_1_1SolveHandle.html#a6e54d5edbd914bbd8987791ff914e8c4", null ],
+      [ "model", "classClingo_1_1SolveHandle.html#ab2185414b517068bacbdb63dac7b1c52", null ],
       [ "resume", "classClingo_1_1SolveHandle.html#a7455b93f334c4335c827ecef143464ed", null ],
       [ "wait", "classClingo_1_1SolveHandle.html#ae2e400daf915e9bd0f26fd1b32aa8fd3", null ],
       [ "c_cast", "classClingo_1_1SolveHandle.html#aaa336f55e3d1a8661637438b2810fc75", null ]

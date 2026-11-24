@@ -26,9 +26,11 @@ var group__c__control =
     [ "clingo_const_map_find", "group__c__control.html#ga130e8802ad80060839726f2580fd5ee2", null ],
     [ "clingo_const_map_size", "group__c__control.html#gafdf71401ee664c070daa32fe671fd1d8", null ],
     [ "clingo_control_acquire", "group__c__control.html#ga5885ceb30eda93f7a9020ef7172fab1f", null ],
+    [ "clingo_control_add_finalizer", "group__c__control.html#ga4173cf022caa18d68d3f075e4895a7d5", null ],
     [ "clingo_control_buffer", "group__c__control.html#gacbe02004239e0202828d6eccdbde2184", null ],
     [ "clingo_control_const_map", "group__c__control.html#ga617112b316292939f2536c531057fd6d", null ],
     [ "clingo_control_discard", "group__c__control.html#ga3aaa51f28a8425b56dec860da1f4a5ce", null ],
+    [ "clingo_control_get_owner", "group__c__control.html#gaae8d7e33bf23bc038567a3941163afec", null ],
     [ "clingo_control_get_parts", "group__c__control.html#ga342450183b281f369560c815c52c0c83", null ],
     [ "clingo_control_ground", "group__c__control.html#gaec799e2aba02e2c9fabc76680eaa93b2", null ],
     [ "clingo_control_interrupt", "group__c__control.html#ga68d85962372b1258bc6726753cdecaa8", null ],
@@ -38,6 +40,7 @@ var group__c__control =
     [ "clingo_control_parse_files", "group__c__control.html#ga5eab0d7c3611f839de10b079675f246b", null ],
     [ "clingo_control_parse_string", "group__c__control.html#ga2e91b6ac92b59fd7c61f010f1a3a507f", null ],
     [ "clingo_control_release", "group__c__control.html#gae5507e055cbe48661a8c58bdc70bcd9e", null ],
+    [ "clingo_control_set_owner", "group__c__control.html#gab58678fe40cf0b1157378f8cdd8c69b7", null ],
     [ "clingo_control_set_parts", "group__c__control.html#gad0bfacea3e19c467cc7498def05571f0", null ],
     [ "clingo_control_start_ground", "group__c__control.html#gaeddb853e4e7c45962db345d251170314", null ]
 ];

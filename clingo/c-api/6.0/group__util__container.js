@@ -44,7 +44,7 @@ var group__util__container =
         [ "inclusive", "structCppClingo_1_1Util_1_1interval__set_1_1right__bound.html#a51491dd1b396af49b01cdad2dc7c2b2b", null ]
       ] ],
       [ "interval_vector", "classCppClingo_1_1Util_1_1interval__set.html#ae1522afcb3e71ae3e18e5b6705a015a0", null ],
-      [ "iterator", "classCppClingo_1_1Util_1_1interval__set.html#abbe76768f866ff27ae1dc228b261a6e8", null ],
+      [ "iterator", "classCppClingo_1_1Util_1_1interval__set.html#ad9e848d2a9239ab0e8c23c3d4f23854a", null ],
       [ "value_type", "classCppClingo_1_1Util_1_1interval__set.html#ae85d0243848a12a052e29a379081aefe", null ],
       [ "interval_set", "classCppClingo_1_1Util_1_1interval__set.html#ac05754e41775aeadd4e4eaf1340f2e74", null ],
       [ "~interval_set", "classCppClingo_1_1Util_1_1interval__set.html#acce1d5fa954b3b15e22edb0ef3a80ba1", null ],
@@ -123,8 +123,8 @@ var group__util__container =
       [ "resize", "classCppClingo_1_1Util_1_1small__vector.html#a2d901e5116634ec589f1f32f219d0334", null ],
       [ "size", "classCppClingo_1_1Util_1_1small__vector.html#af6391b67eeafba592fa9d8025491ec9d", null ]
     ] ],
-    [ "CppClingo::Util::ordered_map", "group__util__container.html#ga8b882c38d82c3c3019ce4aee06b90faf", null ],
-    [ "CppClingo::Util::ordered_set", "group__util__container.html#ga6fedffbc0e2e918fc7c523f524b90e88", null ],
-    [ "CppClingo::Util::unordered_map", "group__util__container.html#gaa47f6dbf125b7e9ec84c1e7fc0549cab", null ],
-    [ "CppClingo::Util::unordered_set", "group__util__container.html#ga6ffd22b1a5d357688e62e76f4828b63b", null ]
+    [ "CppClingo::Util::ordered_map", "group__util__container.html#gaf13cb0a7cb61aa1204c9ec7f895cc190", null ],
+    [ "CppClingo::Util::ordered_set", "group__util__container.html#ga6ae711523ad7e546069a1281a48b240d", null ],
+    [ "CppClingo::Util::unordered_map", "group__util__container.html#gaa1a30797c9ef34ae5c4757dd84a39a62", null ],
+    [ "CppClingo::Util::unordered_set", "group__util__container.html#ga7ceb788380ceb352a8850104041d8b0b", null ]
 ];

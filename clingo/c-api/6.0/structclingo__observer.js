@@ -5,7 +5,7 @@ var structclingo__observer =
     [ "begin_step", "structclingo__observer.html#a2c191c85a549e645b93ceb955c0a5c58", null ],
     [ "end_step", "structclingo__observer.html#a56e56f66960fcc8fd77b180fd4ed9183", null ],
     [ "external", "structclingo__observer.html#ab16a59a12e2da9d40fdef11306df5b61", null ],
-    [ "heuristic", "structclingo__observer.html#a74f720957dce6201994b786a26d649e7", null ],
+    [ "heuristic", "structclingo__observer.html#ad6ded1e79d106256599ab77baf1163f3", null ],
     [ "init_program", "structclingo__observer.html#a5ec7b9c0e90ae94cfeebccb12158cb64", null ],
     [ "minimize", "structclingo__observer.html#acab7146d6ec632d3ae16d1b8565f211d", null ],
     [ "project", "structclingo__observer.html#a7a6ce12129753bca7688a701b9856b21", null ],

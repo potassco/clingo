@@ -12,7 +12,7 @@ var group__c__backend =
     [ "clingo_backend_assume", "group__c__backend.html#ga69a31ef4ff7c667e461c3e40c3b7d273", null ],
     [ "clingo_backend_close", "group__c__backend.html#gaca187452f833520402c62e1eee7b0c21", null ],
     [ "clingo_backend_external", "group__c__backend.html#gaf28c97d97c7b0c4f3cada4730c437640", null ],
-    [ "clingo_backend_heuristic", "group__c__backend.html#ga8d15b08eac4eab5f7b1dca6d7d68aef2", null ],
+    [ "clingo_backend_heuristic", "group__c__backend.html#ga57e2d2038a07f5ddee489b4b304ec616", null ],
     [ "clingo_backend_minimize", "group__c__backend.html#gaa53a501cd64547a9fa84728b5bbeb9dc", null ],
     [ "clingo_backend_project", "group__c__backend.html#ga08794c1459758bd5489fe61647c31b9b", null ],
     [ "clingo_backend_rule", "group__c__backend.html#ga89dd64e084d6432e48b097a049d0bf8f", null ],

@@ -36,9 +36,13 @@ var searchData=
   ['acyc_5fedge_33',['acyc_edge',['../structclingo__observer.html#ad1d1df7fafa96b2364432dace6c357e9',1,'clingo_observer']]],
   ['align_34',['align',['../structCppClingo_1_1FormatSpec.html#adeeec170057de0239c3442f12b5209e8',1,'CppClingo::FormatSpec']]],
   ['alternate_5fform_35',['alternate_form',['../structCppClingo_1_1FormatSpec.html#ab02dd24ccc4bdf332492218c4f6b8bf0',1,'CppClingo::FormatSpec']]],
-  ['arity_36',['arity',['../structclingo__signature.html#ae84a6206edbac53b0a10eca0d44ad113',1,'clingo_signature']]],
-  ['assignment_5fget_5fvalue_37',['assignment_get_value',['../structclingo__theory.html#a080af6da1f70a3ab018ddfed9e7905c3',1,'clingo_theory']]],
-  ['assignment_5fnext_38',['assignment_next',['../structclingo__theory.html#a28012620349062fe455a2695dd30340e',1,'clingo_theory']]],
-  ['assume_39',['assume',['../structclingo__observer.html#a3d7ded94dd3103a73f17fc601ba8d909',1,'clingo_observer']]],
-  ['attach_40',['attach',['../structclingo__propagator.html#a1421565211e5fe569071b06abe145ebb',1,'clingo_propagator']]]
+  ['arguments_36',['arguments',['../structclingo__ast__record__info.html#a41e1bcc277aacbfaf2c487a6b377616b',1,'clingo_ast_record_info']]],
+  ['arity_37',['arity',['../structclingo__signature.html#ae84a6206edbac53b0a10eca0d44ad113',1,'clingo_signature']]],
+  ['assignment_5fget_5fvalue_38',['assignment_get_value',['../structclingo__theory.html#a080af6da1f70a3ab018ddfed9e7905c3',1,'clingo_theory']]],
+  ['assignment_5fnext_39',['assignment_next',['../structclingo__theory.html#a28012620349062fe455a2695dd30340e',1,'clingo_theory']]],
+  ['assume_40',['assume',['../structclingo__observer.html#a3d7ded94dd3103a73f17fc601ba8d909',1,'clingo_observer']]],
+  ['ast_41',['ast',['../structclingo__ast__value.html#a26ac67aa9f924bea080bdf9a254b2885',1,'clingo_ast_value']]],
+  ['ast_5farray_42',['ast_array',['../structclingo__ast__value.html#a7a04a0a4693b1d6d3770987154d225ff',1,'clingo_ast_value']]],
+  ['attach_43',['attach',['../structclingo__propagator.html#a1421565211e5fe569071b06abe145ebb',1,'clingo_propagator']]],
+  ['attribute_44',['attribute',['../structclingo__ast__argument__info.html#a2be99f9963ecda2ea447febcbc819366',1,'clingo_ast_argument_info']]]
 ];

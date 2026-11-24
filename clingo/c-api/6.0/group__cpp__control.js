@@ -68,9 +68,9 @@ var group__cpp__control =
       [ "Clingo::ControlMode::ground", "group__cpp__control.html#gga702af514f321bd741ddeb074bc8f7107a578552719239a72a2d45ad422f67d24d", null ],
       [ "Clingo::ControlMode::solve", "group__cpp__control.html#gga702af514f321bd741ddeb074bc8f7107aa6d7ccb276ae142a8814d71751908bce", null ]
     ] ],
-    [ "Clingo::DiscardType", "group__cpp__control.html#ga3da4cceda51985097a9be9c955235baa", [
-      [ "Clingo::DiscardType::minimize", "group__cpp__control.html#gga3da4cceda51985097a9be9c955235baaac018a52c4d1be6a3753382889cbc2115", null ],
-      [ "Clingo::DiscardType::project", "group__cpp__control.html#gga3da4cceda51985097a9be9c955235baaa46f86faa6bbf9ac94a7e459509a20ed0", null ]
+    [ "Clingo::DiscardType", "group__cpp__control.html#ga8a42013c5d74f8df637076f67c6f5687", [
+      [ "Clingo::DiscardType::minimize", "group__cpp__control.html#gga8a42013c5d74f8df637076f67c6f5687ac018a52c4d1be6a3753382889cbc2115", null ],
+      [ "Clingo::DiscardType::project", "group__cpp__control.html#gga8a42013c5d74f8df637076f67c6f5687a46f86faa6bbf9ac94a7e459509a20ed0", null ]
     ] ],
     [ "Clingo::SolveFlags", "group__cpp__control.html#ga278d545c260ce25ef53c588f758e1083", [
       [ "Clingo::SolveFlags::empty", "group__cpp__control.html#gga278d545c260ce25ef53c588f758e1083aa2e4822a98337283e39f7b60acf85ec9", null ],

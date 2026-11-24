@@ -123,14 +123,14 @@ var group__cpp__base =
       [ "terms", "classClingo_1_1Base.html#a15eae347022c7f5f5118996215c6a194", null ],
       [ "theory", "classClingo_1_1Base.html#a2e6a3530d6820cfa01fe7a4fd0c060d7", null ]
     ] ],
-    [ "Clingo::TheoryElementVector", "group__cpp__base.html#ga57cf3ebf60cdea2f3bc0d7b067496d48", null ],
-    [ "Clingo::TheoryTermVector", "group__cpp__base.html#ga24ade624e450fec4c6031cbead341a51", null ],
-    [ "Clingo::TheoryTermType", "group__cpp__base.html#ga77490795fab59524ca5534916b4428fa", [
-      [ "Clingo::TheoryTermType::tuple", "group__cpp__base.html#gga77490795fab59524ca5534916b4428faa0636f7c1e41a18679ab958368587c630", null ],
-      [ "Clingo::TheoryTermType::list", "group__cpp__base.html#gga77490795fab59524ca5534916b4428faa10ae9fc7d453b0dd525d0edf2ede7961", null ],
-      [ "Clingo::TheoryTermType::set", "group__cpp__base.html#gga77490795fab59524ca5534916b4428faacdaeeeba9b4a4c5ebf042c0215a7bb0e", null ],
-      [ "Clingo::TheoryTermType::function", "group__cpp__base.html#gga77490795fab59524ca5534916b4428faac1c425268e68385d1ab5074c17a94f14", null ],
-      [ "Clingo::TheoryTermType::number", "group__cpp__base.html#gga77490795fab59524ca5534916b4428faab1bc248a7ff2b2e95569f56de68615df", null ],
-      [ "Clingo::TheoryTermType::symbol", "group__cpp__base.html#gga77490795fab59524ca5534916b4428faa97bff26855a8bfa63e05d5477e794b24", null ]
+    [ "Clingo::TheoryElementVector", "group__cpp__base.html#ga273e1d7395d2bd326ccb37cb7400edbc", null ],
+    [ "Clingo::TheoryTermVector", "group__cpp__base.html#ga90ddec23798f7c66e423fb8e943d0ea8", null ],
+    [ "Clingo::TheoryTermType", "group__cpp__base.html#gafd859000139ec13f3cf6aa58a35712e6", [
+      [ "Clingo::TheoryTermType::tuple", "group__cpp__base.html#ggafd859000139ec13f3cf6aa58a35712e6a0636f7c1e41a18679ab958368587c630", null ],
+      [ "Clingo::TheoryTermType::list", "group__cpp__base.html#ggafd859000139ec13f3cf6aa58a35712e6a10ae9fc7d453b0dd525d0edf2ede7961", null ],
+      [ "Clingo::TheoryTermType::set", "group__cpp__base.html#ggafd859000139ec13f3cf6aa58a35712e6acdaeeeba9b4a4c5ebf042c0215a7bb0e", null ],
+      [ "Clingo::TheoryTermType::function", "group__cpp__base.html#ggafd859000139ec13f3cf6aa58a35712e6ac1c425268e68385d1ab5074c17a94f14", null ],
+      [ "Clingo::TheoryTermType::number", "group__cpp__base.html#ggafd859000139ec13f3cf6aa58a35712e6ab1bc248a7ff2b2e95569f56de68615df", null ],
+      [ "Clingo::TheoryTermType::symbol", "group__cpp__base.html#ggafd859000139ec13f3cf6aa58a35712e6a97bff26855a8bfa63e05d5477e794b24", null ]
     ] ]
 ];

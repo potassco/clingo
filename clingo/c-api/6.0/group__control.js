@@ -71,9 +71,11 @@ var group__control =
     ] ],
     [ "CppClingo::Control::Script", "classCppClingo_1_1Control_1_1Script.html", [
       [ "exec", "classCppClingo_1_1Control_1_1Script.html#aa98185c75928cf81b73194cdb7879744", null ],
-      [ "main", "classCppClingo_1_1Control_1_1Script.html#a5c6d63a29fadabc24778f597041655eb", null ]
+      [ "main", "classCppClingo_1_1Control_1_1Script.html#a5c6d63a29fadabc24778f597041655eb", null ],
+      [ "version", "classCppClingo_1_1Control_1_1Script.html#a4e413476e9048d207d6d28c622ab45c7", null ]
     ] ],
     [ "CppClingo::Control::Scripts", "classCppClingo_1_1Control_1_1Scripts.html", [
+      [ "extend_version", "classCppClingo_1_1Control_1_1Scripts.html#a1e7e953940b79d99ed5da852b7cb928d", null ],
       [ "main", "classCppClingo_1_1Control_1_1Scripts.html#aea2ab6e97371b89dc5c27b29300809a8", null ],
       [ "register_script", "classCppClingo_1_1Control_1_1Scripts.html#a68cfaeca4f2f0911006decb866b888ef", null ]
     ] ],
@@ -130,7 +132,7 @@ var group__control =
       [ "core", "classCppClingo_1_1Control_1_1SolveHandle.html#a66367d7594212ffcedbfd4e2350cff3f", null ],
       [ "get", "classCppClingo_1_1Control_1_1SolveHandle.html#a25fac82d442bcd639408f7845e1af313", null ],
       [ "last", "classCppClingo_1_1Control_1_1SolveHandle.html#a1b9dafb015987b7818cfad6137c65619", null ],
-      [ "model", "classCppClingo_1_1Control_1_1SolveHandle.html#a5a8e759c4a3131d786b4edebe6fb8f45", null ],
+      [ "model", "classCppClingo_1_1Control_1_1SolveHandle.html#a94005af5bce3d967f752c3a63e1e52ce", null ],
       [ "resume", "classCppClingo_1_1Control_1_1SolveHandle.html#a1ca17c0f28450cd55a8a88243963dd6e", null ],
       [ "wait", "classCppClingo_1_1Control_1_1SolveHandle.html#a1fdc0378744b9d67bb53bb4d07beca63", null ]
     ] ],
@@ -181,6 +183,7 @@ var group__control =
       [ "GroundHandle", "classCppClingo_1_1Control_1_1GroundHandle.html#abfd48d88b2e3aadbef7bd347c34498ee", null ],
       [ "cancel", "classCppClingo_1_1Control_1_1GroundHandle.html#a576db19aefd1ca583fa3ff40cd8c7ef1", null ],
       [ "get", "classCppClingo_1_1Control_1_1GroundHandle.html#a983a43096f17221b7a18d0021d75a7e5", null ],
+      [ "interrupt", "classCppClingo_1_1Control_1_1GroundHandle.html#af13c5c70ded4d9133752e152a2c7ec08", null ],
       [ "operator=", "classCppClingo_1_1Control_1_1GroundHandle.html#a89f64a0d71c2b5aa04b76583b5618ee3", null ],
       [ "operator=", "classCppClingo_1_1Control_1_1GroundHandle.html#adae6a09047a66e2675652ac28b186bd9", null ],
       [ "wait", "classCppClingo_1_1Control_1_1GroundHandle.html#a300f388a3ab5650c01dc421f129c700a", null ]
@@ -211,7 +214,7 @@ var group__control =
       [ "output_unprocessed_program", "classCppClingo_1_1Control_1_1Solver.html#ae33b96681ada72598ac3ebcdcc27dea3", null ],
       [ "parse", "classCppClingo_1_1Control_1_1Solver.html#a37d7dbd45461dc0ea0021ff215211d7b", null ],
       [ "parse", "classCppClingo_1_1Control_1_1Solver.html#a007f5add8a23672b5fa36c1ba8f366db", null ],
-      [ "parse_with", "classCppClingo_1_1Control_1_1Solver.html#a4722bfd388cae33e2906081da53bac20", null ],
+      [ "parse_with", "classCppClingo_1_1Control_1_1Solver.html#ac8a37b7d324bff261c7eacc023e6f733", null ],
       [ "print_summary", "classCppClingo_1_1Control_1_1Solver.html#a5cc115a2e46d87439fb6ce8042a94a5c", null ],
       [ "register_propagator", "classCppClingo_1_1Control_1_1Solver.html#ab8b3847f1f70a6f0d1f5a1edcac8e758", null ],
       [ "set_parts", "classCppClingo_1_1Control_1_1Solver.html#a1faf98d21ab0a2fcae45c9cb1e9c23cf", null ],
@@ -223,19 +226,17 @@ var group__control =
       [ "sym_tab", "classCppClingo_1_1Control_1_1Solver.html#a9938aea4f5e68e07ff5088805a4864b9", null ],
       [ "user_data", "classCppClingo_1_1Control_1_1Solver.html#af1654092f6e73dc2f37eb2d30e240fa3", null ]
     ] ],
-    [ "CppClingo::Control::BaseMap", "group__control.html#ga6a8ffd9a6250033614bbd8034c3103a2", null ],
-    [ "CppClingo::Control::DefMap", "group__control.html#ga8d2153b5813eb2584e8705a3929c6af4", null ],
-    [ "CppClingo::Control::ProgramParams", "group__control.html#ga22d03e5139cccfd3537c9db9c293c697", null ],
-    [ "CppClingo::Control::ProjectMap", "group__control.html#gaba6797530bb107ebad8ee4e2a10c7b68", null ],
-    [ "CppClingo::Control::UBackendHandle", "group__control.html#gae0457da1fc1091d82b31246a481abba7", null ],
-    [ "CppClingo::Control::UGroundEventHandler", "group__control.html#gaebb2e576832a7041208fde64444b9022", null ],
-    [ "CppClingo::Control::UModel", "group__control.html#gab67e7ad9cb7edfde3cd5d8ee643a183d", null ],
-    [ "CppClingo::Control::UPropagator", "group__control.html#ga11043fa2a770493b321662a03f17b89d", null ],
-    [ "CppClingo::Control::UScript", "group__control.html#gae5314e9987fc415b85fd57668dbc2ab5", null ],
-    [ "CppClingo::Control::USolveEventHandler", "group__control.html#ga6d7c83f39ec17960603f0b783f20a6cd", null ],
-    [ "CppClingo::Control::USolveHandle", "group__control.html#ga215895d93e51be3b336f13a5cde9bdfa", null ],
-    [ "CppClingo::Control::USymbolTable", "group__control.html#ga6d2fa6890f21e08f8075a970ed94c672", null ],
-    [ "CppClingo::Control::VarMap", "group__control.html#ga577bbef3ca685465f36f78cc515ddd77", null ],
+    [ "CppClingo::Control::DefMap", "group__control.html#ga12b195b3dca269672b1be8ef6ee60615", null ],
+    [ "CppClingo::Control::ProgramParams", "group__control.html#ga30229c8301ae6b49fce7f086219130e2", null ],
+    [ "CppClingo::Control::UBackendHandle", "group__control.html#ga14b90826094c4be39f0ef0b9f55a9163", null ],
+    [ "CppClingo::Control::UGroundEventHandler", "group__control.html#gab61357617b03c2381ef8e9a1ca3b893c", null ],
+    [ "CppClingo::Control::UModel", "group__control.html#gadec4e4d3272443060bdd42c4f3d36ee4", null ],
+    [ "CppClingo::Control::UPropagator", "group__control.html#ga3173593365db841b1c811071f7fa7051", null ],
+    [ "CppClingo::Control::UScript", "group__control.html#gabec3f1041d61ff3daafa2b12bcbfe836", null ],
+    [ "CppClingo::Control::USolveEventHandler", "group__control.html#ga52a3dd5677a167923602b1f35b6a0887", null ],
+    [ "CppClingo::Control::USolveHandle", "group__control.html#ga05dc229bf9e40929207182c9a7dd4cbe", null ],
+    [ "CppClingo::Control::USymbolTable", "group__control.html#gaaa58a0195a5fd672d1319fafcb797593", null ],
+    [ "CppClingo::Control::VarMap", "group__control.html#gaca405dd4dd31c3d7b8abd5036efb420c", null ],
     [ "CppClingo::Control::AppMode", "group__control.html#ga542a6445871beb19ed9da9253925d615", [
       [ "CppClingo::Control::AppMode::parse", "group__control.html#gga542a6445871beb19ed9da9253925d615a2e88eca8ada4443dd53a1261d68b5abd", null ],
       [ "CppClingo::Control::AppMode::rewrite", "group__control.html#gga542a6445871beb19ed9da9253925d615a7b4639e8d528d7a3eedafe23e9cdfee1", null ],
@@ -269,6 +270,7 @@ var group__control =
       [ "CppClingo::Control::ModelType::cautious_consequences", "group__control.html#gga25c1bf507dfb374f3b8bb1756fe598e3a000da5e943f2d15d6c9b2fbe73e5368d", null ]
     ] ],
     [ "CppClingo::Control::ReifyFlags", "group__control.html#ga2e46610b97ecd4e37468be6f06ab2bbc", [
+      [ "CppClingo::Control::ReifyFlags::empty", "group__control.html#gga2e46610b97ecd4e37468be6f06ab2bbcaa2e4822a98337283e39f7b60acf85ec9", null ],
       [ "CppClingo::Control::ReifyFlags::reify_scc", "group__control.html#gga2e46610b97ecd4e37468be6f06ab2bbca5dbba10315dae5b63772588cb41b8875", null ],
       [ "CppClingo::Control::ReifyFlags::reify_step", "group__control.html#gga2e46610b97ecd4e37468be6f06ab2bbcae6df2fbec190a372c7ff9cb290385317", null ]
     ] ],

@@ -7,5 +7,5 @@ var searchData=
   ['file_5fincluded_4',['file_included',['../group__cpp__core.html#gga8fdad02c71c32cd81aebcbfd037ccc19a31b7a174cc162f5743d563bf292817e6',1,'Clingo']]],
   ['fixpoint_5',['fixpoint',['../group__cpp__propagate.html#gga64cdaabee186410e187b8cae03402296a059eb2d1b437bb2dd788a4cf05ba379f',1,'Clingo']]],
   ['free_6',['free',['../group__cpp__core.html#ggae97ddaefc685defe1482ec2115380413aaa2d6e4f578eb0cfaba23beef76c2194',1,'Clingo']]],
-  ['function_7',['function',['../group__cpp__base.html#gga77490795fab59524ca5534916b4428faac1c425268e68385d1ab5074c17a94f14',1,'functionClingo'],['../group__cpp__symbol.html#ggacd72cb64fde6890c67281376f8458b3aac1c425268e68385d1ab5074c17a94f14',1,'functionClingo']]]
+  ['function_7',['function',['../group__cpp__base.html#ggafd859000139ec13f3cf6aa58a35712e6ac1c425268e68385d1ab5074c17a94f14',1,'functionClingo'],['../group__cpp__symbol.html#ggacd72cb64fde6890c67281376f8458b3aac1c425268e68385d1ab5074c17a94f14',1,'functionClingo']]]
 ];

@@ -6,7 +6,7 @@ var group__cpp__theory =
         [ "iterator_category", "classClingo_1_1TheoryAssignment_1_1iterator.html#a8ca5e5202521fee36ada3d6a4cbdfa6b", null ],
         [ "pointer", "classClingo_1_1TheoryAssignment_1_1iterator.html#ad4b037c98630dd1f6fe3f641115d5e16", null ],
         [ "reference", "classClingo_1_1TheoryAssignment_1_1iterator.html#a989254c62516fd0ac3e92ebc28822cc2", null ],
-        [ "value_type", "classClingo_1_1TheoryAssignment_1_1iterator.html#a01bad0480a72d77fb34b260aad190e4e", null ],
+        [ "value_type", "classClingo_1_1TheoryAssignment_1_1iterator.html#aa656b11e04bd47fc2742001040908b37", null ],
         [ "iterator", "classClingo_1_1TheoryAssignment_1_1iterator.html#aad3359fe271cc63a3416d489dff7476f", null ],
         [ "iterator", "classClingo_1_1TheoryAssignment_1_1iterator.html#a1345adf4e68442ea4c2688360d895cdb", null ],
         [ "operator*", "classClingo_1_1TheoryAssignment_1_1iterator.html#a34e68786fb3aab57350cf65b11e4eb50", null ],
@@ -25,7 +25,9 @@ var group__cpp__theory =
       [ "Theory", "classClingo_1_1Theory.html#ac94bc49b023975caf9c8db7942c11497", null ],
       [ "~Theory", "classClingo_1_1Theory.html#ae09aeb9081b89e9df5518cc8deef12a7", null ],
       [ "assignment", "classClingo_1_1Theory.html#afa890b7c34125b13a1574435dcf4eb25", null ],
+      [ "commit_hash", "classClingo_1_1Theory.html#a5eb6eb8a3fabcd4f26275ed5dda67cac", null ],
       [ "model", "classClingo_1_1Theory.html#a246189ea6b16a0c5984e64bb3acdf4d3", null ],
+      [ "name", "classClingo_1_1Theory.html#ad1e65ea232e9d86f2cd1786da944ab46", null ],
       [ "operator=", "classClingo_1_1Theory.html#a87079de9ae5c7746e3bab99b8ad29d94", null ],
       [ "prepare", "classClingo_1_1Theory.html#a4d03db4248c2993cf57855c41d27493e", null ],
       [ "register_options", "classClingo_1_1Theory.html#abab946a9710d4f9a87893664c893cae8", null ],
@@ -35,6 +37,7 @@ var group__cpp__theory =
       [ "rewrite", "classClingo_1_1Theory.html#ac49aef8d7cfe1adfaca7de18a4a4e1de", null ],
       [ "stats", "classClingo_1_1Theory.html#a43c33314307d017c35b4ebb4415d9a94", null ],
       [ "validate_options", "classClingo_1_1Theory.html#a342864850b41728f1d7423a57ee4fa0b", null ],
+      [ "version", "classClingo_1_1Theory.html#abe5600421700067c94d979583c66e4ff", null ],
       [ "c_cast", "classClingo_1_1Theory.html#a18e8ee4125a9a31d671c4190fa02295b", null ]
     ] ]
 ];

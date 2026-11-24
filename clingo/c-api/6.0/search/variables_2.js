@@ -7,6 +7,7 @@ var searchData=
   ['clingo_5fuser_5fstats_5faccu_4',['clingo_user_stats_accu',['../group__c__stats.html#ga310592d98421a73a5f59eafa3787bd2a',1,'stats.h']]],
   ['clingo_5fuser_5fstats_5fstep_5',['clingo_user_stats_step',['../group__c__stats.html#ga961d4706c1c1662babc96d4c313c4756',1,'stats.h']]],
   ['coefficient_6',['coefficient',['../structCppClingo_1_1Input_1_1IETerm.html#a182fd1ea5401e5522197a14189903cbf',1,'CppClingo::Input::IETerm']]],
-  ['compare_7',['compare',['../structCppClingo_1_1Util_1_1Record_1_1AttributeValue.html#ac7ddbe5090320f4e74faaefb098a47f0',1,'CppClingo::Util::Record::AttributeValue::compare'],['../structCppClingo_1_1Util_1_1Record_1_1AttributeName.html#a8cbb6a24f26eea1295681d84f4d7a9c2',1,'CppClingo::Util::Record::AttributeName::compare']]],
-  ['conversion_8',['conversion',['../structCppClingo_1_1FormatSpec.html#afb8baae4cfd166080d6d555244a2c3af',1,'CppClingo::FormatSpec']]]
+  ['commit_5fhash_7',['commit_hash',['../structclingo__application.html#ab32b40201aff6c94db5b4a0941d2ef15',1,'clingo_application']]],
+  ['compare_8',['compare',['../structCppClingo_1_1Util_1_1Record_1_1AttributeValue.html#ac7ddbe5090320f4e74faaefb098a47f0',1,'CppClingo::Util::Record::AttributeValue::compare'],['../structCppClingo_1_1Util_1_1Record_1_1AttributeName.html#a8cbb6a24f26eea1295681d84f4d7a9c2',1,'CppClingo::Util::Record::AttributeName::compare']]],
+  ['conversion_9',['conversion',['../structCppClingo_1_1FormatSpec.html#afb8baae4cfd166080d6d555244a2c3af',1,'CppClingo::FormatSpec']]]
 ];

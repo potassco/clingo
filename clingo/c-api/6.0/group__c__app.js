@@ -1,6 +1,7 @@
 var group__c__app =
 [
     [ "clingo_application", "structclingo__application.html", [
+      [ "commit_hash", "structclingo__application.html#ab32b40201aff6c94db5b4a0941d2ef15", null ],
       [ "main", "structclingo__application.html#a5c80225ac7e22f8c2f220902b940f381", null ],
       [ "print_model", "structclingo__application.html#a0419a43a7c8b6498f4041b0185fc5acd", null ],
       [ "program_name", "structclingo__application.html#a4f808ebe6ca32ceb715eab0d9e14989a", null ],

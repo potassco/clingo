@@ -24,5 +24,6 @@ var group__c__ground =
     [ "clingo_ground_handle_cancel", "group__c__ground.html#gac3ef574c0ab9bcefd01e262658acbfdf", null ],
     [ "clingo_ground_handle_close", "group__c__ground.html#gaac6a69cd2e53f06977462ef67449c01e", null ],
     [ "clingo_ground_handle_get", "group__c__ground.html#ga284acbc646b09149457620a3029282b2", null ],
+    [ "clingo_ground_handle_interrupt", "group__c__ground.html#ga11853ca3ad0aa99d80fa163e17864c63", null ],
     [ "clingo_ground_handle_wait", "group__c__ground.html#gad5ac1d6e794e26fc189aa1471fa2b395", null ]
 ];

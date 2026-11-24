@@ -4,7 +4,7 @@ var classCppClingo_1_1Util_1_1interval__set =
     [ "left_bound", "structCppClingo_1_1Util_1_1interval__set_1_1left__bound.html", "structCppClingo_1_1Util_1_1interval__set_1_1left__bound" ],
     [ "right_bound", "structCppClingo_1_1Util_1_1interval__set_1_1right__bound.html", "structCppClingo_1_1Util_1_1interval__set_1_1right__bound" ],
     [ "interval_vector", "classCppClingo_1_1Util_1_1interval__set.html#ae1522afcb3e71ae3e18e5b6705a015a0", null ],
-    [ "iterator", "classCppClingo_1_1Util_1_1interval__set.html#abbe76768f866ff27ae1dc228b261a6e8", null ],
+    [ "iterator", "classCppClingo_1_1Util_1_1interval__set.html#ad9e848d2a9239ab0e8c23c3d4f23854a", null ],
     [ "value_type", "classCppClingo_1_1Util_1_1interval__set.html#ae85d0243848a12a052e29a379081aefe", null ],
     [ "interval_set", "classCppClingo_1_1Util_1_1interval__set.html#ac05754e41775aeadd4e4eaf1340f2e74", null ],
     [ "~interval_set", "classCppClingo_1_1Util_1_1interval__set.html#acce1d5fa954b3b15e22edb0ef3a80ba1", null ],

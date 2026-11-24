@@ -950,6 +950,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#clingo.ground.GroundHandle.interrupt" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        interrupt
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#clingo.ground.GroundHandle.get" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -965,6 +976,34 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         wait
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clingo.ground.AsyncGroundHandle" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        AsyncGroundHandle
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AsyncGroundHandle">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clingo.ground.AsyncGroundHandle.__await__" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        __await__
       </span>
     </span>
   </a>
@@ -1313,6 +1352,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#clingo.ground.GroundHandle.interrupt" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        interrupt
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#clingo.ground.GroundHandle.get" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1328,6 +1378,34 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         wait
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#clingo.ground.AsyncGroundHandle" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        AsyncGroundHandle
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AsyncGroundHandle">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clingo.ground.AsyncGroundHandle.__await__" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        __await__
       </span>
     </span>
   </a>
@@ -1413,6 +1491,20 @@ grounding to finish:</p>
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="n">start_ground</span> <span class="n">status</span><span class="p">:</span> <span class="n">running</span>
 <a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="n">start_ground</span> <span class="n">result</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">GroundResult</span><span class="o">.</span><span class="n">Ok</span><span class="p">:</span> <span class="mi">0</span><span class="o">&gt;</span>
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="n">start_ground</span> <span class="n">status</span><span class="p">:</span> <span class="n">finished</span>
+</code></pre></div>
+<p>The example below shows how to ground with asyncio:</p>
+<div class="language-python highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">clingo.control</span><span class="w"> </span><span class="kn">import</span> <span class="n">Control</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">clingo.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Library</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="o">&gt;&gt;&gt;</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="o">&gt;&gt;&gt;</span> <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="o">...</span>     <span class="n">lib</span> <span class="o">=</span> <span class="n">Library</span><span class="p">()</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="o">...</span>     <span class="n">ctl</span> <span class="o">=</span> <span class="n">Control</span><span class="p">(</span><span class="n">lib</span><span class="p">)</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="o">...</span>     <span class="n">ctl</span><span class="o">.</span><span class="n">parse_string</span><span class="p">(</span><span class="s2">"</span><span class="si">{a}</span><span class="s2">."</span><span class="p">)</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="o">...</span>     <span class="nb">print</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="k">await</span> <span class="n">ctl</span><span class="o">.</span><span class="n">ground_async</span><span class="p">(</span><span class="n">asyncio</span><span class="o">.</span><span class="n">get_running_loop</span><span class="p">())))</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="o">...</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="o">&gt;&gt;&gt;</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="o">&lt;</span><span class="n">GroundResult</span><span class="o">.</span><span class="n">Ok</span><span class="p">:</span> <span class="mi">0</span><span class="o">&gt;</span>
 </code></pre></div>
 
 
@@ -1775,6 +1867,35 @@ though.</p>
 <div class="doc doc-object doc-function">
 
 
+<h3 id="clingo.ground.GroundHandle.interrupt" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">interrupt</span>
+
+
+<a href="#clingo.ground.GroundHandle.interrupt" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">interrupt</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Request grounding to stop without waiting for it.</p>
+<p>Use <a class="autorefs autorefs-internal" title="wait" href="./#clingo.ground.GroundHandle.wait"><code>wait</code></a> or <a class="autorefs autorefs-internal" title="get" href="./#clingo.ground.GroundHandle.get"><code>get</code></a>
+to wait until grounding has stopped. The result is then
+<a class="autorefs autorefs-internal" title="Interrupted
+
+
+  
+      class-attribute
+      instance-attribute
+  " href="./#clingo.ground.GroundResult.Interrupted"><code>Interrupted</code></a> unless grounding finished before.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h3 id="clingo.ground.GroundHandle.get" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">get</span>
 
@@ -1890,6 +2011,80 @@ zero timeout allows polling for a result.</p>
           </tr>
       </tbody>
     </table>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="clingo.ground.AsyncGroundHandle" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">AsyncGroundHandle</span>
+
+
+<a href="#clingo.ground.AsyncGroundHandle" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>An object to await grounding running in the background.</p>
+<p>The functions of the context passed to
+<a class="autorefs autorefs-internal" title="ground_async" href="../control/#clingo.control.Control.ground_async"><code>ground_async</code></a> are called on the grounding thread
+and must not interact with the event loop.</p>
+<p>Cancelling an awaiting task requests grounding to stop without waiting for
+it. Awaiting the handle again waits until grounding stopped and returns the
+result. The control object must not be used before grounding stopped.
+Dropping the handle does not stop grounding.</p>
+<p>See also: <a class="autorefs autorefs-internal" title="ground_async" href="../control/#clingo.control.Control.ground_async"><code>ground_async</code></a></p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="clingo.ground.AsyncGroundHandle.__await__" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">__await__</span>
+
+
+<a href="#clingo.ground.AsyncGroundHandle.__await__" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">__await__</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-external" title="collections.abc.Generator" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Generator">Generator</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" title="typing.Any" href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a></span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n"><a class="autorefs autorefs-internal" title="GroundResult (clingo.ground.GroundResult)" href="./#clingo.ground.GroundResult">GroundResult</a></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Wait for grounding to finish and return the ground result.</p>
 
 
     </div>

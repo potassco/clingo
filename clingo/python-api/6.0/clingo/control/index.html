@@ -1111,6 +1111,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#clingo.control.Control.ground_async" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ground_async
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#clingo.control.Control.interrupt" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1192,6 +1203,17 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         solve
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clingo.control.Control.solve_async" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        solve_async
       </span>
     </span>
   </a>
@@ -1842,6 +1864,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#clingo.control.Control.ground_async" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        ground_async
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#clingo.control.Control.interrupt" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
@@ -1923,6 +1956,17 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         solve
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clingo.control.Control.solve_async" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        solve_async
       </span>
     </span>
   </a>
@@ -3270,6 +3314,127 @@ during grounding.</p>
 <div class="doc doc-object doc-function">
 
 
+<h3 id="clingo.control.Control.ground_async" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">ground_async</span>
+
+
+<a href="#clingo.control.Control.ground_async" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">ground_async</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">loop</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="EventLoop (clingo.core.EventLoop)" href="../core/#clingo.core.EventLoop">EventLoop</a></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">parts</span><span class="p">:</span> <span class="p">(</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        <span class="n"><a class="autorefs autorefs-external" title="collections.abc.Sequence" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence">Sequence</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple">tuple</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></span><span class="p">,</span> <span class="n"><a class="autorefs autorefs-external" title="collections.abc.Sequence" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence">Sequence</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="Symbol (clingo.symbol.Symbol)" href="../symbol/#clingo.symbol.Symbol">Symbol</a></span><span class="p">]]]</span> <span class="o">|</span> <span class="kc">None</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="p">)</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">context</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="typing.Any" href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a></span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="AsyncGroundHandle (clingo.ground.AsyncGroundHandle)" href="../ground/#clingo.ground.AsyncGroundHandle">AsyncGroundHandle</a></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Ground the given program parts in the background and return an awaitable handle.</p>
+<p>Awaiting the handle returns the ground result. See
+<a class="autorefs autorefs-internal" title="ground" href="./#clingo.control.Control.ground"><code>ground</code></a> for details on grounding program parts.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>loop</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="EventLoop (clingo.core.EventLoop)" href="../core/#clingo.core.EventLoop">EventLoop</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The event loop of the awaiting task.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>parts</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="collections.abc.Sequence" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence">Sequence</a>[<a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple">tuple</a>[<a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a>, <a class="autorefs autorefs-external" title="collections.abc.Sequence" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence">Sequence</a>[<a class="autorefs autorefs-internal" title="Symbol (clingo.symbol.Symbol)" href="../symbol/#clingo.symbol.Symbol">Symbol</a>]]] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The program parts to ground.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>context</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="typing.Any" href="https://docs.python.org/3/library/typing.html#typing.Any">Any</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>An optional object providing functions that can be called
+during grounding. They are called on the grounding thread.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="AsyncGroundHandle (clingo.ground.AsyncGroundHandle)" href="../ground/#clingo.ground.AsyncGroundHandle">AsyncGroundHandle</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A handle to await grounding.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="notes" open>
+  <summary>Notes</summary>
+  <p>Asynchronous grounding requires compiling clingo with thread
+support.</p>
+</details>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h3 id="clingo.control.Control.interrupt" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">interrupt</span>
 
@@ -3752,6 +3917,185 @@ optimization.</p>
       </tbody>
     </table>
 
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="clingo.control.Control.solve_async" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">solve_async</span>
+
+
+<a href="#clingo.control.Control.solve_async" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">solve_async</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">loop</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="EventLoop (clingo.core.EventLoop)" href="../core/#clingo.core.EventLoop">EventLoop</a></span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">assumptions</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="collections.abc.Sequence" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence">Sequence</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple">tuple</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="Symbol (clingo.symbol.Symbol)" href="../symbol/#clingo.symbol.Symbol">Symbol</a></span><span class="p">,</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></span><span class="p">]</span> <span class="o">|</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#int">int</a></span><span class="p">]</span> <span class="o">=</span> <span class="p">[],</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">on_model</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="collections.abc.Callable" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Callable">Callable</a></span><span class="p">[[</span><span class="n"><a class="autorefs autorefs-internal" title="Model (clingo.solve.Model)" href="../solve/#clingo.solve.Model">Model</a></span><span class="p">],</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">on_unsat</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="collections.abc.Callable" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Callable">Callable</a></span><span class="p">[[</span><span class="n"><a class="autorefs autorefs-external" title="collections.abc.Sequence" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence">Sequence</a></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#int">int</a></span><span class="p">]],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">on_stats</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" title="collections.abc.Callable" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Callable">Callable</a></span><span class="p">[[</span><span class="n"><a class="autorefs autorefs-internal" title="Stats (clingo.stats.Stats)" href="../stats/#clingo.stats.Stats">Stats</a></span><span class="p">,</span> <span class="n"><a class="autorefs autorefs-internal" title="Stats (clingo.stats.Stats)" href="../stats/#clingo.stats.Stats">Stats</a></span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">yield_</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="AsyncSolveHandle (clingo.solve.AsyncSolveHandle)" href="../solve/#clingo.solve.AsyncSolveHandle">AsyncSolveHandle</a></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Solve the current ground program in the background and return an awaitable handle.</p>
+<p>Awaiting the handle returns the solve result. With <code>yield_=True</code>, the
+models can be iterated with <code>async for</code> before awaiting the result.
+Otherwise, models can be intercepted with the <code>on_model</code> callback.</p>
+<p>The callbacks are called on the solver thread. Their arguments are only
+valid during the call and they must not interact with the event loop.
+See <a class="autorefs autorefs-internal" title="start_solve" href="./#clingo.control.Control.start_solve"><code>start_solve</code></a> for a description of the
+callbacks.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>loop</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="EventLoop (clingo.core.EventLoop)" href="../core/#clingo.core.EventLoop">EventLoop</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The event loop of the awaiting task.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>assumptions</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="collections.abc.Sequence" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence">Sequence</a>[<a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple">tuple</a>[<a class="autorefs autorefs-internal" title="Symbol (clingo.symbol.Symbol)" href="../symbol/#clingo.symbol.Symbol">Symbol</a>, <a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a>] | <a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#int">int</a>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The assumptions that constrain the search.</p>
+              </div>
+            </td>
+            <td>
+                  <code>[]</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>on_model</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="collections.abc.Callable" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Callable">Callable</a>[[<a class="autorefs autorefs-internal" title="Model (clingo.solve.Model)" href="../solve/#clingo.solve.Model">Model</a>], <a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a> | None] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>An optional callback to intercept models.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>on_unsat</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="collections.abc.Callable" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Callable">Callable</a>[[<a class="autorefs autorefs-external" title="collections.abc.Sequence" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence">Sequence</a>[<a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#int">int</a>]], None] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>An optional callback to intercept lower bounds during
+optimization.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>on_stats</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" title="collections.abc.Callable" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Callable">Callable</a>[[<a class="autorefs autorefs-internal" title="Stats (clingo.stats.Stats)" href="../stats/#clingo.stats.Stats">Stats</a>, <a class="autorefs autorefs-internal" title="Stats (clingo.stats.Stats)" href="../stats/#clingo.stats.Stats">Stats</a>], None] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>An optional callback to extend the statistics.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>yield_</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-external" href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Whether models can be iterated with <code>async for</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="AsyncSolveHandle (clingo.solve.AsyncSolveHandle)" href="../solve/#clingo.solve.AsyncSolveHandle">AsyncSolveHandle</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A handle to await the search.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="notes" open>
+  <summary>Notes</summary>
+  <p>Asynchronous solving requires compiling clingo with thread support.</p>
+</details>
+
+<details class="see-also" open>
+  <summary>See Also</summary>
+  <p><a class="autorefs autorefs-internal" title="AsyncSolveHandle" href="../solve/#clingo.solve.AsyncSolveHandle"><code>AsyncSolveHandle</code></a></p>
+</details>
 
     </div>
 

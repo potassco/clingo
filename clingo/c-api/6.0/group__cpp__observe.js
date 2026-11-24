@@ -9,7 +9,7 @@ var group__cpp__observe =
       [ "edge", "classClingo_1_1Observer.html#a62738281676897c5f66c26c00cb7755e", null ],
       [ "end_step", "classClingo_1_1Observer.html#a215b006687e17d8ba657d1d63cc8c782", null ],
       [ "external", "classClingo_1_1Observer.html#ab4160259c4e1a41ba7de76aad7e3f455", null ],
-      [ "heuristic", "classClingo_1_1Observer.html#a3b6267c42a382b4585dda230476bf6df", null ],
+      [ "heuristic", "classClingo_1_1Observer.html#a7a6c41cadf8edabcc43fc99f51b8235e", null ],
       [ "init_program", "classClingo_1_1Observer.html#a21c05b90d01e052a0447d79c5bdfcc3f", null ],
       [ "minimize", "classClingo_1_1Observer.html#a38750cd0c4f1bd8eea01b82c25f1397e", null ],
       [ "operator=", "classClingo_1_1Observer.html#a420c3ad58f779ce41f1a5a5aea684aa3", null ],

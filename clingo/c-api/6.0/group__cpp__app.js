@@ -13,6 +13,7 @@ var group__cpp__app =
       [ "App", "classClingo_1_1App.html#a5367dbb969b5aee762e586bca8406d23", null ],
       [ "App", "classClingo_1_1App.html#a259ef879c136c27b75e31a06c614c683", null ],
       [ "~App", "classClingo_1_1App.html#aef9d3e90dde6fa8589f6f94256c56a77", null ],
+      [ "commit_hash", "classClingo_1_1App.html#ac0aa4d0f34f15a8eef2f4f6e10a3352e", null ],
       [ "main", "classClingo_1_1App.html#a72e9720a1eff081f9aa4b5a4ee3f1bb7", null ],
       [ "operator=", "classClingo_1_1App.html#a692d263a466b598e1f2c0fa1e5a45707", null ],
       [ "print_model", "classClingo_1_1App.html#a4f82266e32046a945315bbac9612c202", null ],
@@ -21,7 +22,7 @@ var group__cpp__app =
       [ "register_options", "classClingo_1_1App.html#aef95305cda99e3c9e80123630fc9c2f6", null ],
       [ "validate_options", "classClingo_1_1App.html#aaf2cfc23c0725a3367f44764a66c4ab6", null ]
     ] ],
-    [ "Clingo::ModelPrinter", "group__cpp__app.html#ga36a1677f58c879e9edca03e68e19b17d", null ],
+    [ "Clingo::ModelPrinter", "group__cpp__app.html#ga935af0e4cc681b5a9bb439d985232153", null ],
     [ "Clingo::main", "group__cpp__app.html#gadd785139af27fd18f6727a2915c73f23", null ],
     [ "Clingo::main", "group__cpp__app.html#ga0fbcfb2f69555fdd9beea3458a6be914", null ]
 ];

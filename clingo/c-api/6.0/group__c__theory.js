@@ -10,7 +10,7 @@ var group__c__theory =
       [ "assignment_get_value", "structclingo__theory.html#a080af6da1f70a3ab018ddfed9e7905c3", null ],
       [ "assignment_next", "structclingo__theory.html#a28012620349062fe455a2695dd30340e", null ],
       [ "destroy", "structclingo__theory.html#a82441cdc252bcb11184cca3f91d60cfb", null ],
-      [ "info", "structclingo__theory.html#a831eec2691425ca8c63b6f46116f836b", null ],
+      [ "info", "structclingo__theory.html#a79a8f97b43352442a35812cb5c8b529f", null ],
       [ "lookup_symbol", "structclingo__theory.html#af187b087786add748783a17c890bbb5f", null ],
       [ "on_model", "structclingo__theory.html#aa87f2bbb3c731e7d67dd8cfd4e8b2af9", null ],
       [ "on_stats", "structclingo__theory.html#ae36969d16e4f026181f2fb0e8343e30d", null ],

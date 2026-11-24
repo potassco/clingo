@@ -4,7 +4,7 @@ var searchData=
   ['less_1',['less',['../group__core.html#gga935e9938bd363dd0147e23ca56cd17eaae37e8d912e8f7b8f9b5ef9452ba47ff1',1,'CppClingo']]],
   ['less_5fequal_2',['less_equal',['../group__core.html#gga935e9938bd363dd0147e23ca56cd17eaa77932225fb35fc4b74dc8fabf0992dac',1,'CppClingo']]],
   ['level_3',['level',['../group__cpp__core.html#gga75c7931009e9a58b832418ee36229198ac9e9a848920877e76685b2e4e76de38d',1,'Clingo']]],
-  ['list_4',['list',['../group__cpp__backend.html#gga04e6df2ac5df1d1a43f5a6a110c1c0c3a10ae9fc7d453b0dd525d0edf2ede7961',1,'listClingo'],['../group__cpp__base.html#gga77490795fab59524ca5534916b4428faa10ae9fc7d453b0dd525d0edf2ede7961',1,'listClingo']]],
+  ['list_4',['list',['../group__cpp__backend.html#gga04e6df2ac5df1d1a43f5a6a110c1c0c3a10ae9fc7d453b0dd525d0edf2ede7961',1,'listClingo'],['../group__cpp__base.html#ggafd859000139ec13f3cf6aa58a35712e6a10ae9fc7d453b0dd525d0edf2ede7961',1,'listClingo']]],
   ['lit_5',['lit',['../group__ground__bdcondlit.html#gga2d5d131dd0b1f4e166490b8b67a55b12aef28f869b241b00b879922832b14da10',1,'CppClingo::Ground']]],
   ['literal_6',['literal',['../group__cpp__ast.html#gga92fda7a179b8c7d80b9146e409e1bd8baf0d674f1e0ed4292267f149c5983db02',1,'Clingo::AST']]],
   ['locale_7',['locale',['../structCppClingo_1_1FormatSpec.html#aa0d31ced1bb6cc19448c362d1fdd9c0cafb216d9e8791e63c8d12bdc420956839',1,'CppClingo::FormatSpec']]],

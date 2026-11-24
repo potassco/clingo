@@ -35,7 +35,7 @@ var NAVTREE =
       [ "Class Members", "functions.html", [
         [ "All", "functions.html", "functions_dup" ],
         [ "Functions", "functions_func.html", "functions_func" ],
-        [ "Variables", "functions_vars.html", null ],
+        [ "Variables", "functions_vars.html", "functions_vars" ],
         [ "Typedefs", "functions_type.html", "functions_type" ],
         [ "Enumerations", "functions_enum.html", null ],
         [ "Related Symbols", "functions_rela.html", "functions_rela" ]
@@ -48,24 +48,25 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "annotated.html",
-"classClingo_1_1Control.html#a6f721f3841de1e04baa3f81d6bbef74a",
-"classClingo_1_1StatsMapView.html#a20eaa4a4a74b08d33ab9dcad1cbffecd",
-"classCppClingo_1_1Control_1_1GroundHandle.html#a301ad6801d9d5d5718caba4fe07d6bbd",
-"classCppClingo_1_1Ground_1_1BaseBdAggr.html#aa8ef6dbc8212923671daabbdd367d195",
-"classCppClingo_1_1Ground_1_1MatchTheory.html",
-"classCppClingo_1_1Ground_1_1StmEdge.html",
-"classCppClingo_1_1Input_1_1Projection.html#aefbe4e0908adcfd7e5c39460b3b812a9",
-"classCppClingo_1_1Input_1_1TheoryTermSymbol.html#abdde76410af836e0045a3f09f0bd28d9",
-"classCppClingo_1_1Report.html#aa96d6b27e39152e9d818d5cfb10bb55f",
-"classCppClingo_1_1Util_1_1immutable__array.html#abb5c203b531a052fde79c36f37689527",
-"group__c__ast.html#ga52a902f02dc2fc7bea505615ffb168e5",
-"group__c__ground.html#gad5ac1d6e794e26fc189aa1471fa2b395",
-"group__control.html#ga4a02eb1843409dc74026a62469d64e11",
-"group__cpp__config.html#ga14b7804c314db5fccda3492d7fad52f2",
-"group__ground__script.html",
-"group__input__print.html#gab1660af106c9eff650f913ff9e97003e",
-"group__util__hash.html#ga34d52d2eba78aaf5548b83f8aa81262a",
-"structCppClingo_1_1Util_1_1value__equal__to.html#a6ab05fc8eb291e82a4ed115663b89166"
+"classClingo_1_1Control.html#a405eb78a38bad95bb675344ea91fb154",
+"classClingo_1_1StatsMap.html#ae00b97718a5636dc42fe23d28a460356",
+"classCppClingo_1_1Control_1_1ClingoConfig_1_1Entry.html#ac19d7a57b2e3ec09e89b3e80d54662df",
+"classCppClingo_1_1Ground_1_1BaseAssignAggr.html#a6af7136b87610ae27b38acdd8e5fe727",
+"classCppClingo_1_1Ground_1_1MatchHdAggr.html#a6abbc6acc67f3935c85bb28275564150",
+"classCppClingo_1_1Ground_1_1StmAssignAggrElem.html#ac470364f9ef01a7e5020fb01630ede00",
+"classCppClingo_1_1Input_1_1Program.html#a65552681b18734a3be6d675f663b723e",
+"classCppClingo_1_1Input_1_1TheoryTermFunction.html",
+"classCppClingo_1_1ProgramBackend.html#a53035c4de6bd91a9721a8245794ef256",
+"classCppClingo_1_1Util_1_1immutable__array.html#a616220ae2a94012c2cc18234ece06437",
+"functions_vars_v.html",
+"group__c__core.html#ga55d91caa8f1b3bbb375e9e8741616088",
+"group__c__stats.html#ga0519b0fbdd34be8f405f898f24506abf",
+"group__core__symbol.html#ga0dcd1b4274183b720525474376859552",
+"group__ground__assignaggr.html",
+"group__input__print.html#ga2b69457ad424ca02184f347b18d0107d",
+"group__input__term.html#gga777262b0d68c4ea17b24fb154820b5e2acfc049a17faac959998820e7aaaf4329",
+"structCppClingo_1_1Ground_1_1StateCondLitElem.html#a138f38d9ab73d52ce5933d4b0e7fef27",
+"structstd_1_1hash_3_01Clingo_1_1Term_01_4.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

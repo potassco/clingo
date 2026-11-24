@@ -15,5 +15,21 @@ var examples =
     [ "solve.c", "solve_8c-example.html", null ],
     [ "stats.c", "stats_8c-example.html", null ],
     [ "symbol.c", "symbol_8c-example.html", null ],
-    [ "theory.c", "theory_8c-example.html", null ]
+    [ "theory.c", "theory_8c-example.html", null ],
+    [ "app.cc", "app_8cc-example.html", null ],
+    [ "ast.cc", "ast_8cc-example.html", null ],
+    [ "backend.cc", "backend_8cc-example.html", null ],
+    [ "base-atoms.cc", "base-atoms_8cc-example.html", null ],
+    [ "base-theory.cc", "base-theory_8cc-example.html", null ],
+    [ "config.cc", "config_8cc-example.html", null ],
+    [ "control.cc", "control_8cc-example.html", null ],
+    [ "version.cc", "version_8cc-example.html", null ],
+    [ "ground.cc", "ground_8cc-example.html", null ],
+    [ "profile.cc", "profile_8cc-example.html", null ],
+    [ "propagate.cc", "propagate_8cc-example.html", null ],
+    [ "model.cc", "model_8cc-example.html", null ],
+    [ "solve.cc", "solve_8cc-example.html", null ],
+    [ "stats.cc", "stats_8cc-example.html", null ],
+    [ "symbol.cc", "symbol_8cc-example.html", null ],
+    [ "theory.cc", "theory_8cc-example.html", null ]
 ];
