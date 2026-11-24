@@ -2,6 +2,7 @@
 Unit tests for clingo.control module.
 """
 
+import sys
 from collections.abc import Mapping
 from textwrap import dedent
 
@@ -145,6 +146,25 @@ class TestControl:
             res = hnd.get()
             hnd.interrupt()
         assert res == GroundResult.Interrupted
+
+    @needs_threads
+    def test_start_ground_finish_error(self, monkeypatch):
+        """
+        Test that errors in the finish callback are reported as unraisable.
+        """
+        errors = []
+        monkeypatch.setattr(
+            sys, "unraisablehook", lambda arg: errors.append(arg.exc_value)
+        )
+
+        def on_finish(_):
+            raise RuntimeError("on_finish")
+
+        ctl = Control(self.lib)
+        ctl.parse_string("a.")
+        with ctl.start_ground(on_finish=on_finish) as hnd:
+            assert hnd.get() == GroundResult.Ok
+        assert [str(e) for e in errors] == ["on_finish"]
 
     def test_ground(self):
         """

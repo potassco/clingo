@@ -373,6 +373,11 @@ class SolveHandle {
     //!
     //! This call blocks until search has stopped.
     void cancel() { do_cancel(); }
+    //! Request the current search to stop without waiting for it.
+    //!
+    //! Use get() or wait() to wait until search has stopped. Like resume(),
+    //! this invalidates the current model.
+    void interrupt() { do_interrupt(); }
     //! Resume search after a model has been found to start search for the next
     //! one.
     //!
@@ -416,6 +421,7 @@ class SolveHandle {
   private:
     virtual auto do_get() -> SolveResult = 0;
     virtual void do_cancel() = 0;
+    virtual void do_interrupt() = 0;
     virtual void do_resume() = 0;
     virtual auto do_model() -> Model * = 0;
     virtual auto do_last() -> Model const * = 0;

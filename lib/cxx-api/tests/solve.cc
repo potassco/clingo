@@ -88,6 +88,28 @@ TEST_CASE("solve async", "[cxx][solve][async]") {
     }
     REQUIRE(models == std::vector<std::vector<std::string>>{{"a"}, {"b"}});
 }
+
+TEST_CASE("solve interrupt", "[cxx][solve][async]") {
+    auto lib = Library{};
+    auto ctl = Control{lib, {"0"}};
+    ctl.parse_string("{ a(1..64) }.");
+    ctl.ground({{"base", {}}});
+
+    // interrupt while a model is held
+    {
+        auto hnd = ctl.start_solve({}, SolveFlags::async | SolveFlags::yield);
+        REQUIRE(hnd.model().has_value());
+        hnd.interrupt();
+        REQUIRE(hnd.get().interrupted());
+    }
+    // interrupt a running search
+    {
+        auto hnd = ctl.start_solve({}, SolveFlags::async);
+        REQUIRE(!hnd.wait(0.01));
+        hnd.interrupt();
+        REQUIRE(hnd.get().interrupted());
+    }
+}
 #endif
 
 TEST_CASE("solve assume", "[cxx][solve][assume]") {

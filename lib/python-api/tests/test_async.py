@@ -230,6 +230,9 @@ class TestAsync:
             ) as hnd:
                 with pytest.raises(TimeoutError):
                     await asyncio.wait_for(hnd, 0.01)
+                # the result can still be awaited
+                res = await hnd
+            assert res.interrupted
 
         asyncio.run(run())
 

@@ -124,6 +124,13 @@ extern "C" auto clingo_solve_handle_cancel(clingo_solve_handle_t *handle) -> boo
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_solve_handle_interrupt(clingo_solve_handle_t *handle) -> bool {
+    CLINGO_TRY {
+        cpp_cast(handle)->interrupt();
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" void clingo_solve_handle_close(clingo_solve_handle_t *handle) {
     delete cpp_cast(handle, false);
 }

@@ -675,6 +675,7 @@ class SolveHandleFixed : public SolveHandle {
   private:
     auto do_get() -> SolveResult override { return SolveResult::empty; }
     void do_cancel() override {}
+    void do_interrupt() override {}
     void do_resume() override {}
     auto do_model() -> Model * override { return nullptr; }
     auto do_last() -> Model const * override { return nullptr; }
@@ -731,6 +732,7 @@ class SolveHandleImpl : public SolveHandle {
         hnd_.cancel();
         simplify_();
     }
+    void do_interrupt() override { static_cast<void>(hnd_.interrupt()); }
     void do_resume() override {
         auto guard = unlock_guard{eh_.get_lock()};
         hnd_.resume();
