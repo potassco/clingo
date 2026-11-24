@@ -10,8 +10,6 @@ extern "C" {
 #endif
 
 //! @addtogroup c_script
-//! Support for calling external functions during grounding and customizing the main solving loop.
-//!
 //! @{
 
 //! Custom scripting language to run functions during grounding.

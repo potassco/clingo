@@ -26,9 +26,6 @@ typedef struct clingo_program clingo_program_t;
 //! ## Code ##
 
 //! @addtogroup c_control
-//! Functions to control the grounding and solving process.
-//!
-//! For an example, see @ref control.c.
 //! @{
 
 //! Control object holding grounding and solving state.

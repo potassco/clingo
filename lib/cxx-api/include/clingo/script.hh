@@ -9,11 +9,6 @@
 namespace Clingo {
 
 //! @addtogroup cpp_script
-//! Support for external functions solving customizations.
-//!
-//! This module provides an interface to implement custom scripts that can be
-//! used to provide external functions callable during grounding and to
-//! customize the main application flow.
 //! @{
 
 //! Interface for custom scripts.

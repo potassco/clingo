@@ -43,10 +43,6 @@ void join(clingo_control_t *ctl, clingo_program_t const *prg);
 //! ## Code ##
 
 //! @addtogroup cpp_control
-//! Functions to control the grounding and solving process.
-//!
-//! For an example, see @ref control.cc.
-//!
 //! @{
 
 //! Class to providing a view on the const directives in a logic program.

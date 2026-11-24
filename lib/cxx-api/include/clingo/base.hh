@@ -24,9 +24,6 @@ namespace Clingo {
 //! ## Code ##
 
 //! @addtogroup cpp_base
-//! Inspection of atoms occurring in ground logic programs.
-//!
-//! For an example, see @ref base-atoms.cc and @ref base-theory.cc.
 //! @{
 
 //! Class to provide access to symbolic atoms.

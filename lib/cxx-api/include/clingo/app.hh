@@ -19,10 +19,6 @@ namespace Clingo {
 //! ## Code ##
 
 //! @addtogroup cpp_app
-//! Support for building applications on top of clingo.
-//!
-//! For an example, see @ref app.cc.
-//!
 //! @{
 
 //! Object to add command-line options.

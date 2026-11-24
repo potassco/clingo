@@ -18,18 +18,6 @@ namespace Clingo {
 //! ## Code ##
 
 //! @addtogroup cpp_theory
-//! For an example, see @ref theory.cc.
-//!
-//! This module defines a well-specified C interface that must be implemented
-//! by external theory plugins. The interface is designed to allow efficient
-//! interoperation between the core solver and external theory implementations.
-//! It facilitates integration across language barriers (for example, bridging
-//! C++ and Python) and across modular boundaries within the system.
-//!
-//! Among its responsibilities, the theory interface includes: Providing
-//! essential theory callbacks (e.g., rewriting ASTs, model handling, preparing
-//! theory data, and statistics collection). Defining the lifecycle of a theory
-//! object, including optional cleanup via a destroy callback.
 //! @{
 
 //! Class to represent a theory assignment.

@@ -12,7 +12,6 @@ extern "C" {
 typedef struct clingo_control clingo_control_t;
 
 //! @addtogroup c_observe
-//! Functions and data structures to inspect ground programs.
 //! @{
 
 //! Available write modes for aspif files (bitset).

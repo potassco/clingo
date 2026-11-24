@@ -28,19 +28,6 @@ extern "C" {
 //! ## Code ##
 
 //! @addtogroup c_theory
-//!
-//! This module defines a well-specified C interface that must be implemented
-//! by external theory plugins. The interface is designed to allow efficient
-//! interoperation between the core solver and external theory implementations.
-//! It facilitates integration across language barriers (for example, bridging
-//! C++ and Python) and across modular boundaries within the system.
-//!
-//! Among its responsibilities, the theory interface includes: Providing
-//! essential theory callbacks (e.g., rewriting ASTs, model handling, preparing
-//! theory data, and statistics collection). Defining the lifecycle of a theory
-//! object, including optional cleanup via a destroy callback.
-//!
-//! For an example, refer to @ref theory.c.
 //! @{
 
 //! The available value types.

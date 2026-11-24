@@ -26,9 +26,6 @@ typedef struct clingo_control clingo_control_t;
 //! ## Code ##
 
 //! @addtogroup c_propagate
-//! Extend the search with propagators for arbitrary theories.
-//!
-//! For an example, see @ref propagate.c.
 //! @{
 
 //! Represents a (partial) assignment of a particular solver.

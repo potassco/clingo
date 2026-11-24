@@ -28,10 +28,6 @@ typedef struct clingo_control clingo_control_t;
 //! ## Code ##
 
 //! @addtogroup c_backend
-//! Add non-ground program representations (ASTs) to logic programs or extend the ground (aspif) program.
-//!
-//! For an example about ground logic programs, see @ref backend.c.
-//! For an example about non-ground logic programs, see @ref ast.c and the @ref c_ast module.
 //! @{
 
 //! Enumeration of theory sequence types.

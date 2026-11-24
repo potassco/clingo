@@ -17,9 +17,6 @@ namespace Clingo {
 //! ## Code ##
 
 //! @addtogroup cpp_backend
-//! Extend the logic program with ground statements (in aspif-like format).
-//!
-//! For an example, see @ref backend.cc.
 //! @{
 
 //! Enumeration of available theory sequence types.

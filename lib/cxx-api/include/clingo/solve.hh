@@ -23,9 +23,6 @@ namespace Clingo {
 //! ## Code ##
 
 //! @addtogroup cpp_solve Solving
-//! Intercept models and interact with a running search.
-//!
-//! For an example, see @ref model.cc and @ref solve.cc.
 //! @{
 
 //! Class to capture the result of solve calls.

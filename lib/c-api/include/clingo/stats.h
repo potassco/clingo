@@ -25,9 +25,6 @@ typedef struct clingo_control clingo_control_t;
 //! ## Code ##
 
 //! @addtogroup c_stats
-//! Inspect search and problem stats.
-//!
-//! For an example, see @ref stats.c.
 //! @{
 
 //! Enumeration for entries of the stats.

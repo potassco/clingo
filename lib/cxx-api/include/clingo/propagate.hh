@@ -16,10 +16,6 @@ namespace Clingo {
 //! ## Code ##
 
 //! @addtogroup cpp_propagate
-//! Extend the search with propagators for arbitrary theories.
-//!
-//! For an example, see @ref propagate.cc.
-//!
 //! @{
 
 //! Enumeration of propagator check modes.

@@ -48,9 +48,6 @@ typedef struct clingo_control clingo_control_t;
 //! ## Code ##
 
 //! @addtogroup c_base
-//! Inspection of atoms occurring in ground logic programs.
-//!
-//! For an examples, see @ref base-atoms.c and base-theory.c.
 //! @{
 
 //! Represents a predicate signature.

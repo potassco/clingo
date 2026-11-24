@@ -23,8 +23,6 @@ typedef struct clingo_control clingo_control_t;
 //! ## Code ##
 
 //! @addtogroup c_ast
-//! Functions and data structures to work with program ASTs.
-//!
 //! @{
 
 //! Enumeration of AST types.

@@ -24,13 +24,6 @@ extern "C" {
 //! ## Code ##
 
 //! @addtogroup c_ground Grounding
-//! Interact with a running ground call.
-//!
-//! ::clingo_ground_handle_t objects can be used for asynchronous grounding.
-//! They allow for stopping the grounding process and waiting for its completion.
-//!
-//! For an example showing how to ground asynchronously, see @ref ground.c.
-//!
 //! @{
 
 //! Struct used to specify the program parts that have to be grounded.

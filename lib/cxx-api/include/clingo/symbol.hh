@@ -18,12 +18,6 @@ namespace Clingo {
 //! ## Code ##
 
 //! @addtogroup cpp_symbol
-//! Working with (evaluated) ground terms and related functions.
-//!
-//! For an example, see @ref symbol.cc.
-//!
-//! @note Functions to create symbols are only thread-safe if library flags
-//! have been requested accordingly.
 //! @{
 
 //! Enumeration of symbol types.

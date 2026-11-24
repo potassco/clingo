@@ -2,7 +2,6 @@
 #define CLINGO_SHARED_H
 
 //! @addtogroup c_shared
-//! Enumerations shared by various modules.
 //! @{
 
 #ifdef __cplusplus

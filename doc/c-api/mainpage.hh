@@ -21,43 +21,115 @@
 //! @{
 
 //! @defgroup c_core Core Functionality
+//! Core types and functions used throughout all modules and version information.
+//!
+//! For an example, see @ref version.c.
 
 //! @defgroup c_symbol Symbol Handling
+//! Working with (evaluated) ground terms and related functions.
+//!
+//! @note Functions to create symbols are only thread-safe if library flags have been requested accordingly.
+//!
+//! For an example, see @ref symbol.c.
 
 //! @defgroup c_ast Abstract Syntax Trees
+//! Functions and data structures to work with program ASTs.
+//!
+//! For an example, see @ref ast.c.
 
 //! @defgroup c_control Grounding and Solving
+//! Functions to control the grounding and solving process.
+//!
+//! For an example, see @ref control.c.
 //! @{
 
 //! @defgroup c_base Symbolic Atom Inspection
+//! Inspection of atoms occurring in ground logic programs.
+//!
+//! For examples, see @ref base-atoms.c and @ref base-theory.c.
 
 //! @defgroup c_shared Basic Shared Types
+//! Enumerations shared by various modules.
 
 //! @defgroup c_observe Ground Program Inspection
+//! Functions and data structures to inspect ground programs.
 
 //! @defgroup c_backend Ground Program Extension
+//! Add non-ground program representations (ASTs) to logic programs or extend the ground (aspif) program.
+//!
+//! For an example about ground logic programs, see @ref backend.c.
+//! For an example about non-ground logic programs, see @ref ast.c and the @ref c_ast module.
 
 //! @defgroup c_ground Grounding
+//! Interact with a running ground call.
+//!
+//! ::clingo_ground_handle_t objects can be used for asynchronous grounding.
+//! They allow for stopping the grounding process and waiting for its completion.
+//!
+//! For an example showing how to ground asynchronously, see @ref ground.c.
 
 //! @defgroup c_model Model Inspection
+//! Inspection of models and a high-level interface to add constraints during solving.
+//!
+//! For an example, see @ref model.c.
 
 //! @defgroup c_solve Solving
+//! Interact with a running search.
+//!
+//! ::clingo_solve_handle_t objects can be used for both synchronous and asynchronous search,
+//! as well as iteratively receiving models and solve results.
+//!
+//! For an example showing how to solve asynchronously, see @ref solve.c.
 
 //! @defgroup c_config Solver Configuration
+//! Configuration of search and enumeration algorithms.
+//!
+//! Entries in a configuration are organized hierarchically.
+//! Subentries are either accessed by name for map entries or by offset for array entries.
+//! Value entries have a string value that can be inspected or modified.
+//!
+//! For an example, see @ref config.c.
 
 //! @defgroup c_stats Statistics
+//! Inspect search and problem stats.
+//!
+//! For an example, see @ref stats.c.
 
 //! @defgroup c_propagate Theory Propagation
+//! Extend the search with propagators for arbitrary theories.
+//!
+//! For an example, see @ref propagate.c.
 
 //! @defgroup c_profile Profile Grounding
+//! Profile the grounding process.
+//!
+//! For an example, see @ref profile.c.
 
 //! @}
 
 //! @defgroup c_script Scripting Support for Grounding
+//! Support for calling external functions during grounding and customizing the main solving loop.
 
 //! @defgroup c_app Applications on top of Clingo
+//! Support for building applications on top of clingo.
+//!
+//! For an example, see @ref app.c.
 
 //! @defgroup c_theory External Theory Support
+//! Interface for external theory plugins.
+//!
+//! This module defines a well-specified C interface that must be implemented
+//! by external theory plugins. The interface is designed to allow efficient
+//! interoperation between the core solver and external theory implementations.
+//! It facilitates integration across language barriers (for example, bridging
+//! C++ and Python) and across modular boundaries within the system.
+//!
+//! Among its responsibilities, the theory interface includes: Providing
+//! essential theory callbacks (e.g., rewriting ASTs, model handling, preparing
+//! theory data, and statistics collection). Defining the lifecycle of a theory
+//! object, including optional cleanup via a destroy callback.
+//!
+//! For an example, see @ref theory.c.
 
 //! @}
 
@@ -70,39 +142,105 @@
 //! @{
 
 //! @defgroup cpp_core Core Functionality
+//! Core types and functions used throughout all modules and version information.
+//!
+//! For an example, see @ref version.cc.
 
 //! @defgroup cpp_symbol Symbol Handling
+//! Working with (evaluated) ground terms and related functions.
+//!
+//! For an example, see @ref symbol.cc.
+//!
+//! @note Functions to create symbols are only thread-safe if library flags
+//! have been requested accordingly.
 
 //! @defgroup cpp_ast Abstract Syntax Trees
+//! Functions and data structures to work with program ASTs.
+//!
+//! For an example, see @ref ast.cc.
 
 //! @defgroup cpp_control Grounding and Solving
+//! Functions to control the grounding and solving process.
+//!
+//! For an example, see @ref control.cc.
 //! @{
 
 //! @defgroup cpp_base Atom, Term, and Theory Base Inspection
+//! Inspection of atoms occurring in ground logic programs.
+//!
+//! For examples, see @ref base-atoms.cc and @ref base-theory.cc.
 
 //! @defgroup cpp_observe Ground Program Inspection
+//! Functions and data structures to inspect ground programs.
 
 //! @defgroup cpp_backend Ground Program Extension
+//! Extend the logic program with ground statements (in aspif-like format).
+//!
+//! For an example, see @ref backend.cc.
 
 //! @defgroup cpp_ground Grounding
+//! Grounding logic programs.
+//!
+//! For an example, see @ref ground.cc.
 
 //! @defgroup cpp_profile Profile Grounding
+//! Functions to profile the grounding process.
+//!
+//! For an example, see @ref profile.cc.
 
 //! @defgroup cpp_solve Solving
+//! Intercept models and interact with a running search.
+//!
+//! For examples, see @ref model.cc and @ref solve.cc.
 
 //! @defgroup cpp_config Solver Configuration
+//! Configuration of search and enumeration algorithms.
+//!
+//! For an example, see @ref config.cc.
+//!
+//! Entries in a configuration are organized hierarchically. Subentries are
+//! either accessed by name for map entries or by offset for array entries.
+//! Value entries have a string value that can be inspected or modified.
 
 //! @defgroup cpp_stats Statistics
+//! Inspect search and problem stats.
+//!
+//! For an example, see @ref stats.cc.
 
 //! @defgroup cpp_propagate Theory Propagation
+//! Extend the search with propagators for arbitrary theories.
+//!
+//! For an example, see @ref propagate.cc.
 
 //! @}
 
 //! @defgroup cpp_script Scripting Support for Grounding
+//! Support for external functions solving customizations.
+//!
+//! This module provides an interface to implement custom scripts that can be
+//! used to provide external functions callable during grounding and to
+//! customize the main application flow.
 
 //! @defgroup cpp_app Applications on top of Clingo
+//! Support for building applications on top of clingo.
+//!
+//! For an example, see @ref app.cc.
 
 //! @defgroup cpp_theory External Theory Support
+//! Interface for external theory plugins.
+//!
+//! This module defines a well-specified C interface that must be implemented
+//! by external theory plugins. The interface is designed to allow efficient
+//! interoperation between the core solver and external theory implementations.
+//! It facilitates integration across language barriers (for example, bridging
+//! C++ and Python) and across modular boundaries within the system.
+//!
+//! Among its responsibilities, the theory interface includes: Providing
+//! essential theory callbacks (e.g., rewriting ASTs, model handling, preparing
+//! theory data, and statistics collection). Defining the lifecycle of a theory
+//! object, including optional cleanup via a destroy callback.
+//!
+//! For an example, see @ref theory.cc.
 
 //! @}
 

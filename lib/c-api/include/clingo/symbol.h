@@ -25,11 +25,6 @@ extern "C" {
 //! ## Code ##
 
 //! @addtogroup c_symbol
-//! Working with (evaluated) ground terms and related functions.
-//!
-//! @note Functions to create symbols are only thread-safe if library flags have been requested accordingly.
-//!
-//! For an example, see @ref symbol.c.
 //! @{
 
 //! Enumeration of available symbol types.

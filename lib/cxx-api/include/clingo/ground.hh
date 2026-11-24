@@ -17,9 +17,6 @@ namespace Clingo {
 //! ## Code ##
 
 //! @addtogroup cpp_ground
-//! Grounding logic programs.
-//!
-//! For an example, see @ref ground.cc.
 //! @{
 
 //! A program part to provide inputs to program directives.

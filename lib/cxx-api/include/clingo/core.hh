@@ -482,9 +482,6 @@ template <class Seq> class RandomAccessIterator {
 //! ## Code ##
 
 //! @addtogroup cpp_core
-//! Core types and functions used throughout all modules and version information.
-//!
-//! For an example, see @ref version.cc.
 //! @{
 
 //! A program id used for various kinds of indices.

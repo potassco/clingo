@@ -38,8 +38,6 @@ extern "C" {
 //! ## Code ##
 
 //! @addtogroup c_app
-//! Support for building applications on top of clingo.
-//!
 //! @{
 
 //! Object to add command-line options.

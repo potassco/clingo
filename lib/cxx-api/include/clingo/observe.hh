@@ -8,7 +8,6 @@
 namespace Clingo {
 
 //! @addtogroup cpp_observe
-//! Functions and data structures to inspect ground programs.
 //! @{
 
 //! Observer interface to inspect the current ground program.

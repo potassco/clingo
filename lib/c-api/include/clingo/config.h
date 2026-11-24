@@ -30,14 +30,6 @@ typedef struct clingo_control clingo_control_t;
 //! ## Code ##
 
 //! @addtogroup c_config
-//! Configuration of search and enumeration algorithms.
-//!
-//! Entries in a configuration are organized hierarchically.
-//! Subentries are either accessed by name for map entries or by offset for array entries.
-//! Value entries have a string value that can be inspected or modified.
-//!
-//! For an example, see @ref config.c.
-//!
 //! @{
 
 //! Enumeration for entries of the configuration.

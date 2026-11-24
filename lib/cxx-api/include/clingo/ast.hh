@@ -21,10 +21,6 @@ namespace Clingo::AST {
 //! ## Code ##
 
 //! @addtogroup cpp_ast
-//! Functions and data structures to work with program ASTs.
-//!
-//! For an example, see @ref ast.cc.
-//!
 //! @{
 
 namespace UnaryOperator {

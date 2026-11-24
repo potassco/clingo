@@ -18,9 +18,6 @@ typedef struct clingo_control clingo_control_t;
 //! ## Code ##
 
 //! @addtogroup c_profile
-//! Profile the grounding process.
-//!
-//! For an example, see @ref profile.c.
 //! @{
 
 //! Enumeration for entries of the stats.

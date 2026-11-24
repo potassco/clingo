@@ -14,9 +14,6 @@ namespace Clingo {
 //! ## Code ##
 
 //! @addtogroup cpp_stats
-//! Inspect search and problem stats.
-//!
-//! For an example, see @ref stats.cc.
 //! @{
 
 //! Enumeration of statistics types.

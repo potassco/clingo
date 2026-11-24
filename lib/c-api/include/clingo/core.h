@@ -53,9 +53,6 @@ extern "C" {
 //! ## Code ##
 
 //! @addtogroup c_core
-//! Core types and functions used throughout all modules and version information.
-//!
-//! For an example, see @ref version.c.
 //! @{
 
 //! Major version number.

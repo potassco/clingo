@@ -17,10 +17,6 @@ namespace Clingo {
 //! ## Code ##
 
 //! @addtogroup cpp_profile
-//! Functions to profile the grounding process.
-//!
-//! For an example, see @ref profile.cc.
-//!
 //! @{
 
 //! Enumeration of the types of profiling data.

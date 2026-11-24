@@ -18,14 +18,6 @@ namespace Clingo {
 //! ## Code ##
 
 //! @addtogroup cpp_config
-//! Configuration of search and enumeration algorithms.
-//!
-//! For an example, see @ref config.cc.
-//!
-//! Entries in a configuration are organized hierarchically. Subentries are
-//! either accessed by name for map entries or by offset for array entries.
-//! Value entries have a string value that can be inspected or modified.
-//!
 //! @{
 
 //! Enumeration of configuration types.
