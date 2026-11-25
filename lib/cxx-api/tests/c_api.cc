@@ -226,6 +226,14 @@ TEST_CASE("c-api-control") {
     auto part = clingo_part_t{nullptr, 1, nullptr, 0};
     REQUIRE(failed_invalid(clingo_control_set_parts(ctl, &part, 1, true), "clingo_control_set_parts"));
     REQUIRE(clingo_control_get_parts(ctl, nullptr, nullptr, nullptr));
+    REQUIRE(failed_invalid(clingo_control_set_buffer(ctl, nullptr, 1), "clingo_control_set_buffer"));
+    REQUIRE(clingo_control_set_buffer(ctl, "ab", 2));
+    auto buf = clingo_string_t{nullptr, 0};
+    REQUIRE(clingo_control_buffer(ctl, &buf));
+    REQUIRE(std::string_view{buf.data, buf.size} == "ab");
+    REQUIRE(clingo_control_set_buffer(ctl, nullptr, 0));
+    REQUIRE(clingo_control_buffer(ctl, &buf));
+    REQUIRE(buf.size == 0);
     clingo_control_release(ctl);
     clingo_control_release(nullptr);
     clingo_control_acquire(nullptr);

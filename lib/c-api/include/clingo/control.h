@@ -234,10 +234,26 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_const_map(clingo_control_t *contro
 //! control objects associated with application objects are regularly flushed
 //! to stdout.
 //!
+//! The string is valid until the buffer is modified.
+//!
 //! @param[in] control the target
 //! @param[out] result the resulting string
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_buffer(clingo_control_t *control, clingo_string_t *result);
+
+//! Replace the content of the text output buffer.
+//!
+//! For example, passing an empty string clears the buffer, which is useful to
+//! avoid accumulating output over multiple steps. Note that when appending
+//! with an automatic preamble, clingo_control_write_aspif() writes the aspif
+//! preamble only if the buffer is empty. For control objects associated with
+//! application objects, the content is flushed to stdout like other output.
+//!
+//! @param[in] control the target
+//! @param[in] value the new content of the buffer
+//! @param[in] size the size of the content
+//! @return whether the call was successful
+CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_buffer(clingo_control_t *control, char const *value, size_t size);
 
 //! Get the program parts to ground.
 //!

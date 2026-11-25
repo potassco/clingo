@@ -182,6 +182,16 @@ extern "C" auto clingo_control_buffer(clingo_control_t *control, clingo_string_t
     CLINGO_CATCH;
 }
 
+extern "C" auto clingo_control_set_buffer(clingo_control_t *control, char const *value, size_t size) -> bool {
+    CLINGO_TRY {
+        require(control != nullptr && valid_span(value, size));
+        auto &buf = control->slv->buf();
+        buf.reset();
+        buf << std::string_view{value, size};
+    }
+    CLINGO_CATCH;
+}
+
 extern "C" auto clingo_control_get_parts(clingo_control_t *control, clingo_part_t const **parts, size_t *size,
                                          bool *has_value) -> bool {
     CLINGO_TRY {
