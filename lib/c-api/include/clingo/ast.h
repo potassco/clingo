@@ -234,19 +234,19 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_construct(clingo_lib_t *lib, clingo_as
 
 //! Copy the given AST node.
 //!
-//! @param[in] ast the AST to copy
-//! @param[out] copy the resulting AST
+//! @param[in] ast the AST to copy (may be NULL)
+//! @param[out] copy the resulting AST (NULL if ast is NULL)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_copy(clingo_ast_t *ast, clingo_ast_t **copy);
 
 //! Enumeration of expressions that can be parsed.
 enum clingo_ast_parse_type_e {
-    clingo_ast_parse_type_term,
-    clingo_ast_parse_type_theory_term,
-    clingo_ast_parse_type_literal,
-    clingo_ast_parse_type_body_literal,
-    clingo_ast_parse_type_head_literal,
-    clingo_ast_parse_type_statement,
+    clingo_ast_parse_type_term,         //!< a term
+    clingo_ast_parse_type_theory_term,  //!< a theory term
+    clingo_ast_parse_type_literal,      //!< a literal
+    clingo_ast_parse_type_body_literal, //!< a body literal
+    clingo_ast_parse_type_head_literal, //!< a head literal
+    clingo_ast_parse_type_statement,    //!< a statement
 };
 //! Corresponding type to ::clingo_ast_parse_type_e.
 typedef int clingo_ast_parse_type_t;
@@ -259,21 +259,24 @@ typedef int clingo_ast_parse_type_t;
 //! @param[in] type the expression type to parse
 //! @param[in] string the expression to parse
 //! @param[in] size the size of the string
-//! @param[in] ast the resulting ast
-//! @return whether the call was successful
+//! @param[out] ast the resulting ast, which has to be freed using clingo_ast_free()
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid
+//! - ::clingo_result_runtime if parsing fails
+//! - ::clingo_result_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_expression(clingo_lib_t *lib, clingo_ast_parse_type_t type,
                                                            char const *string, size_t size, clingo_ast_t **ast);
 
 //! Free an AST node.
 //!
-//! @param[in] ast the target AST
+//! @param[in] ast the target AST (may be NULL)
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_free(clingo_ast_t *ast);
 
 //! Free an AST array.
 //!
 //! This also frees the individual ast's in the array using clingo_ast_free.
 //!
-//! @param[in] ast the target AST array
+//! @param[in] ast the target AST array (may be NULL)
 //! @param[in] size the size of the AST array
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_array_free(clingo_ast_t **ast, size_t size);
 
@@ -294,18 +297,18 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_to_string(clingo_ast_t *ast, clingo_st
 //! @name Functions to compare ASTs
 //! @{
 
-//! Less than compare two AST nodes.
+//! Compare two AST nodes.
 //!
 //! @param[in] a the left-hand-side AST
 //! @param[in] b the right-hand-side AST
-//! @return the result of the comparison
+//! @return a negative value if a < b, zero if a == b, and a positive value otherwise
 CLINGO_VISIBILITY_DEFAULT int clingo_ast_compare(clingo_ast_t *a, clingo_ast_t *b);
 
 //! Equality compare two AST nodes.
 //!
 //! @param[in] a the left-hand-side AST
 //! @param[in] b the right-hand-side AST
-//! @return the result of the comparison
+//! @return whether the ASTs are equal
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_equal(clingo_ast_t *a, clingo_ast_t *b);
 
 //! Compute a hash for an AST node.
@@ -364,12 +367,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string(clingo_ast_t *ast
 
 //! Get the value of a string array attribute.
 //!
-//! @note The required size of the array can be queried setting value to NULL.
+//! The array is valid until the next call of this function in the same thread.
 //!
 //! @param[in] ast the target AST
 //! @param[in] attribute the target attribute
-//! @param[out] value the resulting value
-//! @param[out] size the size of the array
+//! @param[out] value the resulting value (optional)
+//! @param[out] size the size of the array (optional)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string_array(clingo_ast_t *ast,
                                                                      clingo_ast_attribute_t attribute,
@@ -377,12 +380,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_string_array(clingo_ast_
 
 //! Get the value of a symbol array attribute.
 //!
-//! @note The required size of the array can be queried setting value to NULL.
+//! The array is valid until the next call of this function in the same thread.
 //!
 //! @param[in] ast the target AST
 //! @param[in] attribute the target attribute
-//! @param[out] value the resulting value
-//! @param[out] size the size of the array
+//! @param[out] value the resulting value (optional)
+//! @param[out] size the size of the array (optional)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_attribute_get_symbol_array(clingo_ast_t *ast,
                                                                      clingo_ast_attribute_t attribute,
@@ -526,7 +529,7 @@ typedef bool (*clingo_ast_callback_t)(clingo_ast_t *ast, void *data);
 //! @param[in] lib the library object to store symbols
 //! @param[in] program the string to read from
 //! @param[in] size the size of the string
-//! @param[in] control optional control object to handle aspif
+//! @param[in] control optional control object to handle aspif (may be NULL)
 //! @param[in] callback the callback for the ast nodes
 //! @param[in] data the user data of the callback
 //! @return whether the call was successful
@@ -543,7 +546,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_parse_string(clingo_lib_t *lib, char c
 //! @param[in] lib the library object to store symbols
 //! @param[in] files the file paths to read from
 //! @param[in] size the number of file paths
-//! @param[in] control optional control object to handle aspif
+//! @param[in] control optional control object to handle aspif (may be NULL)
 //! @param[in] callback the callback for the ast nodes
 //! @param[in] data the user data of the callback
 //! @return whether the call was successful
@@ -575,7 +578,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite_context_create(clingo_lib_t *l
 
 //! Free the given rewrite context.
 //!
-//! @param[in] context the context to free
+//! @param[in] context the context to free (may be NULL)
 CLINGO_VISIBILITY_DEFAULT void clingo_ast_rewrite_context_free(clingo_ast_rewrite_context_t *context);
 
 //! Protect the given parameter from simplifications.
@@ -649,7 +652,7 @@ CLINGO_VISIBILITY_DEFAULT clingo_lib_t *clingo_ast_rewrite_context_get_lib(cling
 CLINGO_VISIBILITY_DEFAULT bool clingo_ast_rewrite(clingo_ast_rewrite_context_t *context, clingo_ast_t *statement,
                                                   clingo_ast_t ***result, size_t *result_size);
 
-//! Object to store
+//! Object to store a non-ground program.
 typedef struct clingo_program clingo_program_t;
 
 //! @name Functions to add ASTs to logic programs
@@ -663,7 +666,7 @@ typedef struct clingo_program clingo_program_t;
 CLINGO_VISIBILITY_DEFAULT bool clingo_program_new(clingo_lib_t *lib, clingo_program_t **program);
 //! Destroy the given program object.
 //!
-//! @param[in] program the program object
+//! @param[in] program the program object (may be NULL)
 CLINGO_VISIBILITY_DEFAULT void clingo_program_free(clingo_program_t *program);
 //! Adds a statement to the program.
 //!

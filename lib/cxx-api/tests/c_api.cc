@@ -1,3 +1,4 @@
+#include <clingo/ast.h>
 #include <clingo/core.h>
 #include <clingo/symbol.h>
 
@@ -140,6 +141,45 @@ TEST_CASE("c-api-symbol") {
     clingo_symbol_acquire(0);
     clingo_symbol_release(0);
     clingo_symbol_release(sym);
+    clingo_lib_release(lib);
+}
+
+TEST_CASE("c-api-ast") {
+    clingo_lib_t *lib = nullptr;
+    REQUIRE(clingo_lib_new(0, clingo_log_level_info, nullptr, nullptr, 0, &lib));
+    clingo_ast_t *ast = nullptr;
+    REQUIRE(failed_invalid(clingo_ast_parse_expression(nullptr, clingo_ast_parse_type_term, "a", 1, &ast),
+                           "clingo_ast_parse_expression"));
+    REQUIRE(failed_invalid(clingo_ast_parse_expression(lib, 42, "a", 1, &ast), "clingo_ast_parse_expression"));
+    REQUIRE(clingo_ast_parse_expression(lib, clingo_ast_parse_type_statement, "a.", 2, &ast));
+    clingo_ast_t *cpy = ast;
+    REQUIRE(clingo_ast_copy(nullptr, &cpy));
+    REQUIRE(cpy == nullptr);
+    clingo_ast_rewrite_context_t *ctx = nullptr;
+    REQUIRE(failed_invalid(clingo_ast_rewrite_context_create(nullptr, &ctx), "clingo_ast_rewrite_context_create"));
+    REQUIRE(clingo_ast_rewrite_context_create(lib, &ctx));
+    REQUIRE(
+        failed_invalid(clingo_ast_rewrite_context_add_param(nullptr, "a", 1), "clingo_ast_rewrite_context_add_param"));
+    REQUIRE(
+        failed_invalid(clingo_ast_rewrite_context_add_theory(ctx, nullptr), "clingo_ast_rewrite_context_add_theory"));
+    clingo_ast_t **res = nullptr;
+    auto size = size_t{0};
+    REQUIRE(failed_invalid(clingo_ast_rewrite(nullptr, ast, &res, &size), "clingo_ast_rewrite"));
+    REQUIRE(failed_invalid(clingo_ast_rewrite(ctx, ast, nullptr, &size), "clingo_ast_rewrite"));
+    REQUIRE(clingo_ast_rewrite(ctx, ast, &res, &size));
+    clingo_ast_array_free(res, size);
+    clingo_program_t *prg = nullptr;
+    REQUIRE(failed_invalid(clingo_program_new(nullptr, &prg), "clingo_program_new"));
+    REQUIRE(clingo_program_new(lib, &prg));
+    REQUIRE(failed_invalid(clingo_program_add(prg, nullptr), "clingo_program_add"));
+    REQUIRE(clingo_program_add(prg, ast));
+    clingo_program_free(prg);
+    clingo_program_free(nullptr);
+    clingo_ast_rewrite_context_free(ctx);
+    clingo_ast_rewrite_context_free(nullptr);
+    clingo_ast_free(ast);
+    clingo_ast_free(nullptr);
+    clingo_ast_array_free(nullptr, 0);
     clingo_lib_release(lib);
 }
 
