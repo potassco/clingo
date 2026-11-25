@@ -35,7 +35,7 @@ auto TheoryTermSymbol::do_compare_to(TheoryTerm const &other) const -> std::stro
     if (x != nullptr) {
         return sym_ <=> x->sym_;
     }
-    return std::type_index(typeid(this)) <=> std::type_index(typeid(other));
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
 // definition of TheoryTermVariable
@@ -72,7 +72,7 @@ auto TheoryTermVariable::do_compare_to(TheoryTerm const &other) const -> std::st
     if (x != nullptr) {
         return var_ <=> x->var_;
     }
-    return std::type_index(typeid(this)) <=> std::type_index(typeid(other));
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
 // definition of TheoryTermTuple
@@ -118,7 +118,7 @@ auto TheoryTermTuple::do_compare_to(TheoryTerm const &other) const -> std::stron
         return std::lexicographical_compare_three_way(args_.begin(), args_.end(), x->args_.begin(), x->args_.end(),
                                                       [](auto const &a, auto const &b) { return *a <=> *b; });
     }
-    return std::type_index(typeid(this)) <=> std::type_index(typeid(other));
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
 // definition of TheoryTermFunction
@@ -167,7 +167,7 @@ auto TheoryTermFunction::do_compare_to(TheoryTerm const &other) const -> std::st
         return std::lexicographical_compare_three_way(args_.begin(), args_.end(), x->args_.begin(), x->args_.end(),
                                                       [](auto const &a, auto const &b) { return *a <=> *b; });
     }
-    return std::type_index(typeid(this)) <=> std::type_index(typeid(other));
+    return std::type_index(typeid(*this)) <=> std::type_index(typeid(other));
 }
 
 } // namespace CppClingo::Ground

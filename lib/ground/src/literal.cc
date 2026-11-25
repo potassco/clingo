@@ -761,7 +761,8 @@ auto LitCheck::do_domain_size([[maybe_unused]] EstimateSelector sel) const -> st
 }
 
 auto LitCheck::do_hash() const -> size_t {
-    return typeid(this).hash_code();
+    // NOTE: checks are only equal to themselves
+    return Util::hash_mix(std::hash<LitCheck const *>{}(this));
 }
 
 auto LitCheck::do_equal_to(Lit const &other) const -> bool {
