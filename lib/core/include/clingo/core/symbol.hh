@@ -222,6 +222,49 @@ using SymbolVec = std::vector<Symbol>;
 //! Assignment mapping variables to symbols.
 using Assignment = std::vector<std::optional<Symbol>>;
 
+//! The representation of symbols.
+//!
+//! The constants are exposed to enable fast paths in inline functions. They
+//! are an implementation detail and should not be used outside of the core
+//! library.
+namespace SymbolRep {
+
+//! The number of bits storing the type of a symbol.
+constexpr auto TYPE_SIZE = static_cast<uint64_t>(3);
+//! The mask to extract the type of a symbol.
+constexpr auto TYPE_MASK = static_cast<uint64_t>((1 << TYPE_SIZE) - 1);
+//! The number of bits storing the extended type of numbers and constants.
+constexpr auto EXT_TYPE_SIZE = static_cast<uint64_t>(TYPE_SIZE + 2);
+//! The mask to extract the extended type of numbers and constants.
+constexpr auto EXT_TYPE_MASK = static_cast<uint64_t>((1 << EXT_TYPE_SIZE) - 1);
+//! The representation bits that are unset for small numbers.
+constexpr uint64_t SMALL_NUM_MASK = 0xFFFFFFFF;
+//! The position of the value in the representation of small numbers.
+constexpr uint64_t SMALL_NUM_SHIFT = 32;
+
+//! The types of symbols stored in the lower bits of their representation.
+// NOLINTNEXTLINE(performance-enum-size,cppcoreguidelines-use-enum-class)
+enum RepType : uint64_t {
+    REP_NUM_OR_CONSTANT = 0, //!< a small number, infimum, or supremum
+    REP_STR = 1,             //!< a string
+    REP_TUP = 2,             //!< a tuple
+    REP_SIGNED_ID = 3,       //!< a classically negated constant
+    REP_ID = 4,              //!< a constant
+    REP_SIGNED_FUN = 5,      //!< a classically negated function
+    REP_FUN = 6,             //!< a function
+    REP_BIGINT = 7,          //!< a number not fitting into 32 bits
+};
+
+//! The extended types of symbols with type REP_NUM_OR_CONSTANT.
+// NOLINTNEXTLINE(performance-enum-size,cppcoreguidelines-use-enum-class)
+enum ExtRepType : uint64_t {
+    EXT_REP_NUM = 0,              //!< a small number
+    EXT_REP_INF = 1 << TYPE_SIZE, //!< the infimum
+    EXT_REP_SUP = 2 << TYPE_SIZE, //!< the supremum
+};
+
+} // namespace SymbolRep
+
 //! Variant-like class to store symbols stored in a symbol store.
 class Symbol {
   public:
@@ -240,8 +283,8 @@ class Symbol {
     [[nodiscard]] auto small_num() const noexcept -> std::optional<int32_t> {
         // NOTE: small numbers are stored in the upper 32 bits and are the only
         // symbols whose lower 32 bits are all unset
-        if ((rep_ & SMALL_NUM_MASK) == 0) {
-            return static_cast<int32_t>(rep_ >> SMALL_NUM_SHIFT);
+        if ((rep_ & SymbolRep::SMALL_NUM_MASK) == 0) {
+            return static_cast<int32_t>(rep_ >> SymbolRep::SMALL_NUM_SHIFT);
         }
         return std::nullopt;
     }
@@ -307,15 +350,40 @@ class Symbol {
     //! Output the symbol to the given buffer.
     friend auto operator<<(Util::OutputBuffer &out, Symbol const &sym) -> Util::OutputBuffer &;
 
-    //! The representation bits that are unset for small numbers.
-    static constexpr uint64_t SMALL_NUM_MASK = 0xFFFFFFFF;
-    //! The position of the value in the representation of small numbers.
-    static constexpr uint64_t SMALL_NUM_SHIFT = 32;
-
   private:
     explicit Symbol(uint64_t repr) noexcept : rep_{repr} {}
     uint64_t rep_ = 0;
 };
+
+inline auto Symbol::type() const noexcept -> SymbolType {
+    switch (rep_ & SymbolRep::TYPE_MASK) {
+        case SymbolRep::REP_NUM_OR_CONSTANT: {
+            switch (rep_ & SymbolRep::EXT_TYPE_MASK) {
+                case SymbolRep::EXT_REP_NUM: {
+                    return SymbolType::number;
+                }
+                case SymbolRep::EXT_REP_INF: {
+                    return SymbolType::inf;
+                }
+                default: {
+                    return SymbolType::sup;
+                }
+            }
+        }
+        case SymbolRep::REP_STR: {
+            return SymbolType::string;
+        }
+        case SymbolRep::REP_TUP: {
+            return SymbolType::tuple;
+        }
+        case SymbolRep::REP_BIGINT: {
+            return SymbolType::number;
+        }
+        default: {
+            return SymbolType::function;
+        }
+    }
+}
 
 //! Class managing the lifetime of a Symbol.
 //!
@@ -524,7 +592,7 @@ class SymbolStore {
     //! Construct a number.
     [[nodiscard]] static auto num_ref(int32_t num) noexcept -> Symbol {
         // NOTE: this corresponds to the representation of small numbers (see Symbol::small_num())
-        return Symbol::from_rep(static_cast<uint64_t>(num) << Symbol::SMALL_NUM_SHIFT);
+        return Symbol::from_rep(static_cast<uint64_t>(num) << SymbolRep::SMALL_NUM_SHIFT);
     }
     //! Construct a tuple.
     //!

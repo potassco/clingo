@@ -22,29 +22,7 @@ auto bigint_refcount(uint64_t repr) -> std::atomic_size_t &;
 
 namespace {
 
-constexpr auto TYPE_SIZE = static_cast<uint64_t>(3);
-constexpr auto TYPE_MASK = static_cast<uint64_t>((1 << TYPE_SIZE) - 1);
-constexpr auto EXT_TYPE_SIZE = static_cast<uint64_t>(TYPE_SIZE + 2);
-constexpr auto EXT_TYPE_MASK = static_cast<uint64_t>((1 << EXT_TYPE_SIZE) - 1);
-
-// NOLINTNEXTLINE(performance-enum-size,cppcoreguidelines-use-enum-class)
-enum RepType : uint64_t {
-    REP_NUM_OR_CONSTANT = 0,
-    REP_STR = 1,
-    REP_TUP = 2,
-    REP_SIGNED_ID = 3,
-    REP_ID = 4,
-    REP_SIGNED_FUN = 5,
-    REP_FUN = 6,
-    REP_BIGINT = 7,
-};
-
-// NOLINTNEXTLINE(performance-enum-size,cppcoreguidelines-use-enum-class)
-enum ExtRepType : uint64_t {
-    EXT_REP_NUM = 0,
-    EXT_REP_INF = 1 << TYPE_SIZE,
-    EXT_REP_SUP = 2 << TYPE_SIZE,
-};
+using namespace SymbolRep;
 
 struct Sized {
     uint64_t size : 63;
@@ -957,36 +935,6 @@ auto Symbol::flip_classical_sign() const -> std::optional<Symbol> {
         }
         default: {
             return std::nullopt;
-        }
-    }
-}
-
-auto Symbol::type() const noexcept -> SymbolType {
-    switch (rep_ & TYPE_MASK) {
-        case REP_NUM_OR_CONSTANT: {
-            switch (rep_ & EXT_TYPE_MASK) {
-                case EXT_REP_NUM: {
-                    return SymbolType::number;
-                }
-                case EXT_REP_INF: {
-                    return SymbolType::inf;
-                }
-                default: {
-                    return SymbolType::sup;
-                }
-            }
-        }
-        case REP_STR: {
-            return SymbolType::string;
-        }
-        case REP_TUP: {
-            return SymbolType::tuple;
-        }
-        case REP_BIGINT: {
-            return SymbolType::number;
-        }
-        default: {
-            return SymbolType::function;
         }
     }
 }
