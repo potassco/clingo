@@ -182,9 +182,6 @@ auto future_new(PyObject *loop) -> PyObject *;
 //! Check whether a future is done; returns -1 on error.
 auto future_done(PyObject *fut) -> int;
 
-//! Check whether a future was cancelled; returns -1 on error.
-auto future_cancelled(PyObject *fut) -> int;
-
 //! Set the result of a future unless it is already done (e.g., cancelled).
 auto future_set_result(PyObject *fut, PyObject *value) -> bool;
 
@@ -209,6 +206,31 @@ auto future_chain(PyObject *src, PyObject *dst) -> bool;
 //! The function must be called with the GIL held but can be called from any
 //! thread.
 auto loop_post(PyObject *post, PyMethodDef *def, PyObject *self) -> bool;
+
+//! Function stopping the operation of a handle; returns false with a Python error set.
+using AsyncStop = bool (*)(PyObject *handle);
+
+//! The type spec of steps awaiting futures on behalf of handles.
+//!
+//! Each module using steps creates its own type from the spec.
+extern PyType_Spec async_step_spec;
+
+//! Create a step awaiting a future on behalf of a handle (new reference).
+//!
+//! If an exception is thrown into the awaiting coroutine before the result
+//! future is done, the operation is stopped and the exception is raised once
+//! the result future is done. Thus, cancelling an awaiting task waits until
+//! the operation stopped, as expected by asyncio.
+//!
+//! @param type the step type created from async_step_spec
+//! @param handle the handle owning the operation
+//! @param stop the function stopping the operation
+//! @param loop the event loop
+//! @param fut the awaited future
+//! @param result the future resolved once the operation stopped
+//! @return the step or nullptr with a Python error set
+auto async_step_new(PyObject *type, PyObject *handle, AsyncStop stop, PyObject *loop, PyObject *fut, PyObject *result)
+    -> PyObject *;
 
 //! Create a submodule, add it to the parent module and register it in sys.modules.
 auto add_submodule(PyObject *module, PyModuleDef *def, PyObject **store) -> bool;

@@ -230,6 +230,8 @@ class TestAsync:
             ) as hnd:
                 with pytest.raises(TimeoutError):
                     await asyncio.wait_for(hnd, 0.01)
+                # the cancellation waits until the search stopped
+                assert hnd.last() is not None
                 # the result can still be awaited
                 res = await hnd
             assert res.interrupted
@@ -254,6 +256,8 @@ class TestAsync:
                     async with asyncio.timeout(0.01):
                         async for _ in models:
                             n += 1
+                # the cancellation waits until the search stopped
+                assert hnd.last() is not None
                 res = await hnd
             assert n > 0
             assert res.interrupted
@@ -397,7 +401,40 @@ class TestAsync:
 
     def test_ground_cancel(self):
         """
-        Test that cancelling grounding does not block and the result can still be awaited.
+        Test that cancelling grounding waits until it stopped and the result can still be awaited.
+        """
+        event = threading.Event()
+
+        class Context:
+            """
+            Context providing a blocking function.
+            """
+
+            def block(self, x):
+                """
+                Block until the event is set.
+                """
+                event.wait(5)
+                return x
+
+        async def run():
+            ctl = Control(self.lib)
+            ctl.parse_string("p(1..3). q(@block(X)) :- p(X).")
+            loop = asyncio.get_running_loop()
+            hnd = ctl.ground_async(loop, context=Context())
+            loop.call_later(0.05, event.set)
+            with pytest.raises(TimeoutError):
+                await asyncio.wait_for(hnd, 0.01)
+            # the cancellation waits until the context function returned
+            assert event.is_set()
+            assert await hnd == GroundResult.Interrupted
+            assert await hnd == GroundResult.Interrupted
+
+        asyncio.run(run())
+
+    def test_ground_cancel_repeated(self):
+        """
+        Test that cancelling the awaiting task again keeps waiting until grounding stopped.
         """
         event = threading.Event()
 
@@ -417,12 +454,20 @@ class TestAsync:
             ctl = Control(self.lib)
             ctl.parse_string("p(1..3). q(@block(X)) :- p(X).")
             hnd = ctl.ground_async(asyncio.get_running_loop(), context=Context())
-            with pytest.raises(TimeoutError):
-                await asyncio.wait_for(hnd, 0.01)
-            # the context function still blocks here
-            assert not event.is_set()
+
+            async def wait():
+                return await hnd
+
+            task = asyncio.create_task(wait())
+            await asyncio.sleep(0.01)
+            task.cancel()
+            await asyncio.sleep(0.01)
+            task.cancel()
+            await asyncio.sleep(0.01)
+            assert not task.done()
             event.set()
-            assert await hnd == GroundResult.Interrupted
+            with pytest.raises(asyncio.CancelledError):
+                await task
             assert await hnd == GroundResult.Interrupted
 
         asyncio.run(run())

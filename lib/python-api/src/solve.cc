@@ -1545,129 +1545,23 @@ auto py_async_clear(PyObject *self) -> int {
     return 0;
 }
 
-// AsyncStep
-//
-// Awaiting a future of the event loop directly would hide cancellations of
-// the awaiting task if the future is already done. The step forwards to the
-// iterator of the future and interrupts the search if an exception is thrown
-// into the awaiting coroutine.
-
-struct PyAsyncStepObject {
-    PyObject_HEAD
-    //! The handle whose search is interrupted.
-    PyObject *handle;
-    //! The iterator of the awaited future.
-    PyObject *iter;
-};
-
-auto step_cast(PyObject *obj) -> PyAsyncStepObject * {
-    return reinterpret_cast<PyAsyncStepObject *>(obj);
+//! Stop the search of an asynchronous solve handle.
+auto async_stop(PyObject *self) -> bool {
+    return async_cancel(async_cast(self));
 }
 
 //! Create a step awaiting the given future on behalf of the handle.
-auto step_new(PyObject *handle, PyObject *fut) -> PyObject * {
-    auto *state = state_of(handle);
+auto step_new(PyObject *self, PyObject *fut) -> PyObject * {
+    auto *state = state_of(self);
     if (state == nullptr) {
         return nullptr;
     }
-    auto iter = steal(PyObject_CallMethod(fut, "__await__", nullptr));
-    if (iter.get() == nullptr) {
-        return nullptr;
-    }
-    auto *step = alloc_object<PyAsyncStepObject>(state->async_step_type);
-    if (step == nullptr) {
-        return nullptr;
-    }
-    step->handle = Py_NewRef(handle);
-    step->iter = iter.release();
-    return reinterpret_cast<PyObject *>(step);
+    auto *a = async_cast(self);
+    return async_step_new(state->async_step_type, self, async_stop, a->loop, fut, a->result);
 }
-
-//! Call a method of the iterator of the future with the given arguments.
-auto step_call(PyObject *self, char const *name, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
-    auto meth = steal(PyObject_GetAttrString(step_cast(self)->iter, name));
-    auto tuple = steal(meth.get() != nullptr ? PyTuple_New(nargs) : nullptr);
-    if (tuple.get() == nullptr) {
-        return nullptr;
-    }
-    for (Py_ssize_t i = 0; i < nargs; ++i) {
-        auto *arg = std::span{args, static_cast<size_t>(nargs)}[static_cast<size_t>(i)];
-        PyTuple_SetItem(tuple.get(), i, Py_NewRef(arg));
-    }
-    return PyObject_Call(meth.get(), tuple.get(), nullptr);
-}
-
-auto py_step_send(PyObject *self, PyObject *value) -> PyObject * {
-    return step_call(self, "send", &value, 1);
-}
-
-auto py_step_throw(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
-    if (!async_cancel(async_cast(step_cast(self)->handle))) {
-        PyErr_WriteUnraisable(step_cast(self)->handle);
-    }
-    return step_call(self, "throw", args, nargs);
-}
-
-auto py_step_close(PyObject *self, [[maybe_unused]] PyObject *arg) -> PyObject * {
-    return step_call(self, "close", nullptr, 0);
-}
-
-auto py_step_iternext(PyObject *self) -> PyObject * {
-    return py_step_send(self, Py_None);
-}
-
-auto py_step_await(PyObject *self) -> PyObject * {
-    return Py_NewRef(self);
-}
-
-auto py_step_traverse(PyObject *self, visitproc visit, void *arg) -> int {
-    Py_VISIT(Py_TYPE(self));
-    Py_VISIT(step_cast(self)->handle);
-    Py_VISIT(step_cast(self)->iter);
-    return 0;
-}
-
-auto py_step_clear(PyObject *self) -> int {
-    Py_CLEAR(step_cast(self)->handle);
-    Py_CLEAR(step_cast(self)->iter);
-    return 0;
-}
-
-auto py_step_methods = std::array{
-    PyMethodDef{"send", py_step_send, METH_O, PyDoc_STR("Send a value into the awaited future.")},
-    PyMethodDef{
-        "throw",
-        method_cast(py_step_throw),
-        METH_FASTCALL,
-        PyDoc_STR("Interrupt the search and throw an exception into the awaited future."),
-    },
-    PyMethodDef{"close", py_step_close, METH_NOARGS, PyDoc_STR("Close the iterator of the awaited future.")},
-    PyMethodDef{nullptr, nullptr, 0, nullptr},
-};
-
-auto py_step_slots = std::array{
-    PyType_Slot{Py_tp_doc, const_cast<char *>("An awaitable step of an asynchronous search.")}, // NOLINT
-    PyType_Slot{Py_tp_dealloc, reinterpret_cast<void *>(free_object)},
-    PyType_Slot{Py_tp_traverse, reinterpret_cast<void *>(py_step_traverse)},
-    PyType_Slot{Py_tp_clear, reinterpret_cast<void *>(py_step_clear)},
-    PyType_Slot{Py_tp_iter, reinterpret_cast<void *>(py_step_await)},
-    PyType_Slot{Py_tp_iternext, reinterpret_cast<void *>(py_step_iternext)},
-    PyType_Slot{Py_am_await, reinterpret_cast<void *>(py_step_await)},
-    PyType_Slot{Py_tp_methods, py_step_methods.data()},
-    PyType_Slot{0, nullptr},
-};
-
-auto py_step_spec = PyType_Spec{
-    "clingo.solve._AsyncStep",
-    sizeof(PyAsyncStepObject),
-    0,
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_HAVE_GC,
-    py_step_slots.data(),
-};
 
 auto py_async_await(PyObject *self) -> PyObject * {
-    // NOTE: Each await uses its own future so that cancelling an awaiting task does not cancel the result, which can
-    // then still be awaited to wait until the search stopped.
+    // NOTE: Each await uses its own future so that cancelling an awaiting task does not cancel the result.
     auto *a = async_cast(self);
     if (!async_drain(a)) {
         return nullptr;
@@ -2077,7 +1971,7 @@ auto create_solve(PyObject *parent) -> PyObject * {
         return nullptr;
     }
     // NOTE: the step type is an implementation detail and not added to the module
-    state->async_step_type = PyType_FromModuleAndSpec(solve_mod.get(), &py_step_spec, nullptr);
+    state->async_step_type = PyType_FromModuleAndSpec(solve_mod.get(), &async_step_spec, nullptr);
     if (state->async_step_type == nullptr) {
         return nullptr;
     }

@@ -20,6 +20,7 @@ struct GroundModuleState {
     PyObject *ground_result_enum{nullptr};
     PyObject *handle_type{nullptr};
     PyObject *async_handle_type{nullptr};
+    PyObject *async_step_type{nullptr};
 };
 
 using PyGroundHandleObject = struct {
@@ -429,22 +430,18 @@ auto py_async_notify_finish(PyObject *self, [[maybe_unused]] PyObject *arg) -> P
     Py_RETURN_NONE;
 }
 
-auto py_async_done(PyObject *self, PyObject *fut) -> PyObject * {
-    auto *a = async_cast(self);
-    auto cancelled = future_cancelled(fut);
-    if (cancelled < 0) {
-        return nullptr;
+//! Stop an asynchronous grounding.
+auto async_stop(PyObject *self) -> bool {
+    auto *hnd = async_cast(self)->base.hnd;
+    if (hnd != nullptr && !clingo_ground_handle_interrupt(hnd)) {
+        py_handle_error();
+        return false;
     }
-    auto *hnd = a->base.hnd;
-    if (cancelled > 0 && hnd != nullptr && !clingo_ground_handle_interrupt(hnd)) {
-        return py_handle_error();
-    }
-    Py_RETURN_NONE;
+    return true;
 }
 
 // NOTE: the definitions are bound to handles to post them to the event loop
 PyMethodDef async_notify_finish_def = {"_notify_finish", py_async_notify_finish, METH_NOARGS, nullptr};
-PyMethodDef async_done_def = {"_done", py_async_done, METH_O, nullptr};
 
 void async_finish([[maybe_unused]] clingo_ground_result_t result, void *data) {
     auto gil = GILGuard{};
@@ -477,15 +474,13 @@ auto py_async_clear(PyObject *self) -> int {
 }
 
 auto py_async_await(PyObject *self) -> PyObject * {
-    // NOTE: Each await uses its own future so that cancelling an awaiting task does not cancel the result, which can
-    // then still be awaited to wait until grounding stopped.
+    // NOTE: Each await uses its own future so that cancelling an awaiting task does not cancel the result.
     auto *a = async_cast(self);
     auto fut = steal(future_new(a->loop));
-    if (fut.get() == nullptr || !future_add_done(fut.get(), &async_done_def, self) ||
-        !future_chain(a->result, fut.get())) {
+    if (fut.get() == nullptr || !future_chain(a->result, fut.get())) {
         return nullptr;
     }
-    return PyObject_CallMethod(fut.get(), "__await__", nullptr);
+    return async_step_new(a->base.state->async_step_type, self, async_stop, a->loop, fut.get(), a->result);
 }
 
 auto py_async_slots = std::array{
@@ -514,6 +509,7 @@ auto ground_module_traverse(PyObject *module, visitproc visit, void *arg) -> int
     Py_VISIT(state->ground_result_enum);
     Py_VISIT(state->handle_type);
     Py_VISIT(state->async_handle_type);
+    Py_VISIT(state->async_step_type);
     return 0;
 }
 
@@ -526,6 +522,7 @@ auto ground_module_clear(PyObject *module) -> int {
     Py_CLEAR(state->ground_result_enum);
     Py_CLEAR(state->handle_type);
     Py_CLEAR(state->async_handle_type);
+    Py_CLEAR(state->async_step_type);
     return 0;
 }
 
@@ -684,6 +681,11 @@ auto create_ground(PyObject *parent) -> PyObject * {
         !add_int_enum(ground_mod.get(), "GroundResult", ground_result_members, &state->ground_result_enum, {}) ||
         !add_type(ground_mod.get(), "GroundHandle", &py_handle_spec, &state->handle_type) ||
         !add_type(ground_mod.get(), "AsyncGroundHandle", &py_async_spec, &state->async_handle_type)) {
+        return nullptr;
+    }
+    // NOTE: the step type is an implementation detail and not added to the module
+    state->async_step_type = PyType_FromModuleAndSpec(ground_mod.get(), &async_step_spec, nullptr);
+    if (state->async_step_type == nullptr) {
         return nullptr;
     }
     return ground_mod.release();
