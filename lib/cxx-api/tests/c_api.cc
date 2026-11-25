@@ -1,6 +1,7 @@
 #include <clingo/ast.h>
 #include <clingo/backend.h>
 #include <clingo/base.h>
+#include <clingo/config.h>
 #include <clingo/control.h>
 #include <clingo/core.h>
 #include <clingo/ground.h>
@@ -363,6 +364,30 @@ TEST_CASE("c-api-base") {
         failed_range(clingo_term_base_condition(terms, 1, nullptr, nullptr, nullptr), "clingo_term_base_condition"));
     auto sym = clingo_symbol_t{0};
     REQUIRE(failed_range(clingo_term_base_symbol(terms, 1, &sym), "clingo_term_base_symbol"));
+    clingo_control_release(ctl);
+    clingo_lib_release(lib);
+}
+
+TEST_CASE("c-api-config") {
+    clingo_lib_t *lib = nullptr;
+    REQUIRE(clingo_lib_new(0, clingo_log_level_info, nullptr, nullptr, 0, &lib));
+    clingo_control_t *ctl = nullptr;
+    REQUIRE(clingo_control_new(lib, nullptr, 0, &ctl));
+    clingo_config_t *cfg = nullptr;
+    REQUIRE(clingo_control_config(ctl, &cfg));
+    auto root = clingo_id_t{0};
+    REQUIRE(clingo_config_root(cfg, &root));
+    auto key = clingo_id_t{0};
+    REQUIRE(clingo_config_map_at(cfg, root, "solve.models", 12, &key, nullptr));
+    auto size = size_t{0};
+    REQUIRE(failed_invalid(clingo_config_array_size(cfg, key, &size), "clingo_config_array_size"));
+    auto freed = 0;
+    auto entry = clingo_config_entry_t{nullptr, nullptr, nullptr, Logger::free};
+    // the entry data is freed also if the arguments are invalid
+    REQUIRE(failed_invalid(clingo_config_add(cfg, root, nullptr, 0, nullptr, 0, &entry, &freed), "clingo_config_add"));
+    REQUIRE(freed == 1);
+    REQUIRE(failed_invalid(clingo_config_add(cfg, root, "x", 1, nullptr, 1, &entry, &freed), "clingo_config_add"));
+    REQUIRE(freed == 2);
     clingo_control_release(ctl);
     clingo_lib_release(lib);
 }

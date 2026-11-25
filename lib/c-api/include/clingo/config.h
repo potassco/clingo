@@ -95,7 +95,8 @@ typedef struct clingo_config_entry {
 //!
 //! The entry is defined by the provided callbacks and user data. The API takes
 //! ownership of the `data` pointer and will call the `free` callback (if non-NULL)
-//! when the entry is removed or the configuration is destroyed.
+//! when the entry is removed or the configuration is destroyed, or if the
+//! function fails.
 //!
 //! @param[in] config the configuration object
 //! @param[in] parent the parent key under which to add the entry
@@ -103,9 +104,9 @@ typedef struct clingo_config_entry {
 //! @param[in] name_size the length of the name string
 //! @param[in] description the description of the entry (not null-terminated)
 //! @param[in] description_size the length of the description string
-//! @param[in] entry pointer to the entry callbacks struct
+//! @param[in] entry pointer to the entry callbacks struct (may be NULL)
 //! @param[in] data user data pointer for the entry callbacks
-//! @return true on success, false on error
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_add(clingo_config_t *config, clingo_id_t parent, char const *name,
                                                  size_t name_size, char const *description, size_t description_size,
                                                  clingo_config_entry_t const *entry, void *data);
@@ -149,7 +150,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_description(clingo_config_t const *
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_array_size(clingo_config_t const *config, clingo_id_t key, size_t *size);
 //! Get the subkey at the given offset of an array entry.
 //!
-//! @note Some array entries, like fore example the solver configuration, can be accessed past there actual size to add
+//! @note Some array entries, like for example the solver configuration, can be accessed past their actual size to add
 //! subentries.
 //! @pre The @link clingo_config_type() type@endlink of the entry must be @ref ::clingo_config_type_array.
 //! @param[in] config the target configuration
@@ -190,8 +191,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_subkey_name(clingo_config_t con
 //! @param[in] key the key
 //! @param[in] name the name to look up the subkey
 //! @param[in] size the size of the name
-//! @param[out] subkey the resulting subkey
-//! @param[out] has_subkey whether the map has the subkey
+//! @param[out] subkey the resulting subkey if the map has the subkey (optional)
+//! @param[out] has_subkey whether the map has the subkey (optional)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_at(clingo_config_t const *config, clingo_id_t key, char const *name,
                                                     size_t size, clingo_id_t *subkey, bool *has_subkey);
@@ -205,8 +206,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_config_map_at(clingo_config_t const *confi
 //! @pre The @link clingo_config_type() type@endlink of the entry must be @ref ::clingo_config_type_value.
 //! @param[in] config the target configuration
 //! @param[in] key the key
-//! @param[out] value the resulting string value
-//! @param[out] has_value whether the config entry has a value
+//! @param[out] value the resulting string value (optional)
+//! @param[out] has_value whether the config entry has a value (optional)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_config_value_get(clingo_config_t const *config, clingo_id_t key,
                                                        clingo_string_t *value, bool *has_value);
