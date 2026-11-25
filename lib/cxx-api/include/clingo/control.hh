@@ -525,6 +525,15 @@ class Control {
         return {data, size};
     }
 
+    //! Replace the content of the text buffer of the control object.
+    //!
+    //! For example, assigning an empty string clears the buffer.
+    //!
+    //! @param value the new content of the text buffer
+    void buffer(std::string_view value) const {
+        Detail::handle_error(clingo_control_set_buffer(ctl_.get(), value.data(), value.size()));
+    }
+
     //! Get the parts to ground.
     //!
     //! If no parts are set, the next call to ground would ground the base

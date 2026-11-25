@@ -72,6 +72,10 @@ c.
 #show c/0.
 )";
     REQUIRE(ctl.buffer() == res);
+    ctl.buffer("");
+    REQUIRE(ctl.buffer().empty());
+    ctl.buffer("% comment\n");
+    REQUIRE(ctl.buffer() == "% comment\n");
 }
 
 TEST_CASE("control ground", "[cxx][control][ground][context]") {
