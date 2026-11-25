@@ -42,6 +42,8 @@ class Observer {
     void begin_step() { do_begin_step(); }
 
     //! Callback for the end of a step.
+    //!
+    //! @param base the base to inspect the symbolic atoms of the program
     void end_step(Base base) { do_end_step(base); }
 
     //! Callback for a rule.
@@ -83,6 +85,8 @@ class Observer {
     //! @param literals the literals to assume
     void assume(ProgramLiteralSpan literals) { do_assume(literals); }
 
+    //! Callback for a heuristic directive.
+    //!
     //! @param atom the atom to apply the heuristic to
     //! @param type the type of the heuristic modification
     //! @param weight the weight of the heuristic modification
