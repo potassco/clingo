@@ -117,7 +117,7 @@ class Flag:
         """
 
     @value.setter
-    def value(self, arg0: bool) -> None: ...
+    def value(self, value: bool) -> None: ...
 
 class AppOptions:
     """
