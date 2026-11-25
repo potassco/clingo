@@ -23,9 +23,9 @@ namespace Clingo {
 //! Enumeration of configuration types.
 enum class ConfigType : clingo_config_type_bitset_t // NOLINT
 {
-    //! The configuration entry is a double value.
+    //! The configuration entry holds a value.
     value = clingo_config_type_value,
-    //! The configuration entry is a array of configurations.
+    //! The configuration entry is an array of configurations.
     array = clingo_config_type_array,
     //! The configuration entry is a map of configurations.
     map = clingo_config_type_map,
@@ -43,15 +43,15 @@ class ConfigView {
   public:
     //! Construct from the underlying C API type and a key.
     //!
-    //! @param stats the underlying C API type
+    //! @param cfg the underlying C API type
     //! @param key the key of the configuration entry
-    explicit ConfigView(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
+    explicit ConfigView(clingo_config_t const *cfg, ProgramId key) : cfg_{cfg}, key_{key} {}
 
     //! Cast the configuration to the underlying C API type.
     //!
-    //! @param stats the configuration to cast
+    //! @param cfg the configuration to cast
     //! @return the underlying C API type
-    friend auto c_cast(ConfigView const &stats) -> clingo_config_t const * { return stats.cfg_; }
+    friend auto c_cast(ConfigView const &cfg) -> clingo_config_t const * { return cfg.cfg_; }
 
     //! Get the type of the configuration entry.
     //!
@@ -76,7 +76,7 @@ class ConfigView {
 
     //! Access the configuration entry as a map.
     //!
-    //! @return The configuration entry as a map.
+    //! @return the configuration entry as a map
     [[nodiscard]] auto map() const -> ConfigMapView;
 
     //! Get the configuration entry with the given name in the map.
@@ -145,15 +145,15 @@ class Config : public ConfigView {
   public:
     //! Construct from the underlying C API type and a key.
     //!
-    //! @param stats the underlying C API type
+    //! @param cfg the underlying C API type
     //! @param key the key of the configuration entry
-    explicit Config(clingo_config_t *stats, ProgramId key) : ConfigView{stats, key} {}
+    explicit Config(clingo_config_t *cfg, ProgramId key) : ConfigView{cfg, key} {}
 
     //! Cast the configuration to the underlying C API type.
     //!
-    //! @param stats the configuration to cast
+    //! @param cfg the configuration to cast
     //! @return the underlying C API type
-    friend auto c_cast(Config const &stats) -> clingo_config_t * { return stats.cfg_(); }
+    friend auto c_cast(Config const &cfg) -> clingo_config_t * { return cfg.cfg_(); }
 
     // NOLINTBEGIN(bugprone-derived-method-shadowing-base-method)
 
@@ -327,9 +327,9 @@ class ConfigArrayView {
 
     //! Construct from the underlying C API type and a key.
     //!
-    //! @param stats the underlying C API type
+    //! @param cfg the underlying C API type
     //! @param key the key of the configuration entry
-    explicit ConfigArrayView(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
+    explicit ConfigArrayView(clingo_config_t const *cfg, ProgramId key) : cfg_{cfg}, key_{key} {}
 
     //! @copydoc ConfigView::at()
     [[nodiscard]] auto at(size_t index) const -> ConfigView { return ConfigView{cfg_, at_(index)}; }
@@ -386,7 +386,7 @@ class ConfigArray : public ConfigArrayView {
     using iterator = Detail::RandomAccessIterator<ConfigArray>;
 
     //! @copydoc ConfigArrayView::ConfigArrayView()
-    explicit ConfigArray(clingo_config_t *stats, ProgramId key) : ConfigArrayView{stats, key} {}
+    explicit ConfigArray(clingo_config_t *cfg, ProgramId key) : ConfigArrayView{cfg, key} {}
 
     // NOLINTBEGIN(bugprone-derived-method-shadowing-base-method)
 
@@ -396,7 +396,7 @@ class ConfigArray : public ConfigArrayView {
     [[nodiscard]] auto operator[](size_t index) const -> Config { return at(index); }
     //! @copydoc ConfigArrayView::begin()
     [[nodiscard]] auto begin() const -> iterator { return iterator{*this, 0}; }
-    //! @copydoc ConfigArrayView::begin()
+    //! @copydoc ConfigArrayView::end()
     [[nodiscard]] auto end() const -> iterator { return iterator{*this, size()}; }
 
     // NOLINTEND(bugprone-derived-method-shadowing-base-method)
@@ -441,9 +441,9 @@ class ConfigMapView {
 
     //! Construct from the underlying C API type and a key.
     //!
-    //! @param stats the underlying C API type
+    //! @param cfg the underlying C API type
     //! @param key the key of the configuration entry
-    explicit ConfigMapView(clingo_config_t const *stats, ProgramId key) : cfg_{stats}, key_{key} {}
+    explicit ConfigMapView(clingo_config_t const *cfg, ProgramId key) : cfg_{cfg}, key_{key} {}
 
     //! Get the size of the map.
     //!
@@ -541,7 +541,7 @@ class ConfigMap : public ConfigMapView {
     using iterator = Detail::RandomAccessIterator<ConfigMap>;
 
     //! @copydoc ConfigMapView::ConfigMapView()
-    explicit ConfigMap(clingo_config_t *stats, ProgramId key) : ConfigMapView{stats, key} {}
+    explicit ConfigMap(clingo_config_t *cfg, ProgramId key) : ConfigMapView{cfg, key} {}
 
     // NOLINTBEGIN(bugprone-derived-method-shadowing-base-method)
 
