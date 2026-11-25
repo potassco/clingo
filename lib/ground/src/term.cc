@@ -640,11 +640,17 @@ auto small_ma(int32_t m, int32_t x, int32_t n) -> std::optional<int32_t> {
 //! solution and std::nullopt if the solution is not a small number.
 auto small_solve_ma(int32_t m, int32_t n, int32_t y, int32_t &x) -> std::optional<bool> {
     auto yn = int64_t{y} - n;
-    if (yn % m != 0) {
-        return false;
+    // NOTE: the common factors one and minus one do not need an expensive division
+    if (m == -1) {
+        yn = -yn;
+    } else if (m != 1) {
+        if (yn % m != 0) {
+            return false;
+        }
+        yn /= m;
     }
-    if (auto res = yn / m; Util::check_cast<int32_t>(res)) {
-        x = static_cast<int32_t>(res);
+    if (Util::check_cast<int32_t>(yn)) {
+        x = static_cast<int32_t>(yn);
         return true;
     }
     return std::nullopt;
