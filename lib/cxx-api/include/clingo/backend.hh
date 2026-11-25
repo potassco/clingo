@@ -83,7 +83,7 @@ class TheoryBackend {
     //!
     //! @param tuple the theory term tuple of the element
     //! @param condition the program literals forming the condition
-    //! @return the resulting term id
+    //! @return the resulting element id
     [[nodiscard]] auto element(ProgramIdSpan tuple, ProgramLiteralSpan condition) const -> ProgramId {
         return Detail::call<clingo_backend_theory_element>(backend_.get(), tuple.data(), tuple.size(), condition.data(),
                                                            condition.size());
@@ -156,7 +156,7 @@ class TheoryBackend {
 //! statements.
 class ProgramBackend : private TheoryBackend {
   public:
-    //! Create a program atom from its C representation.
+    //! Construct a program backend from its C representation.
     //!
     //! For internal use.
     //!
