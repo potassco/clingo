@@ -335,7 +335,8 @@ template <class... T> auto value_hash(std::tuple<T...> const &x) -> size_t {
 }
 
 template <class... T> auto value_hash(std::variant<T...> const &x) -> size_t {
-    return std::visit([](auto &&arg) { return hash_combine(value_hash(typeid(arg)), value_hash(arg)); }, x);
+    // NOTE: the index distinguishes the alternatives and is much cheaper to hash than their type_info
+    return hash_combine(value_hash(x.index()), std::visit([](auto &&arg) { return value_hash(arg); }, x));
 }
 
 template <class T, size_t E> auto value_hash(std::span<T, E> const &x) -> size_t {
