@@ -51,8 +51,8 @@ doc-c:
 	cd doc/c-api && rm -rf html && doxygen
 
 doc-py: stubs venv
-	python scripts/stubs.py doc
-	cd doc/python-api && zensical build
+	source .venv/bin/activate && python scripts/stubs.py doc
+	source .venv/bin/activate && cd doc/python-api && zensical build
 
 doc: doc-c doc-py
 
