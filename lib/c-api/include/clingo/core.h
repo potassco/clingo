@@ -178,9 +178,9 @@ typedef uint32_t clingo_lib_flags_t;
 
 //! Obtain the clingo version.
 //!
-//! @param[out] major major version number
-//! @param[out] minor minor version number
-//! @param[out] revision revision number
+//! @param[out] major major version number (optional)
+//! @param[out] minor minor version number (optional)
+//! @param[out] revision revision number (optional)
 CLINGO_VISIBILITY_DEFAULT void clingo_version(int *major, int *minor, int *revision);
 
 //! Convert the given result code into a string.
@@ -191,7 +191,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_version(int *major, int *minor, int *revis
 //! @param[out] value the string
 CLINGO_VISIBILITY_DEFAULT void clingo_result_string(clingo_result_t code, clingo_string_t *value);
 
-//! Convert the giving message code into a string.
+//! Convert the given message code into a string.
 //!
 //! The function returns string literals that do not have to be cleaned up.
 //!
@@ -201,24 +201,29 @@ CLINGO_VISIBILITY_DEFAULT void clingo_message_string(clingo_message_t code, clin
 
 //! Create a library object.
 //!
-//! A library has to be freed using clingo_lib_free().
+//! A library has to be released using clingo_lib_release().
 //!
-//! If the logger is NULL, the default logger printing messages to stderr is used.
+//! If the logger is NULL, the default logger printing messages to stderr is
+//! used. Otherwise, its log callback must not be NULL. The library takes
+//! ownership of the user data of the logger, which is freed via the free
+//! callback of the logger (if not NULL) also if the function fails.
 //!
-//! @param[in] flags construction flags
+//! @param[in] flags construction flags (a bitset of ::clingo_lib_flags_e)
 //! @param[in] level the log level for the message logger
-//! @param[in] logger callback functions for warnings and info messages
+//! @param[in] logger callback functions for warnings and info messages (may be NULL)
 //! @param[in] data user data for the logger callback
 //! @param[in] limit the message limit
 //! @param[out] lib the resulting library object
-//! @return whether the call was successful
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid
+//! - ::clingo_result_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t level,
                                               clingo_logger_t const *logger, void *data, size_t limit,
                                               clingo_lib_t **lib);
 
 //! Increment the reference count of the given library.
 //!
-//! @param[in] lib the target
+//! @param[in] lib the target (may be NULL)
 CLINGO_VISIBILITY_DEFAULT void clingo_lib_acquire(clingo_lib_t *lib);
 
 //! Release a library object created with clingo_lib_new().
@@ -233,7 +238,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_lib_acquire(clingo_lib_t *lib);
 //! symbols cannot be guaranteed due to unpredictable garbage collection.
 //! Objects using the library can still be freed after this call.
 //!
-//! @param[in] lib the target
+//! @param[in] lib the target (may be NULL)
 CLINGO_VISIBILITY_DEFAULT void clingo_lib_release(clingo_lib_t *lib);
 
 //! Set or remove the owner of a library registered under the given tag.
@@ -247,6 +252,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_lib_release(clingo_lib_t *lib);
 //! @param[in] tag the tag identifying the binding
 //! @param[in] owner the owner or NULL to remove it
 //! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid
 //! - ::clingo_result_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_lib_set_owner(clingo_lib_t *lib, void const *tag, void *owner);
 
@@ -271,12 +277,13 @@ typedef void (*clingo_finalizer_t)(void *data);
 //! @param[in] finalizer the function to call
 //! @param[in] data the user data passed to the finalizer
 //! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid
 //! - ::clingo_result_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_lib_add_finalizer(clingo_lib_t *lib, clingo_finalizer_t finalizer, void *data);
 
 //! Report a message via the library’s logger.
 //!
-//! @param[in] lib the library
+//! @param[in] lib the library (may be NULL to ignore the message)
 //! @param[in] code associated code
 //! @param[in] message the message
 //! @param[in] size the size of the message
@@ -300,7 +307,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_copy(clingo_string_builder_
                                                           clingo_string_builder_t **dst);
 //! Free the string builder.
 //!
-//! @param[in] bld the builder
+//! @param[in] bld the builder (may be NULL)
 CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_free(clingo_string_builder_t const *bld);
 
 //! Append the given string to the content of the builder.
@@ -308,6 +315,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_string_builder_free(clingo_string_builder_
 //! @param[in] bld the builder
 //! @param[in] str the string to append
 //! @param[in] n the size of the string to append
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_string_builder_append(clingo_string_builder_t *bld, char const *str, size_t n);
 
 //! Get the (zero-terminated) string in the builder.
@@ -340,13 +348,13 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_position_new(clingo_lib_t *lib, char const
                                                    size_t column, clingo_position_t const **pos);
 //! Copy the given position.
 //!
-//! @param[in] src the position to copy
-//! @param[out] dst the resulting position
+//! @param[in] src the position to copy (may be NULL)
+//! @param[out] dst the resulting position (NULL if src is NULL)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_position_copy(clingo_position_t const *src, clingo_position_t const **dst);
 //! Free the given position.
 //!
-//! @param[in] pos the position to free
+//! @param[in] pos the position to free (may be NULL)
 CLINGO_VISIBILITY_DEFAULT void clingo_position_free(clingo_position_t const *pos);
 
 //! Get the file name of the position.
@@ -405,13 +413,13 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_location_new(clingo_position_t const *begi
                                                    clingo_location_t const **loc);
 //! Copy the given location.
 //!
-//! @param[in] src the location to copy
-//! @param[out] dst the resulting location
+//! @param[in] src the location to copy (may be NULL)
+//! @param[out] dst the resulting location (NULL if src is NULL)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_copy(clingo_location_t const *src, clingo_location_t const **dst);
 //! Free the given location.
 //!
-//! @param[in] loc the location to free
+//! @param[in] loc the location to free (may be NULL)
 CLINGO_VISIBILITY_DEFAULT void clingo_location_free(clingo_location_t const *loc);
 
 //! Get the beginning of the location.
@@ -439,7 +447,7 @@ CLINGO_VISIBILITY_DEFAULT size_t clingo_location_hash(clingo_location_t const *l
 //!
 //! @param[in] a the first location
 //! @param[in] b the second location
-//! @return whether the location are equal
+//! @return whether the locations are equal
 CLINGO_VISIBILITY_DEFAULT bool clingo_location_equal(clingo_location_t const *a, clingo_location_t const *b);
 //! Compare two locations.
 //!

@@ -9,9 +9,9 @@
 using namespace CppClingo::CAPI;
 
 extern "C" void clingo_version(int *major, int *minor, int *revision) {
-    *major = CLINGO_VERSION_MAJOR;
-    *minor = CLINGO_VERSION_MINOR;
-    *revision = CLINGO_VERSION_REVISION;
+    set_opt(major, CLINGO_VERSION_MAJOR);
+    set_opt(minor, CLINGO_VERSION_MINOR);
+    set_opt(revision, CLINGO_VERSION_REVISION);
 }
 
 extern "C" void clingo_result_string(clingo_result_t code, clingo_string_t *value) {
@@ -91,20 +91,32 @@ extern "C" void clingo_message_string(clingo_message_t code, clingo_string_t *va
 
 extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t level, clingo_logger_t const *logger,
                                void *data, size_t limit, clingo_lib_t **lib) -> bool {
-    try {
+    //! Owner of the logger data freeing it unless moved.
+    struct LH {
+        LH(clingo_logger_t const *log, void *data) noexcept
+            : log{log != nullptr ? *log : clingo_logger_t{nullptr, nullptr}}, data{data} {}
+        LH(LH &&other) noexcept : log{std::exchange(other.log, clingo_logger_t{nullptr, nullptr})}, data{other.data} {}
+        LH(LH const &other) = delete;
+        auto operator=(LH const &other) -> LH & = delete;
+        auto operator=(LH &&other) -> LH & = delete;
+        ~LH() {
+            if (log.free != nullptr) {
+                log.free(data);
+            }
+        }
+        clingo_logger_t log;
+        void *data;
+    };
+    // NOTE: the logger data is owned also if the function fails
+    auto own = LH{logger, data};
+    CLINGO_TRY {
+        require(lib != nullptr && (logger == nullptr || logger->log != nullptr));
+        require(clingo_log_level_trace <= level && level <= clingo_log_level_error);
+        require((flags & ~(clingo_lib_flags_slotted | clingo_lib_flags_shared | clingo_lib_flags_fast_release)) == 0);
         *lib = nullptr;
         CppClingo::Logger::Printer prt = nullptr;
-        if (logger != nullptr && logger->log != nullptr) {
-            struct LH {
-                clingo_logger_t log;
-                void *data;
-                ~LH() {
-                    if (log.free != nullptr) {
-                        log.free(data);
-                    }
-                }
-            };
-            prt = [lh = std::make_shared<LH>(*logger, data)](CppClingo::MessageCode code, std::string_view msg) {
+        if (logger != nullptr) {
+            prt = [lh = std::make_shared<LH>(std::move(own))](CppClingo::MessageCode code, std::string_view msg) {
                 lh->log.log(static_cast<clingo_message_t>(code), msg.data(), msg.size(), lh->data);
             };
         }
@@ -120,6 +132,7 @@ extern "C" auto clingo_lib_new(clingo_lib_flags_t flags, clingo_log_level_t leve
 
 extern "C" auto clingo_lib_set_owner(clingo_lib_t *lib, void const *tag, void *owner) -> bool {
     CLINGO_TRY {
+        require(not_null(lib, tag));
         lib->owners.set(tag, owner);
     }
     CLINGO_CATCH;
@@ -131,9 +144,7 @@ extern "C" auto clingo_lib_get_owner(clingo_lib_t const *lib, void const *tag) -
 
 extern "C" auto clingo_lib_add_finalizer(clingo_lib_t *lib, clingo_finalizer_t finalizer, void *data) -> bool {
     CLINGO_TRY {
-        if (lib == nullptr || finalizer == nullptr) {
-            return fail_arguments();
-        }
+        require(not_null(lib, finalizer));
         lib->finalizers.emplace_back(finalizer, data);
     }
     CLINGO_CATCH;
@@ -157,10 +168,11 @@ static void release_resources(clingo_lib_t *lib) {
 }
 
 extern "C" void clingo_lib_release(clingo_lib_t *lib) {
-    if (lib == nullptr || --lib->ref_count > 0) {
+    // NOTE: passing NULL only runs the cleanup of libraries kept for later
+    if (lib != nullptr && --lib->ref_count > 0) {
         return;
     }
-    if (lib->fast_release) {
+    if (lib != nullptr && lib->fast_release) {
         release_resources(lib);
         delete lib;
         return;
@@ -186,8 +198,10 @@ extern "C" void clingo_lib_release(clingo_lib_t *lib) {
         }
     };
 
-    release_resources(lib);
-    collect_or_keep(lib);
+    if (lib != nullptr) {
+        release_resources(lib);
+        collect_or_keep(lib);
+    }
 
     while (pending != nullptr) {
         auto *nxt = pending->next_;
@@ -225,6 +239,7 @@ extern "C" void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char
 
 extern "C" auto clingo_string_builder_new(clingo_string_builder_t **bld) -> bool {
     CLINGO_TRY {
+        require(bld != nullptr);
         // NOLINTNEXTLINE
         *bld = c_cast(new CppClingo::Util::OutputBuffer{});
     }
@@ -233,6 +248,7 @@ extern "C" auto clingo_string_builder_new(clingo_string_builder_t **bld) -> bool
 
 extern "C" auto clingo_string_builder_copy(clingo_string_builder_t const *src, clingo_string_builder_t **dst) -> bool {
     CLINGO_TRY {
+        require(not_null(src, dst));
         auto oss = std::make_unique<CppClingo::Util::OutputBuffer>();
         *oss << cpp_cast(src)->view();
         *dst = c_cast(oss.release());
@@ -242,6 +258,7 @@ extern "C" auto clingo_string_builder_copy(clingo_string_builder_t const *src, c
 
 extern "C" auto clingo_string_builder_append(clingo_string_builder_t *bld, char const *str, size_t n) -> bool {
     CLINGO_TRY {
+        require(bld != nullptr && valid_span(str, n));
         *cpp_cast(bld) << std::string_view{str, n};
     }
     CLINGO_CATCH;
@@ -254,9 +271,7 @@ extern "C" void clingo_string_builder_free(clingo_string_builder_t const *bld) {
 
 extern "C" auto clingo_string_builder_string(clingo_string_builder_t const *bld, clingo_string_t *value) -> bool {
     CLINGO_TRY {
-        if (bld == nullptr || value == nullptr) {
-            return fail_arguments();
-        }
+        require(not_null(bld, value));
         auto *cpp_bld = cpp_cast(const_cast<clingo_string_builder_t *>(bld)); // NOLINT
         value->data = cpp_bld->c_str();
         value->size = cpp_bld->size();
@@ -283,6 +298,7 @@ static auto cpp_cast(clingo_position_t const *pos) -> CppClingo::Position const 
 extern "C" auto clingo_position_new(clingo_lib_t *lib, char const *file, size_t size, size_t line, size_t column,
                                     clingo_position_t const **pos) -> bool {
     CLINGO_TRY {
+        require(not_null(lib, pos) && valid_span(file, size));
         // NOLINTNEXTLINE
         *pos = c_cast(new CppClingo::Position{*lib->store->string(std::string_view{file, size}), line, column});
     }
@@ -291,6 +307,7 @@ extern "C" auto clingo_position_new(clingo_lib_t *lib, char const *file, size_t 
 
 extern "C" auto clingo_position_copy(clingo_position_t const *src, clingo_position_t const **dst) -> bool {
     CLINGO_TRY {
+        require(dst != nullptr);
         // NOLINTNEXTLINE
         *dst = src != nullptr ? c_cast(new CppClingo::Position{*cpp_cast(src)}) : nullptr;
     }
@@ -331,6 +348,7 @@ extern "C" auto clingo_position_compare(clingo_position_t const *a, clingo_posit
 
 extern "C" auto clingo_position_to_string(clingo_position_t const *pos, clingo_string_builder_t *str) -> bool {
     CLINGO_TRY {
+        require(not_null(pos, str));
         *cpp_cast(str) << *cpp_cast(pos);
     }
     CLINGO_CATCH;
@@ -341,6 +359,7 @@ extern "C" auto clingo_position_to_string(clingo_position_t const *pos, clingo_s
 extern "C" auto clingo_location_new(clingo_position_t const *begin, clingo_position_t const *end,
                                     clingo_location_t const **loc) -> bool {
     CLINGO_TRY {
+        require(not_null(begin, end, loc));
         // NOLINTNEXTLINE
         *loc = c_cast(new CppClingo::Location{*cpp_cast(begin), *cpp_cast(end)});
     }
@@ -349,6 +368,7 @@ extern "C" auto clingo_location_new(clingo_position_t const *begin, clingo_posit
 
 extern "C" auto clingo_location_copy(clingo_location_t const *src, clingo_location_t const **dst) -> bool {
     CLINGO_TRY {
+        require(dst != nullptr);
         // NOLINTNEXTLINE
         *dst = src != nullptr ? c_cast(new CppClingo::Location{*cpp_cast(src)}) : nullptr;
     }
@@ -384,6 +404,7 @@ extern "C" auto clingo_location_compare(clingo_location_t const *a, clingo_locat
 
 extern "C" auto clingo_location_to_string(clingo_location_t const *loc, clingo_string_builder_t *str) -> bool {
     CLINGO_TRY {
+        require(not_null(loc, str));
         *cpp_cast(str) << *cpp_cast(loc);
     }
     CLINGO_CATCH;

@@ -20,15 +20,16 @@
 //! The API is mainly intended for developing higher level language bindings.
 //!
 //! The functions follow these conventions:
-//! - Functions returning a `bool` report errors via their return value and
+//! - Functions returning whether the call was successful report errors via
 //!   clingo_get_error(). They check their arguments and fail with
 //!   ::clingo_result_invalid if a required pointer is `NULL`, an array pointer
 //!   is `NULL` but its size is not zero, or a value is out of range.
 //! - Out parameters marked as optional may be `NULL` and are then not written.
 //!   This is mostly the case for functions returning multiple values.
 //! - Functions taking ownership of an argument take it also if they fail.
-//! - Functions that cannot fail do not check their arguments, except that
-//!   functions freeing or releasing objects accept `NULL` and then do nothing.
+//! - Functions that cannot fail do not check their arguments unless documented
+//!   otherwise. Functions freeing or releasing objects accept `NULL` and then
+//!   do nothing.
 //! @{
 
 //! @defgroup c_core Core Functionality
