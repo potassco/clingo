@@ -35,8 +35,8 @@ struct ProfileNodeLeaf {
     //! @param type the type of the profiling data
     //! @param matches the number of matches for the expression
     //! @param instances the number of instances of the expression
-    //! @param time_instantiate the time spent instantiating the expression
-    //! @param time_propagate the time spent propagating the expression
+    //! @param time_instantiate the time in nanoseconds spent instantiating the expression
+    //! @param time_propagate the time in nanoseconds spent propagating the expression
     explicit ProfileNodeLeaf(ProfileType type, uint64_t matches = 0, uint64_t instances = 0,
                              uint64_t time_instantiate = 0, uint64_t time_propagate = 0)
         : type{type}, matches{matches}, instances{instances}, time_instantiate{time_instantiate},
@@ -45,15 +45,15 @@ struct ProfileNodeLeaf {
     ProfileType type;          //!< The type of the profiling data.
     uint64_t matches;          //!< The number of matches for the expression.
     uint64_t instances;        //!< The number of instances of the expression.
-    uint64_t time_instantiate; //!< The time spent instantiating the expression.
-    uint64_t time_propagate;   //!< The time spent propagating the expression.
+    uint64_t time_instantiate; //!< The time in nanoseconds spent instantiating the expression.
+    uint64_t time_propagate;   //!< The time in nanoseconds spent propagating the expression.
 };
 
 struct ProfileNodeInternal;
 //! A profile node that can be either an internal node or a leaf node.
 using ProfileNode = std::variant<ProfileNodeInternal, ProfileNodeLeaf>;
 
-//! Class to hold profiling data for an expression in a logic program.
+//! Class to group profile nodes, e.g., the statements of a program part.
 struct ProfileNodeInternal {
     //! Constructs a profile internal node with the given key.
     //!
