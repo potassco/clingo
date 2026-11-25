@@ -1,4 +1,5 @@
 #include <clingo/core.h>
+#include <clingo/symbol.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -114,6 +115,32 @@ TEST_CASE("c-api-core") {
         clingo_position_free(nullptr);
         clingo_lib_release(lib);
     }
+}
+
+TEST_CASE("c-api-symbol") {
+    clingo_lib_t *lib = nullptr;
+    REQUIRE(clingo_lib_new(0, clingo_log_level_info, nullptr, nullptr, 0, &lib));
+    auto sym = clingo_symbol_t{0};
+    REQUIRE(failed_invalid(clingo_symbol_create_string(lib, nullptr, 1, &sym), "clingo_symbol_create_string"));
+    REQUIRE(failed_invalid(clingo_symbol_create_tuple(lib, nullptr, 1, &sym), "clingo_symbol_create_tuple"));
+    REQUIRE(failed_invalid(clingo_symbol_create_function(lib, "f", 1, nullptr, 2, true, &sym),
+                           "clingo_symbol_create_function"));
+    REQUIRE(failed_invalid(clingo_parse_term(nullptr, "f", 1, &sym), "clingo_parse_term"));
+    REQUIRE(clingo_parse_term(lib, "f(1,2)", 6, &sym));
+    auto size = size_t{0};
+    REQUIRE(clingo_symbol_arguments(sym, nullptr, &size));
+    REQUIRE(size == 2);
+    REQUIRE(clingo_symbol_arguments(sym, nullptr, nullptr));
+    auto num = int32_t{0};
+    REQUIRE(failed_invalid(clingo_symbol_number(sym, &num), "clingo_symbol_number"));
+    auto str = clingo_string_t{nullptr, 0};
+    REQUIRE(failed_invalid(clingo_symbol_string(sym, &str), "clingo_symbol_string"));
+    REQUIRE(failed_invalid(clingo_symbol_name(sym, nullptr), "clingo_symbol_name"));
+    REQUIRE(failed_invalid(clingo_symbol_to_string(sym, nullptr), "clingo_symbol_to_string"));
+    clingo_symbol_acquire(0);
+    clingo_symbol_release(0);
+    clingo_symbol_release(sym);
+    clingo_lib_release(lib);
 }
 
 } // namespace Clingo::Test
