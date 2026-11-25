@@ -54,12 +54,16 @@ typedef struct clingo_script {
     void (*free)(void *data);
 } clingo_script_t;
 
-//! Add a custom scripting language to a control object.
+//! Add a custom scripting language to a library object.
+//!
+//! The name and execute callbacks of the script must not be NULL. The library
+//! takes ownership of the user data, which is freed via the free callback of
+//! the script (if not NULL) also if the function fails.
 //!
 //! @param[in] lib the library object to register the script with
 //! @param[in] script struct with functions implementing the language
 //! @param[in] data user data to pass to callbacks in the script
-//! @return the result code
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script, void *data);
 
 //! @}

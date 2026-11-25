@@ -72,9 +72,15 @@ class CScript : public CppClingo::Control::Script {
 
 extern "C" auto clingo_script_register(clingo_lib_t *lib, clingo_script_t const *script, void *data) -> bool {
     CLINGO_TRY {
-        clingo_string_t name;
+        // NOTE: the data is owned by the guard until the script takes it over
+        auto own = CHandler{script, data};
+        require(not_null(lib, script) && script->name != nullptr && script->execute != nullptr);
+        auto name = clingo_string_t{nullptr, 0};
         script->name(data, &name);
-        lib->scripts.register_script({name.data, name.size}, std::make_unique<CScript>(lib, *script, data));
+        require(valid_span(name.data, name.size));
+        auto cscript = std::make_unique<CScript>(lib, *script, data);
+        own.release();
+        lib->scripts.register_script({name.data, name.size}, std::move(cscript));
     }
     CLINGO_CATCH;
 }
