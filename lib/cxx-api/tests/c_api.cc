@@ -1,5 +1,6 @@
 #include <clingo/ast.h>
 #include <clingo/backend.h>
+#include <clingo/base.h>
 #include <clingo/control.h>
 #include <clingo/core.h>
 #include <clingo/ground.h>
@@ -333,6 +334,35 @@ TEST_CASE("c-api-backend") {
     REQUIRE(clingo_backend_close(bck));
     REQUIRE(clingo_backend_close(nullptr));
     clingo_symbol_release(sym);
+    clingo_control_release(ctl);
+    clingo_lib_release(lib);
+}
+
+TEST_CASE("c-api-base") {
+    clingo_lib_t *lib = nullptr;
+    REQUIRE(clingo_lib_new(0, clingo_log_level_info, nullptr, nullptr, 0, &lib));
+    clingo_control_t *ctl = nullptr;
+    REQUIRE(clingo_control_new(lib, nullptr, 0, &ctl));
+    REQUIRE(clingo_control_parse_string(ctl, "p(1). #show q(X) : p(X).", 24));
+    auto part = clingo_part_t{"base", 4, nullptr, 0};
+    REQUIRE(clingo_control_ground(ctl, &part, 1, nullptr, nullptr));
+    clingo_base_t const *base = nullptr;
+    REQUIRE(clingo_control_base(ctl, &base));
+    auto size = size_t{0};
+    REQUIRE(clingo_base_atoms_size(base, &size));
+    REQUIRE(size == 1);
+    REQUIRE(clingo_base_atoms_at(base, 0, nullptr, nullptr));
+    REQUIRE(failed_range(clingo_base_atoms_at(base, 1, nullptr, nullptr), "clingo_base_atoms_at"));
+    auto sig = clingo_signature_t{nullptr, 1, 0, true};
+    REQUIRE(failed_invalid(clingo_base_atoms_find(base, &sig, nullptr, nullptr), "clingo_base_atoms_find"));
+    clingo_term_base_t const *terms = nullptr;
+    REQUIRE(clingo_base_terms(base, &terms));
+    REQUIRE(clingo_term_base_condition(terms, 0, nullptr, nullptr, &size));
+    REQUIRE(size == 1);
+    REQUIRE(
+        failed_range(clingo_term_base_condition(terms, 1, nullptr, nullptr, nullptr), "clingo_term_base_condition"));
+    auto sym = clingo_symbol_t{0};
+    REQUIRE(failed_range(clingo_term_base_symbol(terms, 1, &sym), "clingo_term_base_symbol"));
     clingo_control_release(ctl);
     clingo_lib_release(lib);
 }

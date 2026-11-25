@@ -165,9 +165,11 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_base_atoms_size(clingo_base_t const *base,
 //!
 //! @param[in] base the base
 //! @param[in] index the index of the atom base
-//! @param[out] signature the target signature
-//! @param[out] atoms the target atom base
-//! @return whether the call was successful
+//! @param[out] signature the target signature (optional)
+//! @param[out] atoms the target atom base (optional)
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid
+//! - ::clingo_result_range if the index is out of range
 CLINGO_VISIBILITY_DEFAULT bool clingo_base_atoms_at(clingo_base_t const *base, size_t index,
                                                     clingo_signature_t *signature, clingo_atom_base_t const **atoms);
 
@@ -192,9 +194,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_atom_base_size(clingo_atom_base_t const *a
 //!
 //! If the symbol is not found, return the size of the atom base.
 //!
-//! @param atoms the atom base
-//! @param symbol the symbol to lookup
-//! @param index the target index
+//! @param[in] atoms the atom base
+//! @param[in] symbol the symbol to lookup
+//! @param[out] index the target index
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_atom_base_find(clingo_atom_base_t const *atoms, clingo_symbol_t symbol,
                                                      size_t *index);
@@ -204,7 +206,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_atom_base_find(clingo_atom_base_t const *a
 //! @param[in] atoms the atom base
 //! @param[in] index the index of the atom
 //! @param[out] symbol the resulting symbol
-//! @return whether the call was successful
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid
+//! - ::clingo_result_range if the index is out of range
 CLINGO_VISIBILITY_DEFAULT bool clingo_atom_base_symbol(clingo_atom_base_t const *atoms, size_t index,
                                                        clingo_symbol_t *symbol);
 
@@ -216,14 +220,16 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_atom_base_symbol(clingo_atom_base_t const 
 //! @param[in] atoms the atom base
 //! @param[in] index the index of the atom
 //! @param[out] literal the resulting literal
-//! @return whether the call was successful
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid
+//! - ::clingo_result_range if the index is out of range
 CLINGO_VISIBILITY_DEFAULT bool clingo_atom_base_literal(clingo_atom_base_t const *atoms, size_t index,
                                                         clingo_literal_t *literal);
 
 //! Get the term base capturing show term directives.
 //!
-//! @param base the base
-//! @param terms the term base
+//! @param[in] base the base
+//! @param[out] terms the term base
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_base_terms(clingo_base_t const *base, clingo_term_base_t const **terms);
 
@@ -239,8 +245,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_base_terms(clingo_base_t const *base, clin
 //!
 //! For an example, see @ref base-theory.c.
 //!
-//! @param base the base
-//! @param theory the theory base
+//! @param[in] base the base
+//! @param[out] theory the theory base
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_base_theory(clingo_base_t const *base, clingo_theory_base_t const **theory);
 
@@ -266,21 +272,26 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_term_base_size(clingo_term_base_t const *t
 //! @param[in] terms the term base
 //! @param[in] index the index of the show directive
 //! @param[out] term the resulting term
-//! @return whether the call was successful
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid
+//! - ::clingo_result_range if the index is out of range
 CLINGO_VISIBILITY_DEFAULT bool clingo_term_base_symbol(clingo_term_base_t const *terms, size_t index,
                                                        clingo_symbol_t *term);
 
 //! Get the conditions of a show directive.
 //!
 //! Returns the conditions under which a term is shown in form of a disjunction
-//! of conjunctions.
+//! of conjunctions. The arrays are valid until the next call of this function
+//! in the same thread.
 //!
 //! @param[in] terms the term base
 //! @param[in] index the index of the show directive
-//! @param[out] sizes the sizes of the conjunctions
-//! @param[out] literals the target literals
-//! @param[out] size the size of the disjunction
-//! @return whether the call was successful
+//! @param[out] sizes the sizes of the conjunctions (optional)
+//! @param[out] literals the target literals (optional)
+//! @param[out] size the size of the disjunction (optional)
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid
+//! - ::clingo_result_range if the index is out of range
 CLINGO_VISIBILITY_DEFAULT bool clingo_term_base_condition(clingo_term_base_t const *terms, size_t index,
                                                           size_t const **sizes,
                                                           clingo_literal_t const *const **literals, size_t *size);
