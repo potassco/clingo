@@ -606,6 +606,10 @@ typedef struct clingo_propagator {
 
 //! Register a custom propagator with the control object.
 //!
+//! The control object takes ownership of the user data, which is freed via
+//! the free callback of the propagator (if not NULL) also if the function
+//! fails.
+//!
 //! @param[in] control the target
 //! @param[in] propagator the propagator
 //! @param[in] data user data passed to the propagator functions

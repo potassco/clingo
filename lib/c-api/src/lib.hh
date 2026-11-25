@@ -94,6 +94,8 @@ template <class Handler> class CHandler {
 
     auto handler() -> Handler * { return handler_ ? &*handler_ : nullptr; }
     auto data() -> void * { return data_; }
+    //! Give up ownership of the user data without freeing it.
+    void release() noexcept { handler_.reset(); }
 
   private:
     void cleanup() noexcept {
