@@ -53,7 +53,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_backend(clingo_control_t *control,
 
 //! Finalize the backend after using it.
 //!
-//! @param[in] backend the target backend
+//! @param[in] backend the target backend (may be NULL)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_close(clingo_backend_t *backend);
 
@@ -143,7 +143,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_acyc_edge(clingo_backend_t *backen
 //! Get a fresh atom to be used in aspif directives.
 //!
 //! @param[in] backend the target backend
-//! @param[in] symbol optional symbol to associate the atom with
+//! @param[in] symbol optional symbol to associate the atom with (may be NULL)
 //! @param[out] atom the resulting atom
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_add_atom(clingo_backend_t *backend, clingo_symbol_t const *symbol,
@@ -183,7 +183,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_sequence(clingo_backen
 //! @param[in] name the name of the function
 //! @param[in] name_size the size of the name
 //! @param[in] arguments an array of term ids for the theory terms in the arguments
-//! @param[in] arguments_size the number of arguments
+//! @param[in] arguments_size the number of arguments (at least one)
 //! @param[out] term_id the resulting term id
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_term_function(clingo_backend_t *backend, char const *name,
@@ -210,10 +210,11 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_element(clingo_backend_t *b
                                                              size_t tuple_size, clingo_literal_t const *condition,
                                                              size_t condition_size, clingo_id_t *element_id);
 
-//! Add a theory atom without a guard.
+//! Add a theory atom.
 //!
-//! If the theory atom does not exist yet, the atom receives a fresh program
-//! atom, if atom_id is NULL; or *atom_in, otherwise. Note that value zero can
+//! The theory atom has a guard if operator_name is not NULL. If the theory
+//! atom does not exist yet, the atom receives a fresh program atom, if atom_in
+//! is NULL; or *atom_in, otherwise. Note that value zero can
 //! be used to mark program directives. The output parameter atom_out is set to
 //! the final value.
 //!
@@ -221,9 +222,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_element(clingo_backend_t *b
 //! @param[in] name the symbol representing the name
 //! @param[in] elements an array of element ids for the theory atom's elements
 //! @param[in] size the number of elements
-//! @param[in] operator_name the (optional) right-hand-side operator
+//! @param[in] operator_name the right-hand-side operator (may be NULL)
 //! @param[in] right_hand_side_id the term id of the right-hand-side
-//! @param[in] atom_in the atom as described above
+//! @param[in] atom_in the atom as described above (may be NULL)
 //! @param[out] atom_out the final program atom of the theory atom
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_backend_theory_atom(clingo_backend_t *backend, clingo_symbol_t name,

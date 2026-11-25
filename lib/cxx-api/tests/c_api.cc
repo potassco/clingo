@@ -1,4 +1,5 @@
 #include <clingo/ast.h>
+#include <clingo/backend.h>
 #include <clingo/control.h>
 #include <clingo/core.h>
 #include <clingo/ground.h>
@@ -304,6 +305,34 @@ TEST_CASE("c-api-model") {
     REQUIRE(clingo_model_control(mdl, &sctl));
     REQUIRE(failed_invalid(clingo_solve_control_add_clause(sctl, nullptr, 1), "clingo_solve_control_add_clause"));
     clingo_solve_handle_close(hnd);
+    clingo_control_release(ctl);
+    clingo_lib_release(lib);
+}
+
+TEST_CASE("c-api-backend") {
+    clingo_lib_t *lib = nullptr;
+    REQUIRE(clingo_lib_new(0, clingo_log_level_info, nullptr, nullptr, 0, &lib));
+    clingo_control_t *ctl = nullptr;
+    REQUIRE(clingo_control_new(lib, nullptr, 0, &ctl));
+    clingo_backend_t *bck = nullptr;
+    REQUIRE(failed_invalid(clingo_control_backend(nullptr, &bck), "clingo_control_backend"));
+    REQUIRE(clingo_control_backend(ctl, &bck));
+    auto id = clingo_id_t{0};
+    // empty sequences are fine but arrays must not be null if they are not empty
+    REQUIRE(clingo_backend_theory_term_sequence(bck, clingo_theory_sequence_type_tuple, nullptr, 0, &id));
+    REQUIRE(failed_invalid(clingo_backend_theory_term_sequence(bck, clingo_theory_sequence_type_tuple, nullptr, 1, &id),
+                           "clingo_backend_theory_term_sequence"));
+    REQUIRE(failed_invalid(clingo_backend_theory_term_sequence(bck, 42, nullptr, 0, &id),
+                           "clingo_backend_theory_term_sequence"));
+    REQUIRE(failed_invalid(clingo_backend_external(bck, 1, 42), "clingo_backend_external"));
+    auto sym = clingo_symbol_t{0};
+    REQUIRE(clingo_symbol_create_id(lib, "a", 1, true, &sym));
+    REQUIRE(failed_invalid(clingo_backend_theory_atom(bck, sym, nullptr, 0, nullptr, 0, nullptr, nullptr),
+                           "clingo_backend_theory_atom"));
+    REQUIRE(failed_invalid(clingo_backend_rule(bck, false, nullptr, 1, nullptr, 0), "clingo_backend_rule"));
+    REQUIRE(clingo_backend_close(bck));
+    REQUIRE(clingo_backend_close(nullptr));
+    clingo_symbol_release(sym);
     clingo_control_release(ctl);
     clingo_lib_release(lib);
 }
