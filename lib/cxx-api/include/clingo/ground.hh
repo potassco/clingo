@@ -61,6 +61,7 @@ class GroundEventHandler {
     //!
     //! @param name the name of the function
     //! @param args the number of arguments
+    //! @return whether the function is callable
     auto callable(std::string_view name, size_t args) -> bool { return do_callable(name, args); }
 
     //! Call the given function with the given arguments.
@@ -74,6 +75,8 @@ class GroundEventHandler {
     }
 
     //! Notify the handler that grounding has finished with the given result.
+    //!
+    //! @param result the result of grounding
     void finish(GroundResult result) noexcept { do_finish(result); }
 
   private:
@@ -94,25 +97,26 @@ class GroundHandle {
     //!
     //! For internal use.
     //!
-    //! @param hnd the C representation of the solve handle
+    //! @param hnd the C representation of the ground handle
     explicit GroundHandle(clingo_ground_handle_t *hnd) : hnd_{hnd} {}
 
-    //! Cast the solve handle to its C representation.
-    //! @param x the solve handle to cast
-    //! @return the C representation of the solve handle
+    //! Cast the ground handle to its C representation.
+    //!
+    //! @param x the ground handle to cast
+    //! @return the C representation of the ground handle
     friend auto c_cast(GroundHandle const &x) -> clingo_ground_handle_t * { return x.hnd_.get(); }
 
-    //! Get the solve result.
+    //! Get the ground result.
     //!
     //! This is a blocking operation and should always be called at the end of
-    //! a search.
+    //! grounding.
     //!
-    //! @return the solve result
+    //! @return the ground result
     [[nodiscard]] auto get() const -> GroundResult {
         return GroundResult{Detail::call<clingo_ground_handle_get>(hnd_.get())};
     }
 
-    //! Cancel the current search.
+    //! Stop the running ground call.
     //!
     //! This is a blocking operation.
     void cancel() { Detail::handle_error(clingo_ground_handle_cancel(hnd_.get())); }
@@ -122,7 +126,7 @@ class GroundHandle {
     //! Use wait() or get() to wait until grounding has stopped.
     void interrupt() { Detail::handle_error(clingo_ground_handle_interrupt(hnd_.get())); }
 
-    //! Closes the solve handle.
+    //! Closes the ground handle.
     //!
     //! Blocks until the grounding process has been cleaned up.
     void close() noexcept { hnd_.reset(); }
@@ -134,7 +138,7 @@ class GroundHandle {
     //! be used for polling.
     //!
     //! @param timeout the optional timeout in seconds
-    //! @return whether a model or result is available
+    //! @return whether grounding has finished
     [[nodiscard]] auto wait(std::optional<double> timeout) -> bool {
         return Detail::call<clingo_ground_handle_wait>(hnd_.get(), timeout.value_or(-1));
     }
