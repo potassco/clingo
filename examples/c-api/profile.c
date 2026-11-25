@@ -1,5 +1,4 @@
-#include <clingo/control.h>
-#include <clingo/profile.h>
+#include <clingo.h>
 
 #include <stdio.h>
 #include <stdlib.h>

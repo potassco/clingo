@@ -1,4 +1,4 @@
-#include <clingo/symbol.h>
+#include <clingo.h>
 
 #include <stdint.h>
 #include <stdio.h>

@@ -1,7 +1,4 @@
-#include <clingo/ast.h>
-#include <clingo/control.h>
-#include <clingo/solve.h>
-#include <clingo/symbol.h>
+#include <clingo.h>
 
 #include <stdio.h>
 #include <stdlib.h>

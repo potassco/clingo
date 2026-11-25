@@ -1,4 +1,4 @@
-#include <clingo/core.h>
+#include <clingo.h>
 #include <stdio.h>
 
 int main(void) {

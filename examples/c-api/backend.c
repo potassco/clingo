@@ -1,5 +1,4 @@
 #include <clingo.h>
-#include <clingo/backend.h>
 
 #include <assert.h>
 #include <stdio.h>
