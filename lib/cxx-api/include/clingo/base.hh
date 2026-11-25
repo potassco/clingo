@@ -51,9 +51,9 @@ class Atom {
         return Symbol{Detail::call<clingo_atom_base_symbol>(base_, index_), true};
     }
 
-    //! Get the header of the atom.
+    //! Get the hash of the atom.
     //!
-    //! The hash enables usage in hash tables. There is also an associtaed
+    //! The hash enables usage in hash tables. There is also an associated
     //! specialization of `std::hash` for this class.
     //!
     //! @return the atom's hash
@@ -197,7 +197,7 @@ class Term {
 
     //! Get the hash of the term.
     //!
-    //! The hash enables usage in hash tables. There is also an associtaed
+    //! The hash enables usage in hash tables. There is also an associated
     //! specialization of `std::hash` for this class.
     //!
     //! @return the term's hash
@@ -332,6 +332,8 @@ class TheoryTerm {
     explicit TheoryTerm(clingo_theory_base_t const &base, size_t index) : base_{&base}, index_{index} {}
 
     //! Get the type of the theory term.
+    //!
+    //! @return the type of the term
     [[nodiscard]] auto type() const -> TheoryTermType {
         return static_cast<TheoryTermType>(Detail::call<clingo_theory_base_term_type>(base_, index_));
     }
@@ -370,7 +372,7 @@ class TheoryTerm {
 
     //! Get the hash of the term.
     //!
-    //! The hash enables usage in hash tables. There is also an associtaed
+    //! The hash enables usage in hash tables. There is also an associated
     //! specialization of `std::hash` for this class.
     //!
     //! @return the term's hash
@@ -460,7 +462,7 @@ class TheoryElement {
 
     //! Get the hash of the theory element.
     //!
-    //! The hash enables usage in hash tables. There is also an associtaed
+    //! The hash enables usage in hash tables. There is also an associated
     //! specialization of `std::hash` for this class.
     //!
     //! @return the theory element's hash
@@ -549,7 +551,7 @@ class TheoryAtom {
 
     //! Get the hash of the theory atom.
     //!
-    //! The hash enables usage in hash tables. There is also an associtaed
+    //! The hash enables usage in hash tables. There is also an associated
     //! specialization of `std::hash` for this class.
     //!
     //! @return the theory atom's hash
@@ -580,7 +582,7 @@ class TheoryAtom {
     size_t index_;
 };
 
-//! A theory base that maps theory atoms.
+//! A theory base providing access to the theory atoms of a program.
 class TheoryBase {
   public:
     //! The value type.
@@ -608,6 +610,7 @@ class TheoryBase {
 
     //! Get the theory atom at the given index.
     //!
+    //! @param index the index of the theory atom
     //! @return the theory atom at the index
     [[nodiscard]] auto at(size_t index) const -> value_type {
         return index < size() ? TheoryAtom{*base_, index} : throw std::out_of_range{"atom index out of range"};
@@ -685,7 +688,7 @@ class Base {
         return Detail::call<clingo_base_is_projected>(base_, lit);
     }
 
-    //! Check whether the program literals belongs to the current solving step.
+    //! Check whether the program literal belongs to the current solving step.
     //!
     //! @param lit the program literal to check
     //! @return whether the literal belongs to the current step
@@ -819,30 +822,45 @@ namespace std {
 //! Helper to compute the hash of an atom.
 template <> struct hash<Clingo::Atom> {
     //! Compute the hash of an atom.
+    //!
+    //! @param x the atom
+    //! @return the hash value
     auto operator()(Clingo::Atom const &x) const noexcept -> size_t { return x.hash(); }
 };
 
 //! Helper to compute the hash of a term.
 template <> struct hash<Clingo::Term> {
     //! Compute the hash of a term.
+    //!
+    //! @param x the term
+    //! @return the hash value
     auto operator()(Clingo::Term const &x) const noexcept -> size_t { return x.hash(); }
 };
 
 //! Helper to compute the hash of a theory term.
 template <> struct hash<Clingo::TheoryTerm> {
     //! Compute the hash of a theory term.
+    //!
+    //! @param x the theory term
+    //! @return the hash value
     auto operator()(Clingo::TheoryTerm const &x) const noexcept -> size_t { return x.hash(); }
 };
 
 //! Helper to compute the hash of a theory element.
 template <> struct hash<Clingo::TheoryElement> {
     //! Compute the hash of a theory element.
+    //!
+    //! @param x the theory element
+    //! @return the hash value
     auto operator()(Clingo::TheoryElement const &x) const noexcept -> size_t { return x.hash(); }
 };
 
 //! Helper to compute the hash of a theory atom.
 template <> struct hash<Clingo::TheoryAtom> {
     //! Compute the hash of a theory atom.
+    //!
+    //! @param x the theory atom
+    //! @return the hash value
     auto operator()(Clingo::TheoryAtom const &x) const noexcept -> size_t { return x.hash(); }
 };
 
