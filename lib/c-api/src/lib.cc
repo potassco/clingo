@@ -15,7 +15,7 @@ class Error {
     void set(clingo_result_t code, char const *message, size_t size) noexcept {
         code_ = code;
         try {
-            message_.assign(message, size);
+            message_.assign(message != nullptr ? message : "", message != nullptr ? size : 0);
         } catch (std::exception &ptr) {
             message_.clear();
         }
@@ -64,7 +64,7 @@ class Error {
         try {
             throw;
         } catch (std::bad_alloc const &e) {
-            return set_(clingo_result_range, e.what());
+            return set_(clingo_result_bad_alloc, e.what());
         } catch (std::range_error const &e) {
             return set_(clingo_result_range, e.what());
         } catch (std::invalid_argument const &e) {
@@ -107,6 +107,15 @@ void handle_error_no_code(bool res) {
 
 auto fail_arguments() -> bool {
     return fail_with(clingo_result_invalid, "invalid arguments");
+}
+
+void fail_invalid(std::source_location const &loc) {
+    // NOTE: the name of the C API function is extracted from the pretty function name
+    auto name = std::string_view{loc.function_name()};
+    if (auto beg = name.find("clingo_"); beg != std::string_view::npos) {
+        name = name.substr(beg, name.find('(', beg) - beg);
+    }
+    throw std::invalid_argument{std::string{"invalid arguments: "}.append(name)};
 }
 
 auto fail_with(clingo_result_t code, std::string_view msg) -> bool {

@@ -105,15 +105,15 @@ typedef int clingo_result_t;
 //! Set an error in the current thread.
 //!
 //! @param[in] code the error code
-//! @param[in] message the error message
+//! @param[in] message the error message (may be NULL for an empty message)
 //! @param[in] size the size of the error message
 //! @return returns false
 CLINGO_VISIBILITY_DEFAULT bool clingo_set_error(clingo_result_t code, char const *message, size_t size);
 
 //! Get the error set in the current thread.
 //!
-//! @param[out] code the error code
-//! @param[out] message the error message
+//! @param[out] code the error code (optional)
+//! @param[out] message the error message (optional)
 CLINGO_VISIBILITY_DEFAULT void clingo_get_error(clingo_result_t *code, clingo_string_t *message);
 
 //! Clear the current error.

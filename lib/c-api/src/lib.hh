@@ -8,7 +8,9 @@
 #include <clingo/core/symbol.hh>
 
 #include <algorithm>
+#include <source_location>
 #include <stdexcept> // IWYU pragma: keep
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -152,6 +154,41 @@ void raise_error();
 auto store_error() -> bool;
 auto fail_arguments() -> bool;
 auto fail_with(clingo_result_t code, std::string_view msg) -> bool;
+
+// Argument checks
+//
+// The checks are meant for functions that can fail and run within
+// CLINGO_TRY/CLINGO_CATCH. Failed checks throw an exception that is reported
+// as clingo_result_invalid naming the calling function.
+
+//! Throw an exception reporting invalid arguments of the function at the given location.
+[[noreturn, gnu::cold, gnu::noinline]] void fail_invalid(std::source_location const &loc);
+
+//! Check the arguments of a C API function.
+inline void require(bool cond, std::source_location const &loc = std::source_location::current()) {
+    if (!cond) [[unlikely]] {
+        fail_invalid(loc);
+    }
+}
+
+//! Check whether none of the given pointers is null.
+template <class... T>
+    requires(std::is_pointer_v<T> && ...)
+constexpr auto not_null(T... ptrs) noexcept -> bool {
+    return ((ptrs != nullptr) && ...);
+}
+
+//! Check whether a pointer is valid for an array of the given size.
+template <class T> constexpr auto valid_span(T const *ptr, size_t size) noexcept -> bool {
+    return ptr != nullptr || size == 0;
+}
+
+//! Write an optional out parameter if it is not null.
+template <class T, class U> constexpr void set_opt(T *out, U &&value) {
+    if (out != nullptr) {
+        *out = std::forward<U>(value);
+    }
+}
 
 inline void handle_error(bool res) {
     if (!res) {
