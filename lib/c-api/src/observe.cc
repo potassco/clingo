@@ -197,9 +197,7 @@ class ExtendedAspifWriter : public Potassco::AspifOutput {
 extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observer_t const *observer, void *data,
                                        bool preprocess) -> bool {
     CLINGO_TRY {
-        if (control == nullptr || observer == nullptr) {
-            return fail_arguments();
-        }
+        require(not_null(control, observer));
         // NOLINTNEXTLINE
         auto &prg = const_cast<Clasp::Asp::LogicProgram &>(control->slv->clasp_program());
         if (preprocess) {
@@ -217,9 +215,10 @@ extern "C" auto clingo_control_observe(clingo_control_t *control, clingo_observe
 extern "C" auto clingo_control_write_aspif(clingo_control_t *control, char const *path, size_t size,
                                            clingo_write_aspif_mode_t mode) -> bool {
     CLINGO_TRY {
-        if (control == nullptr || (path == nullptr && size != 0)) {
-            return fail_arguments();
-        }
+        constexpr clingo_write_aspif_mode_t modes =
+            clingo_write_aspif_mode_preamble | clingo_write_aspif_mode_preamble_auto | clingo_write_aspif_mode_append |
+            clingo_write_aspif_mode_preprocess | clingo_write_aspif_mode_symbols;
+        require(control != nullptr && valid_span(path, size) && (mode & ~modes) == 0);
         // NOLINTNEXTLINE
         auto &prg = const_cast<Clasp::Asp::LogicProgram &>(control->slv->clasp_program());
         if ((mode & clingo_write_aspif_mode_preprocess) != 0) {

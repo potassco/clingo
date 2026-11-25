@@ -6,6 +6,9 @@
 #include <clingo/core.h>
 #include <clingo/ground.h>
 #include <clingo/model.h>
+#include <clingo/observe.h>
+#include <clingo/propagate.h>
+#include <clingo/script.h>
 #include <clingo/solve.h>
 #include <clingo/stats.h>
 #include <clingo/symbol.h>
@@ -407,6 +410,40 @@ TEST_CASE("c-api-stats") {
     REQUIRE(failed_invalid(clingo_stats_map_has_subkey(stats, root, nullptr, 1, nullptr, &found),
                            "clingo_stats_map_has_subkey"));
     REQUIRE(clingo_stats_map_has_subkey(stats, root, "x", 1, nullptr, &found));
+    clingo_control_release(ctl);
+    clingo_lib_release(lib);
+}
+
+TEST_CASE("c-api-extend") {
+    clingo_lib_t *lib = nullptr;
+    REQUIRE(clingo_lib_new(0, clingo_log_level_info, nullptr, nullptr, 0, &lib));
+    clingo_control_t *ctl = nullptr;
+    REQUIRE(clingo_control_new(lib, nullptr, 0, &ctl));
+    auto freed = 0;
+    SECTION("propagator") {
+        auto prop = clingo_propagator_t{};
+        prop.free = Logger::free;
+        // the propagator data is freed also if the arguments are invalid
+        REQUIRE(failed_invalid(clingo_control_register_propagator(nullptr, &prop, &freed),
+                               "clingo_control_register_propagator"));
+        REQUIRE(freed == 1);
+        REQUIRE(clingo_control_register_propagator(ctl, &prop, &freed));
+        REQUIRE(freed == 1);
+        clingo_control_release(ctl);
+        ctl = nullptr;
+        REQUIRE(freed == 2);
+    }
+    SECTION("script") {
+        auto script = clingo_script_t{};
+        script.free = Logger::free;
+        // the script data is freed also if the arguments are invalid
+        REQUIRE(failed_invalid(clingo_script_register(lib, &script, &freed), "clingo_script_register"));
+        REQUIRE(freed == 1);
+    }
+    SECTION("observe") {
+        REQUIRE(failed_invalid(clingo_control_write_aspif(ctl, nullptr, 0, 32), "clingo_control_write_aspif"));
+        REQUIRE(clingo_control_write_aspif(ctl, nullptr, 0, clingo_write_aspif_mode_preamble));
+    }
     clingo_control_release(ctl);
     clingo_lib_release(lib);
 }
