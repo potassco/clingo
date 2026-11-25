@@ -13,8 +13,7 @@ Examples
 
 from collections.abc import Callable, Generator
 from enum import IntEnum
-from types import TracebackType
-from typing import Any, Protocol, Self, TypeVar, type_check_only
+from typing import Any, Protocol, TypeVar, type_check_only
 
 from typing_extensions import CapsuleType
 
@@ -136,30 +135,6 @@ class Library:
             log_level: The log level.
             logger: A logger to emit/intercept messages.
             message_limit: The maximum number of messages to emit.
-        """
-
-    def __enter__(self) -> Self:
-        """
-        Return the library object.
-
-        Returns:
-            The library object.
-        """
-
-    def __exit__(
-        self,
-        type: type[BaseException] | None,
-        value: BaseException | None,
-        traceback: TracebackType | None,
-        /,
-    ) -> None:
-        """
-        Close the library object.
-
-        Args:
-            type: The exception type, if an exception occurred.
-            value: The exception instance, if an exception occurred.
-            traceback: The traceback, if an exception occurred.
         """
 
     def _capsule(self) -> CapsuleType:

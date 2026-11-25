@@ -97,11 +97,11 @@ information.
 ...     def f(self, x: Symbol):
 ...         return Number(self.lib, x.number + 1)
 ...
->>> with Library() as lib:
-...     ctl = Control(lib, ["0"])
-...     ctl.parse_string("1 {p(1..2)} 1. q(@f(X)) :- p(X).")
-...     ctl.ground(context=Context(lib))
-...     ctl.solve(on_model=print)
+>>> lib = Library()
+>>> ctl = Control(lib, ["0"])
+>>> ctl.parse_string("1 {p(1..2)} 1. q(@f(X)) :- p(X).")
+>>> ctl.ground(context=Context(lib))
+>>> ctl.solve(on_model=print)
 ```
 """
 

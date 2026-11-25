@@ -20,5 +20,4 @@ class TestCore:
         """
         Test library creation.
         """
-        with Library() as lib:
-            assert lib is not None
+        assert Library() is not None

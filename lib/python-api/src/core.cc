@@ -508,21 +508,6 @@ auto py_library_capsule(PyObject *self, [[maybe_unused]] PyObject *args) -> PyOb
     return PyCapsule_New(lib, "clingo_lib_t", nullptr);
 }
 
-auto py_library_enter(PyObject *self, [[maybe_unused]] PyObject *args) -> PyObject * {
-    return Py_NewRef(self);
-}
-
-auto py_library_exit(PyObject *self, PyObject *const *args, Py_ssize_t nargs) -> PyObject * {
-    PyObject *type = unset_arg();
-    PyObject *value = unset_arg();
-    PyObject *traceback = unset_arg();
-    if (!parse_args("__exit__", {"type", "value", "traceback"}, {}, args, nargs, {&type, &value, &traceback})) {
-        return nullptr;
-    }
-    library_invalidate(self);
-    Py_RETURN_FALSE;
-}
-
 auto py_library_methods = std::array{
     PyMethodDef{
         "_capsule",
@@ -530,8 +515,6 @@ auto py_library_methods = std::array{
         METH_NOARGS,
         PyDoc_STR("Get a capsule holding the underlying C library object."),
     },
-    PyMethodDef{"__enter__", py_library_enter, METH_NOARGS, PyDoc_STR("Return the library object.")},
-    PyMethodDef{"__exit__", method_cast(py_library_exit), METH_FASTCALL, PyDoc_STR("Close the library object.")},
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };
 

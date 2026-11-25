@@ -14,9 +14,9 @@ from clingo.app import clingo_main
 from clingo.core import Library
 from clingo.script import enable_python
 
-with Library() as lib:
-    enable_python(lib)
-    clingo_main(lib, sys.argv[1:])
+lib = Library()
+enable_python(lib)
+clingo_main(lib, sys.argv[1:])
 ```
 
 The next example shows how to write a simple clingo-based application that adds
@@ -50,8 +50,7 @@ class MyApp(App):
         control.parse_files(files)
         control.main()
 
-with Library() as lib:
-    sys.exit(clingo_main(lib, sys.argv[1:], MyApp()))
+sys.exit(clingo_main(Library(), sys.argv[1:], MyApp()))
 ```
 """
 

@@ -324,8 +324,7 @@ def error_app_main(mode: str):
     """
     Start the test app in the given mode.
     """
-    with Library() as lib:
-        clingo_main(lib, ["--test", "value"], ErrorApp(mode))
+    clingo_main(Library(), ["--test", "value"], ErrorApp(mode))
 
 
 if __name__ == "__main__" and len(sys.argv) == 3 and sys.argv[1] == "test-error-app":
