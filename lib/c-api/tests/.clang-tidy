@@ -1,0 +1,2 @@
+InheritParentConfig: true
+Checks: "-bugprone-throwing-static-initialization,-clang-analyzer-optin.core.EnumCastOutOfRange,-bugprone-unchecked-optional-access,-bugprone-signed-bitwise"

@@ -57,6 +57,14 @@ source_group("${ide_source_group}" FILES ${source-group})
 set(source
     ${source-group})
 # ]]]
+# [[[test: tests
+set(ide_test_group "Test Files")
+set(test-group
+    "tests/arguments.cc")
+source_group("${ide_test_group}" FILES ${test-group})
+set(test
+    ${test-group})
+# ]]]
 
 set(libtype STATIC)
 if(CLINGO_BUILD_SHARED)
@@ -114,6 +122,14 @@ elseif(CLINGO_INSTALL_WHEEL AND CLINGO_BUILD_SHARED)
 endif()
 
 clingo_git_hash(clingo)
+
+if(CLINGO_BUILD_TESTS)
+    add_executable(test_clingo-c-api)
+    target_sources(test_clingo-c-api PRIVATE ${test})
+    clingo_target_properties(TARGETS test_clingo-c-api FOLDER test SUBDIR tests)
+    target_link_libraries(test_clingo-c-api PRIVATE clingo Catch2::Catch2WithMain)
+    catch_discover_tests(test_clingo-c-api DL_PATH "$<TARGET_FILE_DIR:clingo>")
+endif()
 
 if(CLINGO_BUILD_TESTS AND WIN32 AND CLINGO_BUILD_SHARED)
     set(test_subdir "${CMAKE_BINARY_DIR}/bin/tests/")

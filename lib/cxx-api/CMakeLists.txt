@@ -35,7 +35,6 @@ set(test-group
     "tests/ast.cc"
     "tests/backend.cc"
     "tests/base.cc"
-    "tests/c_api.cc"
     "tests/cbs.hh"
     "tests/config.cc"
     "tests/control.cc"
