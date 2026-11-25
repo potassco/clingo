@@ -473,7 +473,7 @@ class PropagateInit : public PropagateControl {
     //! Set the check mode of the propagator.
     //!
     //! @param mode the new check mode of the propagator
-    void check_mode(PropagatorCheckMode mode) {
+    void check_mode(PropagatorCheckMode mode) const {
         Detail::handle_error(
             clingo_propagate_init_set_check_mode(init_, static_cast<clingo_propagator_check_mode_t>(mode)));
     }
@@ -565,7 +565,7 @@ class Propagator {
     //! @param assignment the current assignment of the solver
     //! @param ctl the propagate control object
     //! @param changes the literals that were assigned on the current decision level
-    void propagate(Assignment assignment, PropagateControl ctl, ProgramLiteralSpan changes) {
+    void propagate(Assignment assignment, PropagateControl ctl, SolverLiteralSpan changes) {
         do_propagate(assignment, ctl, changes);
     }
 
@@ -579,7 +579,7 @@ class Propagator {
     //!
     //! @param assignment the current assignment of the solver
     //! @param changes the literals that were assigned on the current decision level
-    void undo(Assignment assignment, ProgramLiteralSpan changes) { do_undo(assignment, changes); }
+    void undo(Assignment assignment, SolverLiteralSpan changes) { do_undo(assignment, changes); }
 
     //! Callback that is called on propagation fixpoints or total assignments.
     //!
@@ -608,8 +608,8 @@ class Propagator {
     virtual void do_init([[maybe_unused]] Assignment assignment, [[maybe_unused]] PropagateInit init) {}
     virtual void do_attach([[maybe_unused]] Assignment assignment, [[maybe_unused]] PropagateControl ctl) {}
     virtual void do_propagate([[maybe_unused]] Assignment assignment, [[maybe_unused]] PropagateControl ctl,
-                              [[maybe_unused]] ProgramLiteralSpan changes) {}
-    virtual void do_undo([[maybe_unused]] Assignment assignment, [[maybe_unused]] ProgramLiteralSpan changes) {}
+                              [[maybe_unused]] SolverLiteralSpan changes) {}
+    virtual void do_undo([[maybe_unused]] Assignment assignment, [[maybe_unused]] SolverLiteralSpan changes) {}
     virtual void do_check([[maybe_unused]] Assignment assignment, [[maybe_unused]] PropagateControl ctl) {}
 };
 

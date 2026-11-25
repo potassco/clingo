@@ -33,7 +33,7 @@ class AIFFB : public Clingo::Propagator {
 
     //! Propagate that a implies b and b implies a.
     void do_propagate([[maybe_unused]] Clingo::Assignment assignment, Clingo::PropagateControl ctl,
-                      Clingo::ProgramLiteralSpan changes) override {
+                      Clingo::SolverLiteralSpan changes) override {
         for (auto lit : changes) {
             // if a is true, then b has to be true and vice versa
             auto clause = lit == a_ ? std::array{-a_, b_} : std::array{-b_, a_};
