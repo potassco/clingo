@@ -800,8 +800,36 @@ auto TermUnary::do_score(double size, std::vector<bool> const &bound) const -> d
     return op_ == UnaryOperator::minus ? rhs_->score(size, bound) : 0.0;
 }
 
+namespace {
+
+//! Apply the unary operator to a small number if the result is a small number.
+//!
+//! Returns std::nullopt if the result does not fit into 32 bits. Then the
+//! result has to be computed using Number.
+auto small_unop(UnaryOperator op, int32_t a) -> std::optional<int32_t> {
+    switch (op) {
+        case UnaryOperator::minus: {
+            return Util::check_neg(a);
+        }
+        case UnaryOperator::negate: {
+            return ~a;
+        }
+        case UnaryOperator::abs: {
+            return Util::check_abs(a);
+        }
+    }
+    return std::nullopt;
+}
+
+} // namespace
+
 auto TermUnary::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
     if (op_ == UnaryOperator::minus) {
+        if (auto y = sym.small_num(); y.has_value()) {
+            if (auto res = Util::check_neg(*y); res.has_value()) {
+                return rhs_->match(ctx, SymbolStore::num_ref(*res));
+            }
+        }
         if (sym.type() == SymbolType::function) {
             // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
             return rhs_->match(ctx, *sym.flip_classical_sign());
@@ -817,6 +845,11 @@ auto TermUnary::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
 
 auto TermUnary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
     if (auto rhs = rhs_->eval(ctx); rhs) {
+        if (auto a = rhs->small_num(); a.has_value()) {
+            if (auto res = small_unop(op_, *a); res.has_value()) {
+                return SymbolStore::num_ref(*res);
+            }
+        }
         switch (op_) {
             case UnaryOperator::minus: {
                 if (rhs->type() == SymbolType::number) {

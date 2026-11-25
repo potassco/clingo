@@ -41,6 +41,12 @@ BINARY: dict[str, tuple[str, Callable[[int, int], int | None]]] = {
     "xor": ("X^Y", lambda x, y: x ^ y),
 }
 
+UNARY: dict[str, tuple[str, Callable[[int], int]]] = {
+    "minus": ("-X", lambda x: -x),
+    "abs": ("|X|", abs),
+    "negate": ("~X", lambda x: ~x),
+}
+
 LINEAR: dict[str, tuple[str, Callable[[int], int]]] = {
     "inc": ("X+1", lambda x: x + 1),
     "dec": ("X-1", lambda x: x - 1),
@@ -109,6 +115,22 @@ class TestArith:
             if (res := fun(x, y)) is not None
         }
         assert atoms == expected
+
+    @pytest.mark.parametrize("name", UNARY)
+    def test_unary(self, name: str):
+        """
+        Test evaluating unary operations.
+        """
+        term, fun = UNARY[name]
+        atoms = self.ground(f"r(X,{term}) :- v(X). #show r/2.")
+        assert atoms == {f"r({x},{fun(x)})" for x in VALUES}
+
+    def test_unary_match(self):
+        """
+        Test matching the unary minus against values.
+        """
+        atoms = self.ground("r(X) :- v(-X). #show r/1.")
+        assert atoms == {f"r({-y})" for y in VALUES}
 
     @pytest.mark.parametrize("name", LINEAR)
     def test_linear_eval(self, name: str):
