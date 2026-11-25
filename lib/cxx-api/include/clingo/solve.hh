@@ -97,7 +97,7 @@ class SolveControl {
         Detail::handle_error(clingo_solve_control_add_clause(ctl_, lits.data(), lits.size()));
     }
 
-    //! Add clause to the running search.
+    //! Add a nogood to the running search.
     //!
     //! This is equivalent to calling Clingo::SolveControl::add_clause() with
     //! the negated literals.
@@ -193,9 +193,9 @@ class ConstModel {
         return Detail::call<clingo_model_is_true>(mdl_, lit);
     }
 
-    //! Check whether the given literal is consequence of the model.
+    //! Check whether the given literal is a consequence of the model.
     //!
-    //! The function return std::nullopt if it is not known whether the literal
+    //! The function returns std::nullopt if it is not known whether the literal
     //! is a consequence. Otherwise, it returns true if the literal is a
     //! consequence and false if it is not.
     //!
@@ -233,7 +233,7 @@ class ConstModel {
 
     //! Check whether the model is proven to be optimal.
     //!
-    //! Depending on the reasoning mode and the context the model is access,
+    //! Depending on the reasoning mode and the context in which the model is accessed,
     //! this function might return false even though the model is optimal.
     //!
     //! @return whether the model is proven to be optimal
@@ -271,13 +271,15 @@ class ConstModel {
     clingo_model_t const *mdl_;
 };
 
-//! Class to provide an mutable view of a model.
+//! Class to provide a mutable view of a model.
 //!
 //! The model can be extended by theory symbols or clauses added to the running
 //! search.
 class Model : public ConstModel {
   public:
     //! Constructor from the underlying C representation.
+    //!
+    //! For internal use.
     //!
     //! @param mdl the C representation of the model
     explicit Model(clingo_model_t *mdl) : ConstModel{mdl} {}
@@ -372,16 +374,22 @@ class SolveHandle {
         iterator() = default;
 
         //! Get a reference to the current model.
+        //!
+        //! @return the current model
         auto operator*() const -> reference {
             return mdl_.value(); // NOLINT
         }
 
         //! Member access operator to get a pointer to the current model.
+        //!
+        //! @return a pointer to the current model
         auto operator->() const -> pointer {
             return &mdl_.value(); // NOLINT
         }
 
         //! Increment the iterator to the next model.
+        //!
+        //! @return a reference to this iterator
         auto operator++() -> iterator & {
             hnd_->resume();
             mdl_ = hnd_->model();
@@ -391,6 +399,8 @@ class SolveHandle {
         //! Postfix increment the iterator.
         //!
         //! For interface completeness. Do not use.
+        //!
+        //! @return a copy of the iterator before incrementing it
         auto operator++(int) -> iterator {
             iterator tmp = *this;
             ++(*this);
@@ -467,15 +477,15 @@ class SolveHandle {
 
     //! Resume the current search.
     //!
-    //! In a asynchronous context, this will start the search for the next
-    //! model. Otherwise, it is a no-op.
+    //! Discards the current model and starts the search for the next one. If
+    //! the search runs asynchronously, it continues in the background.
     void resume() { Detail::handle_error(clingo_solve_handle_resume(hnd_.get())); }
 
     //! Get the current model.
     //!
-    //! Return std::optional if no model is available.
-    //! This can happen if models are exhausted or in an asynchronous context
-    //! where the next model has not yet been found.
+    //! Returns an empty optional if there are no more models. If the next
+    //! model has not been found yet, the function blocks until it is
+    //! available.
     //!
     //! @return the current model, if available
     [[nodiscard]] auto model() -> std::optional<Model> {
@@ -486,7 +496,7 @@ class SolveHandle {
     //! Get the last model.
     //!
     //! This function can be called after all models have been enumerated. This
-    //! is particularly useful when optimizing to inpsect the optimal model.
+    //! is particularly useful when optimizing to inspect the optimal model.
     //!
     //! @return the last model, if available
     [[nodiscard]] auto last() const -> std::optional<ConstModel> {
@@ -524,8 +534,12 @@ class SolveHandle {
     }
 
     //! Get an iterator to iterate over models found during solving.
+    //!
+    //! @return an iterator pointing to the first model
     [[nodiscard]] auto begin() -> iterator { return iterator{*this}; }
     //! Get a sentinel to indicate that all models have been exhausted.
+    //!
+    //! @return the sentinel
     [[nodiscard]] auto end() -> sentinel {
         static_cast<void>(this);
         return sentinel{};
