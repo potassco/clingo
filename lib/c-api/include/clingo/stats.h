@@ -33,7 +33,7 @@ enum clingo_stats_type_e {
     clingo_stats_type_array = 1, //!< the entry is an array
     clingo_stats_type_map = 2,   //!< the entry is a map
 };
-//! Corresponding type to ::clingo_stats_type.
+//! Corresponding type to ::clingo_stats_type_e.
 typedef int clingo_stats_type_t;
 
 //! Handle for the solver stats.
@@ -63,9 +63,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_stats_type(clingo_stats_t const *stats, ui
 //!
 //! The representation is in a YAML-like format.
 //!
-//! @param stats the stats
-//! @param key the key
-//! @param builder the builder
+//! @param[in] stats the stats
+//! @param[in] key the key
+//! @param[in] builder the builder
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_stats_to_string(clingo_stats_t const *stats, uint64_t key,
                                                       clingo_string_builder_t *builder);
@@ -121,7 +121,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_stats_map_size(clingo_stats_t const *stats
 //! @param[in] key the key
 //! @param[in] name name of the subkey
 //! @param[in] size the size of the name
-//! @param[out] subkey (optional) resulting subkey if @p result is true
+//! @param[out] subkey resulting subkey if @p result is true (optional)
 //! @param[out] result true if the map has a subkey with the given name
 //! @return whether the call was successful
 //! @note @p subkey is optional and can be set to NULL to only check for existence

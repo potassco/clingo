@@ -7,6 +7,7 @@
 #include <clingo/ground.h>
 #include <clingo/model.h>
 #include <clingo/solve.h>
+#include <clingo/stats.h>
 #include <clingo/symbol.h>
 
 #include <catch2/catch_test_macros.hpp>
@@ -388,6 +389,24 @@ TEST_CASE("c-api-config") {
     REQUIRE(freed == 1);
     REQUIRE(failed_invalid(clingo_config_add(cfg, root, "x", 1, nullptr, 1, &entry, &freed), "clingo_config_add"));
     REQUIRE(freed == 2);
+    clingo_control_release(ctl);
+    clingo_lib_release(lib);
+}
+
+TEST_CASE("c-api-stats") {
+    clingo_lib_t *lib = nullptr;
+    REQUIRE(clingo_lib_new(0, clingo_log_level_info, nullptr, nullptr, 0, &lib));
+    clingo_control_t *ctl = nullptr;
+    REQUIRE(clingo_control_new(lib, nullptr, 0, &ctl));
+    clingo_stats_t const *stats = nullptr;
+    REQUIRE(clingo_control_stats(ctl, &stats));
+    auto root = uint64_t{0};
+    REQUIRE(clingo_stats_root(stats, &root));
+    REQUIRE(failed_invalid(clingo_stats_to_string(stats, root, nullptr), "clingo_stats_to_string"));
+    auto found = false;
+    REQUIRE(failed_invalid(clingo_stats_map_has_subkey(stats, root, nullptr, 1, nullptr, &found),
+                           "clingo_stats_map_has_subkey"));
+    REQUIRE(clingo_stats_map_has_subkey(stats, root, "x", 1, nullptr, &found));
     clingo_control_release(ctl);
     clingo_lib_release(lib);
 }
