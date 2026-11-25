@@ -112,7 +112,7 @@ typedef bool (*clingo_option_parser_t)(char const *value, size_t size, void *dat
 //! @param[in] parser callback to parse the value of the option
 //! @param[in] data user data for the callback
 //! @param[in] multi whether the option can appear multiple times on the command-line
-//! @param[in] argument optional string (NULL) to change the value name in the generated help output
+//! @param[in] argument string to change the value name in the generated help output (may be NULL)
 //! @param[in] argument_size the size of the argument
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_options_add(clingo_options_t *options, char const *group, size_t group_size,

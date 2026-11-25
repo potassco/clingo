@@ -305,6 +305,8 @@ extern "C" auto clingo_options_add(clingo_options_t *options, char const *group,
                                    clingo_option_parser_t parser, void *data, bool multi, char const *argument,
                                    size_t argument_size) -> bool {
     CLINGO_TRY {
+        require(not_null(options, parser) && valid_span(group, group_size) && valid_span(option, option_size) &&
+                valid_span(description, description_size));
         auto *opts = cpp_cast(options);
         opts->add_option(
             {group, group_size}, {option, option_size}, {description, description_size},
@@ -329,6 +331,8 @@ extern "C" auto clingo_options_add_flag(clingo_options_t *options, char const *g
                                         char const *option, size_t option_size, char const *description,
                                         size_t description_size, bool *target) -> bool {
     CLINGO_TRY {
+        require(not_null(options, target) && valid_span(group, group_size) && valid_span(option, option_size) &&
+                valid_span(description, description_size));
         auto *opts = cpp_cast(options);
         opts->add_flag({group, group_size}, {option, option_size}, {description, description_size}, *target);
     }
@@ -338,6 +342,7 @@ extern "C" auto clingo_options_add_flag(clingo_options_t *options, char const *g
 extern "C" auto clingo_options_set_default_value(clingo_options_t *options, char const *option, size_t option_size,
                                                  char const *value, size_t value_size) -> bool {
     CLINGO_TRY {
+        require(options != nullptr && valid_span(option, option_size) && valid_span(value, value_size));
         auto *opts = cpp_cast(options);
         opts->set_default_value({option, option_size}, {value, value_size});
     }
@@ -350,12 +355,12 @@ extern "C" auto clingo_main(clingo_lib_t *lib, clingo_string_t const *arguments,
         if (code != nullptr) {
             *code = 1;
         }
-        if (lib == nullptr || (arguments == nullptr && size > 0)) {
-            return fail_arguments();
-        }
+        require(lib != nullptr && valid_span(arguments, size));
         auto capp = ClingoApp{*lib, app, data};
-        auto args = CppClingo::Util::to_vec(std::span{arguments, size},
-                                            [](auto const &str) { return std::string{str.data, str.size}; });
+        auto args = CppClingo::Util::to_vec(std::span{arguments, size}, [](auto const &str) {
+            require(valid_span(str.data, str.size));
+            return std::string{str.data, str.size};
+        });
         auto cargs = CppClingo::Util::to_vec(args, [](auto const &str) { return str.c_str(); });
         auto res = capp.main(cargs);
         if (code != nullptr) {
