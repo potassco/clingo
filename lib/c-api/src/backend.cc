@@ -26,7 +26,7 @@ auto get_store(clingo_backend_t *backend) -> CppClingo::SymbolStore & {
     return cpp_cast(backend)->store();
 }
 
-auto map(clingo_external_type_e type, std::source_location const &loc = std::source_location::current())
+auto map(clingo_external_type_e type, std::source_location loc = std::source_location::current())
     -> Potassco::TruthValue {
     switch (type) {
         case clingo_external_type_false: {
@@ -45,7 +45,7 @@ auto map(clingo_external_type_e type, std::source_location const &loc = std::sou
     fail_invalid(loc);
 }
 
-auto map(clingo_heuristic_type_e type, std::source_location const &loc = std::source_location::current())
+auto map(clingo_heuristic_type_e type, std::source_location loc = std::source_location::current())
     -> Potassco::DomModifier {
     switch (type) {
         case clingo_heuristic_type_factor: {
@@ -70,7 +70,7 @@ auto map(clingo_heuristic_type_e type, std::source_location const &loc = std::so
     fail_invalid(loc);
 }
 
-auto map(clingo_theory_sequence_type_e type, std::source_location const &loc = std::source_location::current())
+auto map(clingo_theory_sequence_type_e type, std::source_location loc = std::source_location::current())
     -> CppClingo::TheoryTermTupleType {
     switch (type) {
         case clingo_theory_sequence_type_tuple: {

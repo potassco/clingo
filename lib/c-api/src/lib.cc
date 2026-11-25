@@ -108,7 +108,7 @@ void handle_error_no_code(bool res) {
 namespace {
 
 //! Get the name of the C API function from the pretty function name of the location.
-auto api_name(std::source_location const &loc) -> std::string_view {
+auto api_name(std::source_location loc) -> std::string_view {
     auto name = std::string_view{loc.function_name()};
     for (auto beg = name.find("clingo_"); beg != std::string_view::npos; beg = name.find("clingo_", beg + 1)) {
         auto end = name.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_", beg);
@@ -121,11 +121,11 @@ auto api_name(std::source_location const &loc) -> std::string_view {
 
 } // namespace
 
-void fail_invalid(std::source_location const &loc) {
+void fail_invalid(std::source_location loc) {
     throw std::invalid_argument{std::string{"invalid arguments: "}.append(api_name(loc))};
 }
 
-void fail_range(std::source_location const &loc) {
+void fail_range(std::source_location loc) {
     throw std::range_error{std::string{"index out of range: "}.append(api_name(loc))};
 }
 

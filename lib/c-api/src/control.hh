@@ -88,8 +88,7 @@ inline auto convert(std::optional<CppClingo::Input::ProgramParamVec> const &part
 
 //! Convert the given parts checking the arguments on behalf of the calling function.
 inline auto convert(clingo_control_t *control, clingo_part_t const *parts, size_t parts_size,
-                    std::source_location const &loc = std::source_location::current())
-    -> CppClingo::Input::ProgramParamVec {
+                    std::source_location loc = std::source_location::current()) -> CppClingo::Input::ProgramParamVec {
     require(valid_span(parts, parts_size), loc);
     for (auto const &part : std::span{parts, parts_size}) {
         require(valid_span(part.name, part.name_size) && valid_span(part.params, part.params_size), loc);

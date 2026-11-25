@@ -164,20 +164,20 @@ auto fail_with(clingo_result_t code, std::string_view msg) -> bool;
 // calling function.
 
 //! Throw an exception reporting invalid arguments of the function at the given location.
-[[noreturn, gnu::cold, gnu::noinline]] void fail_invalid(std::source_location const &loc);
+[[noreturn, gnu::cold, gnu::noinline]] void fail_invalid(std::source_location loc);
 
 //! Throw an exception reporting an index out of range of the function at the given location.
-[[noreturn, gnu::cold, gnu::noinline]] void fail_range(std::source_location const &loc);
+[[noreturn, gnu::cold, gnu::noinline]] void fail_range(std::source_location loc);
 
 //! Check the arguments of a C API function.
-inline void require(bool cond, std::source_location const &loc = std::source_location::current()) {
+inline void require(bool cond, std::source_location loc = std::source_location::current()) {
     if (!cond) [[unlikely]] {
         fail_invalid(loc);
     }
 }
 
 //! Check that an index passed to a C API function is in range.
-inline void require_index(bool cond, std::source_location const &loc = std::source_location::current()) {
+inline void require_index(bool cond, std::source_location loc = std::source_location::current()) {
     if (!cond) [[unlikely]] {
         fail_range(loc);
     }
