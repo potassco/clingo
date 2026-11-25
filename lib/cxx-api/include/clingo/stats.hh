@@ -23,7 +23,7 @@ enum class StatsType : clingo_stats_type_t // NOLINT
     value = clingo_stats_type_value,
     //! The statistics entry holds an array.
     array = clingo_stats_type_array,
-    //! The statistics entry holds map.
+    //! The statistics entry holds a map.
     map = clingo_stats_type_map,
 };
 
@@ -36,6 +36,11 @@ class StatsMap;
 class StatsView {
   public:
     //! Construct a statistics entry from a pointer to the C API and a key.
+    //!
+    //! For internal use.
+    //!
+    //! @param stats the C representation of the statistics
+    //! @param key the key of the statistics entry
     explicit StatsView(clingo_stats_t const *stats, uint64_t key) : stats_{stats}, key_{key} {}
 
     //! Cast to the underlying C API type.
@@ -260,8 +265,8 @@ class StatsArray : public StatsArrayView {
 
     //! Append a new statistics entry of the given type to the array.
     //!
-    //! Appended entries have their default values; empty for arrays and lists,
-    //! zero for numbers.
+    //! Appended entries have their default values; empty for arrays and maps,
+    //! zero for values.
     //!
     //! @param type the type of the new statistics entry
     //! @return a statistics entry at the end of the array
@@ -448,8 +453,8 @@ class StatsMap : public StatsMapView {
     //! If the map already contains an entry with the given name, the existing
     //! entry is returned.
     //!
-    //! New entries have their default values; empty for arrays and lists, zero
-    //! for numbers.
+    //! New entries have their default values; empty for arrays and maps, zero
+    //! for values.
     //!
     //! @param name the name of the statistics entry to insert
     //! @param type the type of the statistics entry to insert
@@ -489,12 +494,16 @@ inline auto Stats::get(std::string_view name) const -> Stats {
     return map().get(name);
 }
 
-//! Get the root statistics entry for user step stats.
+//! Get the name of the root entry for user step statistics.
+//!
+//! @return the name of the entry
 inline auto stats_step_root() -> std::string_view {
     return {clingo_user_stats_step.data, clingo_user_stats_step.size};
 }
 
-//! Get the root statistics entry for user accumulated stats.
+//! Get the name of the root entry for user accumulated statistics.
+//!
+//! @return the name of the entry
 inline auto stats_accu_root() -> std::string_view {
     return {clingo_user_stats_accu.data, clingo_user_stats_accu.size};
 }
