@@ -133,7 +133,7 @@ inline void raise_error() {
 
 //! This function should be used to handle failing C API calls.
 //!
-//! It rethrows the current error as a python error.
+//! It rethrows the current error as a C++ exception.
 inline void handle_error(bool res) {
     if (!res) {
         raise_error();
@@ -527,7 +527,7 @@ using SumSpan = std::span<Sum const>;
 
 //! A span of string views.
 using StringSpan = std::span<std::string_view const>;
-//! A list of string views
+//! A list of string views.
 using StringList = std::initializer_list<std::string_view const>;
 
 //! Enumeration of message codes.
@@ -675,7 +675,7 @@ class StringBuilder {
     Detail::value_handle<Traits> bld_;
 };
 
-//! Enumeration of control modes.
+//! Enumeration of external types.
 enum class ExternalType : clingo_external_type_t // NOLINT
 {
     //! Allow an external to be assigned freely.
@@ -693,7 +693,7 @@ enum class HeuristicType : clingo_heuristic_type_t // NOLINT
 {
     //! Set the level of an atom.
     level = clingo_heuristic_type_level,
-    //! Configure which sign to chose for an atom.
+    //! Configure which sign to choose for an atom.
     sign = clingo_heuristic_type_sign,
     //! Modify VSIDS factor of an atom.
     factor = clingo_heuristic_type_factor,
@@ -795,6 +795,10 @@ class Position {
 class Location {
   public:
     //! Constructs a location from an existing C representation.
+    //!
+    //! For internal use.
+    //!
+    //! @param loc the C representation of the location
     explicit Location(clingo_location_t const *loc) : loc_{loc, true} {}
 
     //! Constructs a location from a begin and end position.
@@ -806,6 +810,7 @@ class Location {
 
     //! Cast the location to its C representation.
     //!
+    //! @param x the location to cast
     //! @return the C representation of the location
     friend auto c_cast(Location const &x) -> clingo_location_t const * { return x.loc_.get(); }
 
@@ -829,13 +834,17 @@ class Location {
     }
 
     //! Get a hash value for the location.
+    //!
+    //! There is also a corresponding specialization of std::hash.
+    //!
+    //! @return the hash value of the location
     [[nodiscard]] auto hash() const noexcept -> size_t { return clingo_location_hash(loc_.get()); }
 
     //! Compare two locations for equality.
     //!
     //! @param a the first location to compare
     //! @param b the second location to compare
-    //! @return whether the two positions are equal
+    //! @return whether the two locations are equal
     friend auto operator==(Location const &a, Location const &b) noexcept -> bool {
         return clingo_location_equal(a.loc_.get(), b.loc_.get());
     }
@@ -877,3 +886,25 @@ inline auto version() -> std::tuple<int, int, int> {
 //! @}
 
 } // namespace Clingo
+
+namespace std {
+
+//! Helper to compute the hash of a position.
+template <> struct hash<Clingo::Position> {
+    //! Compute the hash of a position.
+    //!
+    //! @param x the position
+    //! @return the hash value
+    auto operator()(Clingo::Position const &x) const noexcept -> size_t { return x.hash(); }
+};
+
+//! Helper to compute the hash of a location.
+template <> struct hash<Clingo::Location> {
+    //! Compute the hash of a location.
+    //!
+    //! @param x the location
+    //! @return the hash value
+    auto operator()(Clingo::Location const &x) const noexcept -> size_t { return x.hash(); }
+};
+
+} // namespace std
