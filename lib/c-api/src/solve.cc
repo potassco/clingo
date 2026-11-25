@@ -26,16 +26,13 @@ auto c_cast(CppClingo::Control::SolveHandle *hnd) -> clingo_solve_handle_t * {
     return reinterpret_cast<clingo_solve_handle_t *>(hnd); // NOLINT
 }
 
-auto cpp_cast(clingo_solve_handle_t *hnd, bool not_null = true) -> CppClingo::Control::SolveHandle * {
-    if (hnd == nullptr && not_null) {
-        throw std::logic_error("solve handle is null");
-    }
+auto cpp_cast(clingo_solve_handle_t *hnd) -> CppClingo::Control::SolveHandle * {
     return reinterpret_cast<CppClingo::Control::SolveHandle *>(hnd); // NOLINT
 }
 
 class SolveEventHandler : public CppClingo::Control::SolveEventHandler {
   public:
-    SolveEventHandler(clingo_solve_event_handler_t const *hnd, void *data) : hnd_{hnd, data} {}
+    explicit SolveEventHandler(CHandler<clingo_solve_event_handler_t> hnd) noexcept : hnd_{std::move(hnd)} {}
 
     auto do_on_model(CppClingo::Control::Model &m) -> bool override {
         bool goon = true;
@@ -72,6 +69,7 @@ class SolveEventHandler : public CppClingo::Control::SolveEventHandler {
 
 extern "C" auto clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_solve_result_bitset_t *result) -> bool {
     CLINGO_TRY {
+        require(not_null(handle, result));
         *result = static_cast<clingo_solve_result_bitset_t>(cpp_cast(handle)->get());
     }
     CLINGO_CATCH;
@@ -79,15 +77,15 @@ extern "C" auto clingo_solve_handle_get(clingo_solve_handle_t *handle, clingo_so
 
 extern "C" auto clingo_solve_handle_wait(clingo_solve_handle_t *handle, double timeout, bool *result) -> bool {
     CLINGO_TRY {
-        if (handle != nullptr) {
-            *result = cpp_cast(handle, false)->wait(timeout);
-        }
+        require(not_null(handle, result));
+        *result = cpp_cast(handle)->wait(timeout);
     }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_model_t **model) -> bool {
     CLINGO_TRY {
+        require(not_null(handle, model));
         *model = c_cast(cpp_cast(handle)->model());
     }
     CLINGO_CATCH;
@@ -96,15 +94,17 @@ extern "C" auto clingo_solve_handle_model(clingo_solve_handle_t *handle, clingo_
 extern "C" auto clingo_solve_handle_core(clingo_solve_handle_t *handle, clingo_literal_t const **literals, size_t *size)
     -> bool {
     CLINGO_TRY {
+        require(handle != nullptr);
         auto lits = cpp_cast(handle)->core();
-        *literals = lits.data();
-        *size = lits.size();
+        set_opt(literals, lits.data());
+        set_opt(size, lits.size());
     }
     CLINGO_CATCH;
 }
 
 extern "C" auto clingo_solve_handle_last(clingo_solve_handle_t *handle, clingo_model_t const **model) -> bool {
     CLINGO_TRY {
+        require(not_null(handle, model));
         *model = c_cast(cpp_cast(handle)->last());
     }
     CLINGO_CATCH;
@@ -112,6 +112,7 @@ extern "C" auto clingo_solve_handle_last(clingo_solve_handle_t *handle, clingo_m
 
 extern "C" auto clingo_solve_handle_resume(clingo_solve_handle_t *handle) -> bool {
     CLINGO_TRY {
+        require(handle != nullptr);
         cpp_cast(handle)->resume();
     }
     CLINGO_CATCH;
@@ -119,6 +120,7 @@ extern "C" auto clingo_solve_handle_resume(clingo_solve_handle_t *handle) -> boo
 
 extern "C" auto clingo_solve_handle_cancel(clingo_solve_handle_t *handle) -> bool {
     CLINGO_TRY {
+        require(handle != nullptr);
         cpp_cast(handle)->cancel();
     }
     CLINGO_CATCH;
@@ -126,13 +128,14 @@ extern "C" auto clingo_solve_handle_cancel(clingo_solve_handle_t *handle) -> boo
 
 extern "C" auto clingo_solve_handle_interrupt(clingo_solve_handle_t *handle) -> bool {
     CLINGO_TRY {
+        require(handle != nullptr);
         cpp_cast(handle)->interrupt();
     }
     CLINGO_CATCH;
 }
 
 extern "C" void clingo_solve_handle_close(clingo_solve_handle_t *handle) {
-    delete cpp_cast(handle, false);
+    delete cpp_cast(handle);
 }
 
 extern "C" auto clingo_control_solve(clingo_control_t *control, clingo_solve_mode_bitset_t mode,
@@ -140,6 +143,11 @@ extern "C" auto clingo_control_solve(clingo_control_t *control, clingo_solve_mod
                                      clingo_solve_event_handler_t const *handler, void *data,
                                      clingo_solve_handle_t **handle) -> bool {
     CLINGO_TRY {
+        // NOTE: the handler owns the data also if the arguments are invalid
+        auto hnd = CHandler{handler, data};
+        constexpr auto modes =
+            clingo_solve_mode_bitset_t{clingo_solve_mode_async | clingo_solve_mode_yield | clingo_solve_mode_lock};
+        require(not_null(control, handle) && valid_span(assumptions, assumptions_size) && (mode & ~modes) == 0);
         *handle = nullptr;
         auto cpp_mode = CppClingo::Control::SolveMode::none;
         if ((mode & clingo_solve_mode_yield) != 0) {
@@ -150,8 +158,8 @@ extern "C" auto clingo_control_solve(clingo_control_t *control, clingo_solve_mod
         }
         auto cpp_assumptions = std::span{assumptions, assumptions_size};
         auto cpp_eh = CppClingo::Control::USolveEventHandler{};
-        if (handler != nullptr) {
-            cpp_eh = std::make_unique<SolveEventHandler>(handler, data);
+        if (hnd) {
+            cpp_eh = std::make_unique<SolveEventHandler>(std::move(hnd));
         }
         control->slv->get_lock().enable((mode & clingo_solve_mode_lock) != 0);
         *handle = c_cast(control->slv->solve(std::move(cpp_eh), cpp_assumptions, cpp_mode).release());

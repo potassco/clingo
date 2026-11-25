@@ -2,6 +2,7 @@
 #include <clingo/control.h>
 #include <clingo/core.h>
 #include <clingo/ground.h>
+#include <clingo/solve.h>
 #include <clingo/symbol.h>
 
 #include <catch2/catch_test_macros.hpp>
@@ -235,6 +236,37 @@ TEST_CASE("c-api-ground") {
     REQUIRE(failed_invalid(clingo_ground_handle_cancel(nullptr), "clingo_ground_handle_cancel"));
     clingo_ground_handle_close(nullptr);
     REQUIRE(clingo_control_ground(ctl, nullptr, 0, &handler, &freed));
+    REQUIRE(freed == 4);
+    clingo_control_release(ctl);
+    clingo_lib_release(lib);
+}
+
+TEST_CASE("c-api-solve") {
+    clingo_lib_t *lib = nullptr;
+    REQUIRE(clingo_lib_new(0, clingo_log_level_info, nullptr, nullptr, 0, &lib));
+    clingo_control_t *ctl = nullptr;
+    REQUIRE(clingo_control_new(lib, nullptr, 0, &ctl));
+    REQUIRE(clingo_control_ground(ctl, nullptr, 0, nullptr, nullptr));
+    auto freed = 0;
+    auto handler = clingo_solve_event_handler_t{nullptr, nullptr, nullptr, nullptr, Logger::free};
+    clingo_solve_handle_t *hnd = nullptr;
+    // the handler data is freed also if the arguments are invalid
+    REQUIRE(
+        failed_invalid(clingo_control_solve(nullptr, 0, nullptr, 0, &handler, &freed, &hnd), "clingo_control_solve"));
+    REQUIRE(freed == 1);
+    REQUIRE(failed_invalid(clingo_control_solve(ctl, 8, nullptr, 0, &handler, &freed, &hnd), "clingo_control_solve"));
+    REQUIRE(freed == 2);
+    REQUIRE(failed_invalid(clingo_control_solve(ctl, 0, nullptr, 1, &handler, &freed, &hnd), "clingo_control_solve"));
+    REQUIRE(freed == 3);
+    REQUIRE(clingo_control_solve(ctl, clingo_solve_mode_yield, nullptr, 0, &handler, &freed, &hnd));
+    auto res = clingo_solve_result_bitset_t{0};
+    REQUIRE(clingo_solve_handle_get(hnd, &res));
+    REQUIRE(failed_invalid(clingo_solve_handle_wait(nullptr, 0, nullptr), "clingo_solve_handle_wait"));
+    REQUIRE(failed_invalid(clingo_solve_handle_model(hnd, nullptr), "clingo_solve_handle_model"));
+    REQUIRE(clingo_solve_handle_core(hnd, nullptr, nullptr));
+    REQUIRE(failed_invalid(clingo_solve_handle_resume(nullptr), "clingo_solve_handle_resume"));
+    clingo_solve_handle_close(hnd);
+    clingo_solve_handle_close(nullptr);
     REQUIRE(freed == 4);
     clingo_control_release(ctl);
     clingo_lib_release(lib);

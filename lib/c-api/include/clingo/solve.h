@@ -60,6 +60,8 @@ enum clingo_solve_mode_e {
 typedef unsigned clingo_solve_mode_bitset_t;
 
 //! The solve event handler interface.
+//!
+//! All callbacks may be NULL.
 typedef struct clingo_solve_event_handler {
     //! Call back to intercept models.
     //!
@@ -132,8 +134,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_model(clingo_solve_handle_t *
 //! If the program is not unsatisfiable, an empty core is returned.
 //!
 //! @param[in] handle the target
-//! @param[out] literals array of literals in the core
-//! @param[out] size the size of the core
+//! @param[out] literals array of literals in the core (optional)
+//! @param[out] size the size of the core (optional)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_core(clingo_solve_handle_t *handle,
                                                         clingo_literal_t const **literals, size_t *size);
@@ -177,18 +179,21 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_solve_handle_interrupt(clingo_solve_handle
 //!
 //! Blocks until the search is stopped (as if an implicit cancel was called before the handle is released).
 //!
-//! @param[in] handle the target
+//! @param[in] handle the target (may be NULL)
 CLINGO_VISIBILITY_DEFAULT void clingo_solve_handle_close(clingo_solve_handle_t *handle);
 
 //! Solve the currently grounded logic program enumerating its models.
 //!
 //! See the @ref c_solve module for more information.
 //!
+//! The handler takes ownership of the user data, which is freed via its free
+//! callback also if the function fails.
+//!
 //! @param[in] control the target
-//! @param[in] mode configures the search mode
+//! @param[in] mode configures the search mode (a bitset of ::clingo_solve_mode_e)
 //! @param[in] assumptions array of assumptions to solve under
 //! @param[in] assumptions_size number of assumptions
-//! @param[in] handler the event handler to register
+//! @param[in] handler the event handler to register (may be NULL)
 //! @param[in] data the user data for the event handler
 //! @param[out] handle handle to the current search to enumerate models
 //! @return whether the call was successful
