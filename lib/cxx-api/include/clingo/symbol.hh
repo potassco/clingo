@@ -46,7 +46,7 @@ using SymbolVector = std::vector<Symbol>;
 
 //! Cast a C symbol to its C++ representation.
 //!
-//! Intended to cast continous ranges of symbols, e.g., from a vector or span.
+//! Intended to cast contiguous ranges of symbols, e.g., from a vector or span.
 //!
 //! For internal use.
 //!
@@ -61,7 +61,7 @@ using SymbolVector = std::vector<Symbol>;
 //! Symbols are immutable and can be created from numbers, strings, functions,
 //! tuples, or parsed terms.
 //!
-//! They are totally ordered and support hashing also provding a specialization
+//! They are totally ordered and support hashing also providing a specialization
 //! for `std::hash`.
 //!
 //! Symbols are reference counted modeling value semantics. They are stored in
@@ -223,7 +223,7 @@ class Symbol {
 
     //! Compute a hash value for the symbol.
     //!
-    //! The hash value is entended for usage in hash tables.
+    //! The hash value is intended for usage in hash tables.
     //!
     //! @return a hash value for the symbol
     [[nodiscard]] auto hash() const noexcept -> size_t { return clingo_symbol_hash(rep_); }
@@ -313,6 +313,7 @@ inline auto String(Library const &lib, std::string_view str) -> Symbol {
 //! @param str the name of the function
 //! @param arguments the arguments of the function
 //! @param is_positive whether the function is positive
+//! @return a symbol representing the function
 inline auto Function(Library const &lib, std::string_view str, SymbolSpan arguments = {}, bool is_positive = true)
     -> Symbol {
     return Symbol{Detail::call<clingo_symbol_create_function>(c_cast(lib), str.data(), str.size(),
@@ -329,6 +330,7 @@ inline auto Function(Library const &lib, std::string_view str, SymbolSpan argume
 //! @param str the name of the function
 //! @param arguments the arguments of the function
 //! @param is_positive whether the function is positive
+//! @return a symbol representing the function
 inline auto Function(Library const &lib, std::string_view str, SymbolList arguments, bool is_positive = true)
     -> Symbol {
     return Function(lib, str, std::span{arguments.begin(), arguments.end()}, is_positive);
@@ -357,6 +359,7 @@ inline auto Tuple(Library const &lib, SymbolList arguments) -> Symbol {
 //!
 //! @param lib the library for storing symbols
 //! @param str the string to parse
+//! @return the resulting symbol
 inline auto parse_term(Library const &lib, std::string_view str) -> Symbol {
     return Symbol{Detail::call<clingo_parse_term>(c_cast(lib), str.data(), str.size()), false};
 }
@@ -370,6 +373,9 @@ namespace std {
 //! Helper for hashing Clingo symbols.
 template <> struct hash<Clingo::Symbol> {
     //! Compute the hash of a Clingo symbol.
+    //!
+    //! @param sym the symbol
+    //! @return the hash value
     auto operator()(Clingo::Symbol const &sym) const noexcept -> size_t { return sym.hash(); }
 };
 
