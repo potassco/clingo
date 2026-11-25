@@ -1,5 +1,6 @@
 #include <clingo/ground/term.hh>
 
+#include <clingo/util/checked_math.hh>
 #include <clingo/util/optional.hh>
 #include <clingo/util/type_traits.hh>
 
@@ -623,6 +624,32 @@ auto eq_ma(Number const &m, Number const &x, Number const &n, Number const &y) {
     return m * x + n == y;
 }
 
+//! Compute m * x + n if the result is a small number.
+//!
+//! The computation cannot overflow because all operands have 32 bits.
+auto small_ma(int32_t m, int32_t x, int32_t n) -> std::optional<int32_t> {
+    if (auto res = (int64_t{m} * x) + n; Util::check_cast<int32_t>(res)) {
+        return static_cast<int32_t>(res);
+    }
+    return std::nullopt;
+}
+
+//! Solve m * x + n == y for x if the solution is a small number.
+//!
+//! The factor m must not be zero. Returns false if there is no integral
+//! solution and std::nullopt if the solution is not a small number.
+auto small_solve_ma(int32_t m, int32_t n, int32_t y, int32_t &x) -> std::optional<bool> {
+    auto yn = int64_t{y} - n;
+    if (yn % m != 0) {
+        return false;
+    }
+    if (auto res = yn / m; Util::check_cast<int32_t>(res)) {
+        x = static_cast<int32_t>(res);
+        return true;
+    }
+    return std::nullopt;
+}
+
 auto eval_ma(SymbolStore &store, Number const &m, Symbol const &sx, Number const &n) -> Symbol {
     auto const &x = sx.num();
     if (m == 1) {
@@ -676,11 +703,26 @@ auto solve_ma(EvalContext const &ctx, Number const &m, Number const &n, Symbol c
 } // namespace
 
 auto TermLinear::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
+    auto &x = ctx.ass()[var_];
+    if (auto sy = sym.small_num(); small_ && sy.has_value()) {
+        if (x.has_value()) {
+            if (auto sx = x->small_num(); sx.has_value()) {
+                return (int64_t{small_m_} * *sx) + small_n_ == *sy;
+            }
+        } else {
+            auto sx = int32_t{0};
+            if (auto res = small_solve_ma(small_m_, small_n_, *sy, sx); res.has_value()) {
+                if (*res) {
+                    x = SymbolStore::num_ref(sx);
+                }
+                return *res;
+            }
+        }
+    }
     if (sym.type() != SymbolType::number) {
         return false;
     }
     auto const &y = sym.num();
-    auto &x = ctx.ass()[var_];
     if (x) {
         if (x->type() != SymbolType::number) {
             return expect(ctx, loc_, logged_, "number expected (got ", *x, ")");
@@ -691,6 +733,13 @@ auto TermLinear::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
 }
 
 auto TermLinear::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
+    if (auto const &var = ctx.ass()[var_]; small_ && var.has_value()) {
+        if (auto sx = var->small_num(); sx.has_value()) {
+            if (auto res = small_ma(small_m_, *sx, small_n_); res.has_value()) {
+                return SymbolStore::num_ref(*res);
+            }
+        }
+    }
     if (auto var = ctx.ass()[var_];
         var && (var->type() == SymbolType::number || expect(ctx, loc_, logged_, "number expected (got ", *var, ")"))) {
         return eval_ma(ctx.store(), m_, *var, n_);
@@ -866,11 +915,65 @@ auto TermBinary::do_match(EvalContext const &ctx, Symbol sym) const -> bool {
            eval(ctx) == sym;
 }
 
+namespace {
+
+//! Check whether the symbol is a number.
+//!
+//! This first checks for small numbers, which is cheaper than getting the type.
+auto is_number(Symbol const &sym) -> bool {
+    return sym.small_num().has_value() || sym.type() == CppClingo::SymbolType::number;
+}
+
+//! Apply the binary operator to small numbers if the result is a small number.
+//!
+//! Returns std::nullopt if the result does not fit into 32 bits or the operation
+//! is undefined, e.g., for division by zero. Then the result has to be computed
+//! using Number, which uses the same functions for small numbers.
+auto small_binop(BinaryOperator op, int32_t a, int32_t b) -> std::optional<int32_t> {
+    switch (op) {
+        case BinaryOperator::and_: {
+            return a & b;
+        }
+        case BinaryOperator::or_: {
+            return a | b;
+        }
+        case BinaryOperator::xor_: {
+            return a ^ b;
+        }
+        case BinaryOperator::plus: {
+            return Util::check_add(a, b);
+        }
+        case BinaryOperator::minus: {
+            return Util::check_sub(a, b);
+        }
+        case BinaryOperator::times: {
+            return Util::check_mul(a, b);
+        }
+        case BinaryOperator::div: {
+            return Util::check_div(a, b);
+        }
+        case BinaryOperator::mod: {
+            return Util::check_mod(a, b);
+        }
+        case BinaryOperator::pow: {
+            return Util::check_pow(a, b);
+        }
+    }
+    return std::nullopt;
+}
+
+} // namespace
+
 auto TermBinary::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
-    if (auto lhs = lhs_->eval(ctx); lhs && (lhs->type() == CppClingo::SymbolType::number ||
-                                            expect(ctx, loc_lhs_, logged_, "number expected (got ", *lhs, ")"))) {
-        if (auto rhs = rhs_->eval(ctx); rhs && (rhs->type() == CppClingo::SymbolType::number ||
-                                                expect(ctx, loc_rhs_, logged_, "number expected (got ", *rhs, ")"))) {
+    if (auto lhs = lhs_->eval(ctx);
+        lhs && (is_number(*lhs) || expect(ctx, loc_lhs_, logged_, "number expected (got ", *lhs, ")"))) {
+        if (auto rhs = rhs_->eval(ctx);
+            rhs && (is_number(*rhs) || expect(ctx, loc_rhs_, logged_, "number expected (got ", *rhs, ")"))) {
+            if (auto a = lhs->small_num(), b = rhs->small_num(); a.has_value() && b.has_value()) {
+                if (auto res = small_binop(op_, *a, *b); res.has_value()) {
+                    return SymbolStore::num_ref(*res);
+                }
+            }
             auto &store = ctx.store();
             switch (op_) {
                 case BinaryOperator::and_: {

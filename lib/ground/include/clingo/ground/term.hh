@@ -256,7 +256,13 @@ class TermLinear : public Term {
   public:
     //! Construct the term.
     TermLinear(Location loc, Number m, size_t var, Number n)
-        : loc_{std::move(loc)}, m_{std::move(m)}, n_{std::move(n)}, var_{var} {}
+        : loc_{std::move(loc)}, m_{std::move(m)}, n_{std::move(n)}, var_{var} {
+        if (auto sm = m_.as_int(), sn = n_.as_int(); sm.has_value() && sn.has_value() && *sm != 0) {
+            small_m_ = *sm;
+            small_n_ = *sn;
+            small_ = true;
+        }
+    }
 
   private:
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
@@ -276,6 +282,14 @@ class TermLinear : public Term {
     Number m_;
     Number n_;
     size_t var_;
+    //! The factor m_ if small_ is set.
+    int32_t small_m_ = 0;
+    //! The constant n_ if small_ is set.
+    int32_t small_n_ = 0;
+    //! Whether m_ and n_ are small numbers and m_ is not zero.
+    //!
+    //! This enables a fast path for evaluating the term with small numbers.
+    bool small_ = false;
     mutable bool logged_ = false;
 };
 
