@@ -546,15 +546,21 @@ class Control:
     @property
     def buffer(self) -> str:
         """
-        Get the content of the output buffer.
+        Get or set the content of the output buffer.
 
         The buffer receives the output of `clingo.control.Control.write_aspif`
         without a path and the program printed by `clingo.control.Control.main` in
         `ControlMode.Parse` and `ControlMode.Rewrite`. It is only filled for
         standalone control objects; control objects of an application regularly
         flush it to stdout.
+
+        Assigning an empty string clears the buffer, which avoids accumulating
+        output over multiple steps. When appending to the buffer, an empty buffer
+        also makes `clingo.control.Control.write_aspif` write the preamble again.
         """
 
+    @buffer.setter
+    def buffer(self, value: str) -> None: ...
     @property
     def config(self) -> Config:
         """

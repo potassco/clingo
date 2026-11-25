@@ -905,6 +905,27 @@ auto py_control_buffer(PyObject *self, [[maybe_unused]] void *closure) -> PyObje
     return PyUnicode_FromStringAndSize(res.data, static_cast<Py_ssize_t>(res.size));
 }
 
+auto py_control_set_buffer(PyObject *self, PyObject *value, [[maybe_unused]] void *closure) -> int {
+    if (value == nullptr) {
+        PyErr_SetString(PyExc_TypeError, "cannot delete buffer");
+        return -1;
+    }
+    auto size = Py_ssize_t{0};
+    auto const *str = PyUnicode_AsUTF8AndSize(value, &size);
+    if (str == nullptr) {
+        return -1;
+    }
+    auto *ctl = control_get(self);
+    if (ctl == nullptr) {
+        return -1;
+    }
+    if (!clingo_control_set_buffer(ctl, str, static_cast<size_t>(size))) {
+        py_handle_error();
+        return -1;
+    }
+    return 0;
+}
+
 auto py_control_backend(PyObject *self, [[maybe_unused]] void *closure) -> PyObject * {
     auto *state = state_of(self);
     if (state == nullptr) {
@@ -1147,7 +1168,13 @@ auto py_control_methods = std::array{
 };
 
 auto py_control_getset = std::array{
-    PyGetSetDef{"buffer", py_control_buffer, nullptr, PyDoc_STR("The content of the output buffer."), nullptr},
+    PyGetSetDef{
+        "buffer",
+        py_control_buffer,
+        py_control_set_buffer,
+        PyDoc_STR("The content of the output buffer."),
+        nullptr,
+    },
     PyGetSetDef{"base", py_control_base, nullptr, PyDoc_STR("The atom/term bases of the program."), nullptr},
     PyGetSetDef{
         "backend",

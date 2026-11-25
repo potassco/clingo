@@ -6,6 +6,7 @@ import os
 import tempfile
 from contextlib import contextmanager
 
+import pytest
 from clingo.control import Control
 from clingo.core import Library
 from util import MCB
@@ -105,6 +106,30 @@ class TestWriteAspif:
         mcb = MCB()
         self.ctl.solve(on_model=mcb)
         assert mcb.symbols == [["a"], ["a", "b", "c"]]
+
+    def test_buffer_clear(self):
+        """
+        Test that clearing the buffer lets the next write emit the preamble again.
+        """
+        ctl = Control(self.lib)
+        ctl.parse_string("a.")
+        ctl.ground()
+        ctl.write_aspif()
+        first = ctl.buffer
+        assert first.startswith("asp ")
+        # the program is appended to a non-empty buffer, so no preamble is written
+        ctl.write_aspif(append=True)
+        assert not ctl.buffer[len(first) :].startswith("asp ")
+        ctl.buffer = ""
+        assert ctl.buffer == ""
+        ctl.write_aspif(append=True)
+        assert ctl.buffer == first
+        ctl.buffer = "% comment\n"
+        assert ctl.buffer == "% comment\n"
+        with pytest.raises(TypeError):
+            setattr(ctl, "buffer", 1)
+        with pytest.raises(TypeError):
+            delattr(ctl, "buffer")
 
     def test_buffer_inc(self):
         """
