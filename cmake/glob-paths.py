@@ -104,8 +104,7 @@ def run():
             r"#[ ]*\[\[\[(?P<target>[^:]*): (?P<path>[^\n\]]*)(.|\n)*?\]\]\]",
             rep,
             content,
-            0,
-            re.MULTILINE,
+            flags=re.MULTILINE,
         )
 
         if content != replace:
