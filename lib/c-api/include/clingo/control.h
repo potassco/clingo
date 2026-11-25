@@ -61,7 +61,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_const_map_find(clingo_const_map_t const *m
 //! @param[in] index the index of the element (less than the size of the map)
 //! @param[out] name the name of the constant (optional)
 //! @param[out] symbol the value of the constant (optional)
-//! @return whether the call was successful
+//! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid
+//! - ::clingo_result_range if the index is out of range
 CLINGO_VISIBILITY_DEFAULT bool clingo_const_map_at(clingo_const_map_t const *map, size_t index, clingo_string_t *name,
                                                    clingo_symbol_t *symbol);
 

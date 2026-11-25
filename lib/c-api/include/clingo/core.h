@@ -97,7 +97,7 @@ enum clingo_result_e {
     clingo_result_logic = 2,     //!< wrong usage of the clingo API
     clingo_result_bad_alloc = 3, //!< memory could not be allocated
     clingo_result_invalid = 4,   //!< invalid arguments passed to function
-    clingo_result_range = 5,     //!< result out of range
+    clingo_result_range = 5,     //!< result or index out of range
 };
 //! Corresponding type to ::clingo_result_e.
 typedef int clingo_result_t;

@@ -252,7 +252,8 @@ extern "C" auto clingo_const_map_find(clingo_const_map_t const *map, char const 
 extern "C" auto clingo_const_map_at(clingo_const_map_t const *map, size_t index, clingo_string_t *name,
                                     clingo_symbol_t *symbol) -> bool {
     CLINGO_TRY {
-        require(map != nullptr && index < cpp_cast(map)->size());
+        require(map != nullptr);
+        require_index(index < cpp_cast(map)->size());
         auto const *cmap = cpp_cast(map);
         auto it = cmap->nth(index);
         if (symbol != nullptr) {

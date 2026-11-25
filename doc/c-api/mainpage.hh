@@ -23,7 +23,8 @@
 //! - Functions returning whether the call was successful report errors via
 //!   clingo_get_error(). They check their arguments and fail with
 //!   ::clingo_result_invalid if a required pointer is `NULL`, an array pointer
-//!   is `NULL` but its size is not zero, or a value is out of range.
+//!   is `NULL` but its size is not zero, or a value is invalid. Indices out
+//!   of range are reported with ::clingo_result_range.
 //! - Out parameters marked as optional may be `NULL` and are then not written.
 //!   This is mostly the case for functions returning multiple values.
 //! - Functions taking ownership of an argument take it also if they fail.

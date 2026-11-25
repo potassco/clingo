@@ -159,15 +159,26 @@ auto fail_with(clingo_result_t code, std::string_view msg) -> bool;
 //
 // The checks are meant for functions that can fail and run within
 // CLINGO_TRY/CLINGO_CATCH. Failed checks throw an exception that is reported
-// as clingo_result_invalid naming the calling function.
+// as clingo_result_invalid (or clingo_result_range for indices) naming the
+// calling function.
 
 //! Throw an exception reporting invalid arguments of the function at the given location.
 [[noreturn, gnu::cold, gnu::noinline]] void fail_invalid(std::source_location const &loc);
+
+//! Throw an exception reporting an index out of range of the function at the given location.
+[[noreturn, gnu::cold, gnu::noinline]] void fail_range(std::source_location const &loc);
 
 //! Check the arguments of a C API function.
 inline void require(bool cond, std::source_location const &loc = std::source_location::current()) {
     if (!cond) [[unlikely]] {
         fail_invalid(loc);
+    }
+}
+
+//! Check that an index passed to a C API function is in range.
+inline void require_index(bool cond, std::source_location const &loc = std::source_location::current()) {
+    if (!cond) [[unlikely]] {
+        fail_range(loc);
     }
 }
 

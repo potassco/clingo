@@ -109,17 +109,28 @@ auto fail_arguments() -> bool {
     return fail_with(clingo_result_invalid, "invalid arguments");
 }
 
-void fail_invalid(std::source_location const &loc) {
-    // NOTE: the name of the C API function is extracted from the pretty function name
+namespace {
+
+//! Get the name of the C API function from the pretty function name of the location.
+auto api_name(std::source_location const &loc) -> std::string_view {
     auto name = std::string_view{loc.function_name()};
     for (auto beg = name.find("clingo_"); beg != std::string_view::npos; beg = name.find("clingo_", beg + 1)) {
         auto end = name.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_", beg);
         if (end != std::string_view::npos && name[end] == '(') {
-            name = name.substr(beg, end - beg);
-            break;
+            return name.substr(beg, end - beg);
         }
     }
-    throw std::invalid_argument{std::string{"invalid arguments: "}.append(name)};
+    return name;
+}
+
+} // namespace
+
+void fail_invalid(std::source_location const &loc) {
+    throw std::invalid_argument{std::string{"invalid arguments: "}.append(api_name(loc))};
+}
+
+void fail_range(std::source_location const &loc) {
+    throw std::range_error{std::string{"index out of range: "}.append(api_name(loc))};
 }
 
 auto fail_with(clingo_result_t code, std::string_view msg) -> bool {

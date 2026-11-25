@@ -37,6 +37,14 @@ auto failed_invalid(bool res, std::string_view name) -> bool {
     return ok;
 }
 
+//! Check that the last call failed with an index out of range of the given function.
+auto failed_range(bool res, std::string_view name) -> bool {
+    auto ok = !res && error_code() == clingo_result_range &&
+              error_message() == std::string{"index out of range: "}.append(name);
+    clingo_clear_error();
+    return ok;
+}
+
 //! Logger counting how often its data was freed.
 struct Logger {
     static void log([[maybe_unused]] clingo_message_t code, [[maybe_unused]] char const *message,
@@ -204,7 +212,7 @@ TEST_CASE("c-api-control") {
     REQUIRE(clingo_const_map_size(map, &size));
     REQUIRE(size == 1);
     REQUIRE(clingo_const_map_at(map, 0, nullptr, nullptr));
-    REQUIRE(failed_invalid(clingo_const_map_at(map, 1, nullptr, nullptr), "clingo_const_map_at"));
+    REQUIRE(failed_range(clingo_const_map_at(map, 1, nullptr, nullptr), "clingo_const_map_at"));
     REQUIRE(clingo_const_map_find(map, "x", 1, nullptr, nullptr));
     REQUIRE(failed_invalid(clingo_control_mode(ctl, nullptr), "clingo_control_mode"));
     REQUIRE(failed_invalid(clingo_control_discard(ctl, 4), "clingo_control_discard"));
