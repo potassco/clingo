@@ -49,18 +49,18 @@ typedef struct clingo_const_map clingo_const_map_t;
 //! @param[in] map the target
 //! @param[in] name the name of the constant
 //! @param[in] name_size the size of the name
-//! @param[out] symbol the value of the constant
-//! @param[out] found whether the constant was found
+//! @param[out] symbol the value of the constant if it was found (optional)
+//! @param[out] found whether the constant was found (optional)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_const_map_find(clingo_const_map_t const *map, char const *name, size_t name_size,
                                                      clingo_symbol_t *symbol, bool *found);
 
-//! Get the name and value of the contestant at the given index.
+//! Get the name and value of the constant at the given index.
 //!
 //! @param[in] map the target
-//! @param[in] index the index of the element
-//! @param[out] name the name of the constant
-//! @param[out] symbol the value of the constant
+//! @param[in] index the index of the element (less than the size of the map)
+//! @param[out] name the name of the constant (optional)
+//! @param[out] symbol the value of the constant (optional)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_const_map_at(clingo_const_map_t const *map, size_t index, clingo_string_t *name,
                                                    clingo_symbol_t *symbol);
@@ -74,7 +74,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_const_map_size(clingo_const_map_t const *m
 
 //! Create a new control object.
 //!
-//! A control object has to be freed using clingo_control_free().
+//! A control object has to be released using clingo_control_release().
 //!
 //! @note Only gringo options (without <code>\-\-output</code>) and clasp's
 //! options are supported as arguments, except basic options such as
@@ -91,12 +91,12 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_new(clingo_lib_t *lib, clingo_stri
 
 //! Increment the reference count of the given control object.
 //!
-//! @param[in] control the target
+//! @param[in] control the target (may be NULL)
 CLINGO_VISIBILITY_DEFAULT void clingo_control_acquire(clingo_control_t *control);
 
 //! Decrement the reference count of the given control object and destroy if zero.
 //!
-//! @param[in] control the target
+//! @param[in] control the target (may be NULL)
 CLINGO_VISIBILITY_DEFAULT void clingo_control_release(clingo_control_t *control);
 
 //! Add a function to be called when the given control object is destroyed.
@@ -111,6 +111,7 @@ CLINGO_VISIBILITY_DEFAULT void clingo_control_release(clingo_control_t *control)
 //! @param[in] finalizer the function to call
 //! @param[in] data the user data passed to the finalizer
 //! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid
 //! - ::clingo_result_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_add_finalizer(clingo_control_t *control, clingo_finalizer_t finalizer,
                                                             void *data);
@@ -126,6 +127,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_add_finalizer(clingo_control_t *co
 //! @param[in] tag the tag identifying the binding
 //! @param[in] owner the owner or NULL to remove it
 //! @return whether the call was successful; might set one of the following error codes:
+//! - ::clingo_result_invalid
 //! - ::clingo_result_bad_alloc
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_owner(clingo_control_t *control, void const *tag, void *owner);
 
@@ -139,7 +141,7 @@ CLINGO_VISIBILITY_DEFAULT void *clingo_control_get_owner(clingo_control_t const 
 //! Get the configured mode.
 //!
 //! @param[in] control the target
-//! @param[in] mode the mode
+//! @param[out] mode the mode
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_mode(clingo_control_t *control, clingo_mode_t *mode);
 
@@ -231,10 +233,13 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_buffer(clingo_control_t *control, 
 
 //! Get the program parts to ground.
 //!
+//! The parts are only written if they are available. The array is valid until
+//! the next call of this function in the same thread.
+//!
 //! @param[in] control the target
-//! @param[out] parts the resulting parts
-//! @param[out] size the resulting parts
-//! @param[out] has_value the resulting parts
+//! @param[out] parts the resulting parts (optional)
+//! @param[out] size the number of parts (optional)
+//! @param[out] has_value whether parts are available (optional)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_get_parts(clingo_control_t *control, clingo_part_t const **parts,
                                                         size_t *size, bool *has_value);
@@ -251,16 +256,17 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_set_parts(clingo_control_t *contro
 
 //! Enumeration of discardable statements.
 enum clingo_discard_type_e {
-    minimize = 1,
-    project = 2,
+    clingo_discard_type_minimize = 1, //!< discard minimize statements
+    clingo_discard_type_project = 2,  //!< discard project statements
 };
-//! Corresponding type to clingo_discard_type_e.
+//! Corresponding type to ::clingo_discard_type_e.
 typedef unsigned clingo_discard_type_t;
 
 //! Discard the statements of the given types.
 //!
 //! @param[in] control the target control
-//! @param[in] type what to discard
+//! @param[in] type what to discard (a bitset of ::clingo_discard_type_e)
+//! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_discard(clingo_control_t *control, clingo_discard_type_t type);
 
 //! Interrupt the running search.

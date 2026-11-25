@@ -1,4 +1,5 @@
 #include <clingo/ast.h>
+#include <clingo/control.h>
 #include <clingo/core.h>
 #include <clingo/symbol.h>
 
@@ -180,6 +181,36 @@ TEST_CASE("c-api-ast") {
     clingo_ast_free(ast);
     clingo_ast_free(nullptr);
     clingo_ast_array_free(nullptr, 0);
+    clingo_lib_release(lib);
+}
+
+TEST_CASE("c-api-control") {
+    clingo_lib_t *lib = nullptr;
+    REQUIRE(clingo_lib_new(0, clingo_log_level_info, nullptr, nullptr, 0, &lib));
+    clingo_control_t *ctl = nullptr;
+    REQUIRE(failed_invalid(clingo_control_new(lib, nullptr, 1, &ctl), "clingo_control_new"));
+    auto bad_arg = clingo_string_t{nullptr, 1};
+    REQUIRE(failed_invalid(clingo_control_new(lib, &bad_arg, 1, &ctl), "clingo_control_new"));
+    REQUIRE(clingo_control_new(lib, nullptr, 0, &ctl));
+    REQUIRE(failed_invalid(clingo_control_parse_string(ctl, nullptr, 1), "clingo_control_parse_string"));
+    REQUIRE(failed_invalid(clingo_control_parse_files(ctl, &bad_arg, 1), "clingo_control_parse_files"));
+    REQUIRE(clingo_control_parse_string(ctl, "#const x=1.", 11));
+    clingo_const_map_t const *map = nullptr;
+    REQUIRE(clingo_control_const_map(ctl, &map));
+    auto size = size_t{0};
+    REQUIRE(clingo_const_map_size(map, &size));
+    REQUIRE(size == 1);
+    REQUIRE(clingo_const_map_at(map, 0, nullptr, nullptr));
+    REQUIRE(failed_invalid(clingo_const_map_at(map, 1, nullptr, nullptr), "clingo_const_map_at"));
+    REQUIRE(clingo_const_map_find(map, "x", 1, nullptr, nullptr));
+    REQUIRE(failed_invalid(clingo_control_mode(ctl, nullptr), "clingo_control_mode"));
+    REQUIRE(failed_invalid(clingo_control_discard(ctl, 4), "clingo_control_discard"));
+    auto part = clingo_part_t{nullptr, 1, nullptr, 0};
+    REQUIRE(failed_invalid(clingo_control_set_parts(ctl, &part, 1, true), "clingo_control_set_parts"));
+    REQUIRE(clingo_control_get_parts(ctl, nullptr, nullptr, nullptr));
+    clingo_control_release(ctl);
+    clingo_control_release(nullptr);
+    clingo_control_acquire(nullptr);
     clingo_lib_release(lib);
 }
 

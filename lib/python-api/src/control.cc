@@ -878,10 +878,10 @@ auto py_control_discard(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
     }
     clingo_discard_type_t type = 0;
     if (minimize) {
-        type |= clingo_discard_type_e::minimize;
+        type |= clingo_discard_type_minimize;
     }
     if (project) {
-        type |= clingo_discard_type_e::project;
+        type |= clingo_discard_type_project;
     }
     auto *ctl = control_get(self);
     if (ctl == nullptr) {

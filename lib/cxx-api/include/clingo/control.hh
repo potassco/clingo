@@ -172,9 +172,9 @@ CLINGO_ENABLE_BITSET_ENUM(SolveFlags);
 enum class DiscardType : clingo_discard_type_t // NOLINT
 {
     //! Discard minimize statements.
-    minimize = clingo_discard_type_e::minimize,
+    minimize = clingo_discard_type_minimize,
     //! Discard project statements.
-    project = clingo_discard_type_e::project,
+    project = clingo_discard_type_project,
 };
 
 //! The main control class for grounding and solving logic programs.

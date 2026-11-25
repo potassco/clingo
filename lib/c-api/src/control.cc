@@ -35,6 +35,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
                                    clingo_control_t **control) -> bool {
     CLINGO_TRY {
         using namespace Potassco::ProgramOptions;
+        require(not_null(lib, control) && valid_span(arguments, size));
 
         auto opts = CppClingo::CAPI::ClingoOptions{lib->log, *lib->store};
         auto slv_cfg = std::make_unique<Clasp::Cli::ClaspCliConfig>();
@@ -66,6 +67,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
         bargs.reserve(size);
         cargs.reserve(size + 1);
         for (auto const &str : std::span{arguments, size}) {
+            require(valid_span(str.data, str.size));
             bargs.emplace_back(std::string_view{str.data, str.size});
             cargs.emplace_back(bargs.back().c_str());
         }
@@ -103,9 +105,7 @@ extern "C" void clingo_control_release(clingo_control_t *control) {
 extern "C" auto clingo_control_add_finalizer(clingo_control_t *control, clingo_finalizer_t finalizer, void *data)
     -> bool {
     CLINGO_TRY {
-        if (control == nullptr || finalizer == nullptr) {
-            return fail_arguments();
-        }
+        require(not_null(control, finalizer));
         control->finalizers.emplace_back(finalizer, data);
     }
     CLINGO_CATCH;
@@ -113,6 +113,7 @@ extern "C" auto clingo_control_add_finalizer(clingo_control_t *control, clingo_f
 
 extern "C" auto clingo_control_set_owner(clingo_control_t *control, void const *tag, void *owner) -> bool {
     CLINGO_TRY {
+        require(not_null(control, tag));
         control->owners.set(tag, owner);
     }
     CLINGO_CATCH;
@@ -124,6 +125,7 @@ extern "C" auto clingo_control_get_owner(clingo_control_t const *control, void c
 
 extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mode) -> bool {
     CLINGO_TRY {
+        require(not_null(control, mode));
         *mode = static_cast<clingo_mode_t>(control->slv->get_mode());
     }
     CLINGO_CATCH;
@@ -132,8 +134,11 @@ extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mo
 extern "C" auto clingo_control_parse_files(clingo_control_t *control, clingo_string_t const *files, size_t size)
     -> bool {
     CLINGO_TRY {
-        auto vec = CppClingo::Util::to_vec(std::span{files, size},
-                                           [](auto const &x) { return std::string_view{x.data, x.size}; });
+        require(control != nullptr && valid_span(files, size));
+        auto vec = CppClingo::Util::to_vec(std::span{files, size}, [](auto const &x) {
+            require(valid_span(x.data, x.size));
+            return std::string_view{x.data, x.size};
+        });
         control->slv->parse(vec);
     }
     CLINGO_CATCH;
@@ -141,6 +146,7 @@ extern "C" auto clingo_control_parse_files(clingo_control_t *control, clingo_str
 
 extern "C" auto clingo_control_parse_string(clingo_control_t *control, char const *program, size_t size) -> bool {
     CLINGO_TRY {
+        require(control != nullptr && valid_span(program, size));
         control->slv->parse({program, size});
     }
     CLINGO_CATCH;
@@ -148,6 +154,7 @@ extern "C" auto clingo_control_parse_string(clingo_control_t *control, char cons
 
 extern "C" auto clingo_control_join(clingo_control_t *control, clingo_program_t const *program) -> bool {
     CLINGO_TRY {
+        require(not_null(control, program));
         control->slv->join(program->program);
     }
     CLINGO_CATCH;
@@ -159,6 +166,7 @@ extern "C" void clingo_control_interrupt(clingo_control_t *control) {
 
 extern "C" auto clingo_control_main(clingo_control_t *control) -> bool {
     CLINGO_TRY {
+        require(control != nullptr);
         control->slv->main();
     }
     CLINGO_CATCH;
@@ -166,6 +174,7 @@ extern "C" auto clingo_control_main(clingo_control_t *control) -> bool {
 
 extern "C" auto clingo_control_buffer(clingo_control_t *control, clingo_string_t *result) -> bool {
     CLINGO_TRY {
+        require(not_null(control, result));
         auto str = control->slv->buf().view();
         result->data = str.data();
         result->size = str.size();
@@ -176,6 +185,7 @@ extern "C" auto clingo_control_buffer(clingo_control_t *control, clingo_string_t
 extern "C" auto clingo_control_get_parts(clingo_control_t *control, clingo_part_t const **parts, size_t *size,
                                          bool *has_value) -> bool {
     CLINGO_TRY {
+        require(control != nullptr);
         auto const &x = control->slv->get_parts();
         if (has_value != nullptr) {
             *has_value = x.has_value();
@@ -201,6 +211,7 @@ extern "C" auto clingo_control_get_parts(clingo_control_t *control, clingo_part_
 extern "C" auto clingo_control_set_parts(clingo_control_t *control, clingo_part_t const *parts, size_t size,
                                          bool has_value) -> bool {
     CLINGO_TRY {
+        require(control != nullptr);
         if (has_value) {
             control->slv->set_parts(convert(control, parts, size));
         } else {
@@ -212,9 +223,7 @@ extern "C" auto clingo_control_set_parts(clingo_control_t *control, clingo_part_
 
 extern "C" auto clingo_control_const_map(clingo_control_t *control, clingo_const_map_t const **map) -> bool {
     CLINGO_TRY {
-        if (control == nullptr || map == nullptr) {
-            return fail_arguments();
-        }
+        require(not_null(control, map));
         *map = c_cast(&control->slv->const_map());
     }
     CLINGO_CATCH;
@@ -223,9 +232,7 @@ extern "C" auto clingo_control_const_map(clingo_control_t *control, clingo_const
 extern "C" auto clingo_const_map_find(clingo_const_map_t const *map, char const *name, size_t size,
                                       clingo_symbol_t *symbol, bool *found) -> bool {
     CLINGO_TRY {
-        if (map == nullptr || (size > 0 && name == nullptr)) {
-            return fail_arguments();
-        }
+        require(map != nullptr && valid_span(name, size));
         auto const *cmap = cpp_cast(map);
         auto it = cmap->find(std::string_view{name, size});
         if (it != cmap->end()) {
@@ -245,9 +252,7 @@ extern "C" auto clingo_const_map_find(clingo_const_map_t const *map, char const 
 extern "C" auto clingo_const_map_at(clingo_const_map_t const *map, size_t index, clingo_string_t *name,
                                     clingo_symbol_t *symbol) -> bool {
     CLINGO_TRY {
-        if (map == nullptr) {
-            return fail_arguments();
-        }
+        require(map != nullptr && index < cpp_cast(map)->size());
         auto const *cmap = cpp_cast(map);
         auto it = cmap->nth(index);
         if (symbol != nullptr) {
@@ -263,9 +268,7 @@ extern "C" auto clingo_const_map_at(clingo_const_map_t const *map, size_t index,
 
 extern "C" auto clingo_const_map_size(clingo_const_map_t const *map, size_t *size) -> bool {
     CLINGO_TRY {
-        if (map == nullptr || size == nullptr) {
-            return fail_arguments();
-        }
+        require(not_null(map, size));
         auto const *cmap = cpp_cast(map);
         *size = cmap->size();
     }
@@ -274,10 +277,12 @@ extern "C" auto clingo_const_map_size(clingo_const_map_t const *map, size_t *siz
 
 extern "C" auto clingo_control_discard(clingo_control_t *control, clingo_discard_type_t type) -> bool {
     CLINGO_TRY {
-        if ((type & clingo_discard_type_e::minimize) != 0) {
+        require(control != nullptr && (type & ~static_cast<clingo_discard_type_t>(clingo_discard_type_minimize |
+                                                                                  clingo_discard_type_project)) == 0);
+        if ((type & clingo_discard_type_minimize) != 0) {
             control->clasp->asp()->removeMinimize();
         }
-        if ((type & clingo_discard_type_e::project) != 0) {
+        if ((type & clingo_discard_type_project) != 0) {
             control->clasp->asp()->removeProject();
         }
     }

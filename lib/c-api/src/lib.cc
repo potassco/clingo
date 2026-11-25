@@ -112,8 +112,12 @@ auto fail_arguments() -> bool {
 void fail_invalid(std::source_location const &loc) {
     // NOTE: the name of the C API function is extracted from the pretty function name
     auto name = std::string_view{loc.function_name()};
-    if (auto beg = name.find("clingo_"); beg != std::string_view::npos) {
-        name = name.substr(beg, name.find('(', beg) - beg);
+    for (auto beg = name.find("clingo_"); beg != std::string_view::npos; beg = name.find("clingo_", beg + 1)) {
+        auto end = name.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_", beg);
+        if (end != std::string_view::npos && name[end] == '(') {
+            name = name.substr(beg, end - beg);
+            break;
+        }
     }
     throw std::invalid_argument{std::string{"invalid arguments: "}.append(name)};
 }
