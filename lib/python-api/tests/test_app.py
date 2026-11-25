@@ -4,8 +4,11 @@ Test clingo's Application class.
 
 import os
 import re
+import subprocess
+import sys
 from multiprocessing import Process, Queue
 from tempfile import NamedTemporaryFile
+from textwrap import dedent
 from typing import Any, Callable, List, Sequence, Tuple
 
 import pytest
@@ -160,5 +163,43 @@ class TestApplication:
                 ),
                 ("models", [["a"], ["a", "b"], ["b"]]),
             ]
+        finally:
+            os.unlink(name)
+
+    @needs_processes
+    @pytest.mark.parametrize(
+        "args, header",
+        [([], "asp 2 0 0 incremental"), (["--single-shot"], "asp 2 0 0")],
+    )
+    def test_app_single_shot(self, args: List[str], header: str):
+        """
+        Test that a main function respects the --single-shot option.
+        """
+        code = dedent("""\
+            import sys
+            from clingo.app import App, clingo_main
+            from clingo.core import Library
+
+            class SingleShotApp(App):
+                def main(self, control, files):
+                    control.parse_files(files)
+                    control.ground()
+                    control.solve()
+
+            with Library() as lib:
+                sys.exit(int(clingo_main(lib, sys.argv[1:], SingleShotApp("test"))))
+            """)
+        with NamedTemporaryFile(mode="wt", delete=False) as fp:
+            name = fp.name
+            fp.write("a.")
+        try:
+            res = subprocess.run(
+                [sys.executable, "-c", code, name, "--convert=aspif", *args],
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=10,
+            )
+            assert res.stdout.splitlines()[:1] == [header], res.stderr
         finally:
             os.unlink(name)

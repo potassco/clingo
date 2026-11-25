@@ -92,6 +92,16 @@ class TestConvert:
             0
             """)
 
+    def test_aspif_single_shot(self, lib: Library) -> None:
+        """
+        Test that single-shot aspif conversion omits the incremental tag.
+        """
+        ctl = Control(lib, ["--convert=aspif", "--single-shot"])
+        ctl.parse_string("a.")
+        ctl.ground()
+        ctl.solve()
+        assert ctl.buffer.splitlines()[0] == "asp 2 0 0"
+
     @param("reify")
     def test_reify(self, ctl: Control) -> None:
         """

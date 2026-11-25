@@ -277,9 +277,7 @@ class ClingoApp : public Clasp::Cli::ClaspAppBase {
             POTASSCO_SCOPE_EXIT({ ctl_->slv->print_summary(true); });
 
             if (auto in = input(); app_.has_main()) {
-                if (opts_.mode() == AppMode::solve) {
-                    ctl_->clasp->enableProgramUpdates();
-                }
+                slv.enable_updates();
                 app_.main(ctl_.get(), in);
             } else {
                 ctl_->slv->main(std::vector<std::string_view>{in.begin(), in.end()});

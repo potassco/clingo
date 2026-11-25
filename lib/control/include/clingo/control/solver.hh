@@ -734,6 +734,11 @@ class Solver : public BaseView {
     //! Ground and solve a program.
     void main();
 
+    //! Prepare the solver for multi-shot solving.
+    //!
+    //! In single-shot mode, the program is only kept and not made updatable.
+    void enable_updates();
+
     //! Enable the given includes.
     //!
     //! Unprocessed programs do not store info about inbuilt includes. This
@@ -891,9 +896,6 @@ class Solver : public BaseView {
 
     //! Simplify the grounder's domain with the solvers assignment.
     void simplify_();
-
-    //! Enable program updates for incremental solving.
-    void enable_updates_();
 
     [[nodiscard]] auto do_bases() const -> Ground::Bases const & override { return grd_.base(); }
 

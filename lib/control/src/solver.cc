@@ -845,7 +845,7 @@ class Solver::AspifBackend : public ProgramBackend, public TheoryBackend {
     void do_preamble([[maybe_unused]] unsigned major, [[maybe_unused]] unsigned minor,
                      [[maybe_unused]] unsigned revision, bool incremental) override {
         if (incremental) {
-            solver_->enable_updates_();
+            solver_->enable_updates();
         }
         // this is going to call preamble in the underlying backend
         solver_->prepare_();
@@ -1254,7 +1254,7 @@ void Solver::incmode_() {
     }
 }
 
-void Solver::enable_updates_() {
+void Solver::enable_updates() {
     if (opts_.mode == AppMode::solve) {
         if (opts_.single_shot) {
             clasp_->keepProgram();
@@ -1266,7 +1266,7 @@ void Solver::enable_updates_() {
 
 void Solver::main() {
     if (!block_main_ && scripts_->callable("main", 0)) {
-        enable_updates_();
+        enable_updates();
         scripts_->main(*this);
     } else {
         if (opts_.mode == AppMode::parse) {
@@ -1279,7 +1279,7 @@ void Solver::main() {
         }
         bool inc = intersects(includes_, BuiltinIncludes::incmode);
         if (opts_.mode == AppMode::solve && inc) {
-            enable_updates_();
+            enable_updates();
         }
         if (inc) {
             incmode_();
