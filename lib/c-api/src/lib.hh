@@ -154,7 +154,6 @@ inline auto map(Potassco::WeightLitSpan lits) -> clingo_weighted_literal_t const
 
 void raise_error();
 auto store_error() -> bool;
-auto fail_arguments() -> bool;
 auto fail_with(clingo_result_t code, std::string_view msg) -> bool;
 
 // Argument checks

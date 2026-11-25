@@ -105,10 +105,6 @@ void handle_error_no_code(bool res) {
     }
 }
 
-auto fail_arguments() -> bool {
-    return fail_with(clingo_result_invalid, "invalid arguments");
-}
-
 namespace {
 
 //! Get the name of the C API function from the pretty function name of the location.
