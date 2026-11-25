@@ -2,6 +2,10 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <random>
+#include <string>
+#include <vector>
+
 // NOLINTBEGIN(readability-magic-numbers)
 
 namespace CppClingo::Test {
@@ -161,6 +165,72 @@ TEST_CASE("number_op") {
     REQUIRE(get_sign(-big) == -1);
     // bug
     REQUIRE(Number(2147483647) <= Number("2147483648"));
+}
+
+TEST_CASE("number_bitwise") {
+    auto num = [](auto x) { return Number{std::to_string(x)}; };
+    // NOLINTNEXTLINE(bugprone-random-generator-seed): the tests should be reproducible
+    auto rng = std::mt19937_64{42};
+
+    SECTION("int64") {
+        // values at the boundaries of digits and of the int32 representation
+        auto values = std::vector<int64_t>{
+            0,
+            1,
+            -1,
+            std::numeric_limits<int32_t>::min(),
+            std::numeric_limits<int32_t>::max(),
+            int64_t{1} << 31,
+            -(int64_t{1} << 31) - 1,
+            int64_t{1} << 32,
+            -(int64_t{1} << 32),
+            (int64_t{1} << 32) - 1,
+            -(int64_t{1} << 32) + 1,
+            std::numeric_limits<int64_t>::min(),
+            std::numeric_limits<int64_t>::max(),
+        };
+        for (int i = 0; i < 200; ++i) {
+            auto x = static_cast<int64_t>(rng());
+            values.emplace_back(x >> (rng() % 64));
+        }
+        for (auto a : values) {
+            for (auto b : values) {
+                REQUIRE((num(a) & num(b)) == num(a & b));
+                REQUIRE((num(a) | num(b)) == num(a | b));
+                REQUIRE((num(a) ^ num(b)) == num(a ^ b));
+            }
+        }
+    }
+
+    SECTION("big") {
+        // the identities are checked against the arithmetic operations
+        auto values = std::vector<Number>{};
+        for (int i = 0; i < 100; ++i) {
+            auto str = std::string{rng() % 2 == 0 ? "-" : ""};
+            auto len = 1 + (rng() % 60);
+            str.push_back(static_cast<char>('1' + (rng() % 9)));
+            for (size_t j = 1; j < len; ++j) {
+                str.push_back(static_cast<char>('0' + (rng() % 10)));
+            }
+            values.emplace_back(str);
+        }
+        auto pow2 = pow(Number{2}, Number{128});
+        values.emplace_back(pow2);
+        values.emplace_back(-pow2);
+        values.emplace_back(pow2 - Number{1});
+        values.emplace_back(-pow2 + Number{1});
+        for (auto const &a : values) {
+            REQUIRE((a & ~a) == 0);
+            REQUIRE((a | ~a) == -1);
+            REQUIRE((a ^ a) == 0);
+            for (auto const &b : values) {
+                REQUIRE((a ^ b) == (a | b) - (a & b));
+                REQUIRE(a + b == (a ^ b) + Number{2} * (a & b));
+                REQUIRE(~(a & b) == (~a | ~b));
+                REQUIRE((a & b) == (b & a));
+            }
+        }
+    }
 }
 
 } // namespace CppClingo::Test

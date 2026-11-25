@@ -5,7 +5,10 @@
 
 #include <imath.h>
 
+#include <algorithm>
+#include <array>
 #include <atomic>
+#include <climits>
 #include <memory>
 #include <utility>
 
@@ -278,77 +281,111 @@ class mp_int_ptr {
     return MP_OK;
 }
 
-// NOLINTBEGIN(modernize-avoid-c-arrays,readability-magic-numbers)
+// Bitwise operations
+//
+// The operations work directly on the sign-magnitude representation of
+// imath. Negative operands are converted to two's complement and negative
+// results back to magnitudes digit by digit.
 
-// TODO: make a pull request and implement this directly on the representation of the number
+//! View of the digits of an integer.
+struct DigitView {
+    mp_digit const *digits; //!< The digits of the magnitude (least significant first).
+    mp_size used;           //!< The number of digits.
+    bool neg;               //!< Whether the integer is negative.
+};
 
-auto to_binary(mp_int z, mp_size len, mp_size limit) -> std::unique_ptr<unsigned char[]> {
-    auto msb = limit - len;
-    auto buf = std::make_unique<unsigned char[]>(limit);
-    mp_int_to_binary(z, buf.get() + msb, static_cast<int>(len));
-    if (len < limit && (buf[msb] & 128) == 128) {
-        for (int i = 0; std::cmp_less(i, msb); ++i) {
-            buf[i] = 255;
-        }
+//! Get the n-th digit of the two's complement representation.
+//!
+//! The borrow has to be initialized with 1 for negative integers.
+auto twos_digit(DigitView const &x, mp_size i, mp_digit &borrow) -> mp_digit {
+    mp_digit d = i < x.used ? x.digits[i] : 0;
+    if (!x.neg) {
+        return d;
     }
-    return buf;
+    // NOTE: the two's complement of -m is ~(m - 1)
+    mp_digit t = d - borrow;
+    borrow = d < borrow ? 1 : 0;
+    // NOLINTNEXTLINE(readability-redundant-casting): needed for 16bit digits, which are promoted to int
+    return static_cast<mp_digit>(~t);
 }
 
-// NOLINTEND(modernize-avoid-c-arrays,readability-magic-numbers)
+template <char op> auto bitop(DigitView a, DigitView b, mp_int c) -> mp_result {
+    auto neg = false;
+    if constexpr (op == '&') {
+        neg = a.neg && b.neg;
+    }
+    if constexpr (op == '|') {
+        neg = a.neg || b.neg;
+    }
+    if constexpr (op == '^') {
+        neg = a.neg != b.neg;
+    }
+    auto n = std::max(a.used, b.used);
+    // NOTE: converting a negative result back to a magnitude might need one more digit
+    mpz_t z;
+    if (auto res = mp_int_init_size(&z, n + 1); res != MP_OK) {
+        return res;
+    }
+    auto *dz = MP_DIGITS(&z);
+    mp_digit borrow_a = a.neg ? 1 : 0;
+    mp_digit borrow_b = b.neg ? 1 : 0;
+    mp_digit carry = neg ? 1 : 0;
+    for (mp_size i = 0; i < n; ++i) {
+        auto da = twos_digit(a, i, borrow_a);
+        auto db = twos_digit(b, i, borrow_b);
+        mp_digit r = 0;
+        if constexpr (op == '&') {
+            r = da & db;
+        }
+        if constexpr (op == '|') {
+            r = da | db;
+        }
+        if constexpr (op == '^') {
+            r = da ^ db;
+        }
+        if (neg) {
+            // NOTE: the magnitude of a negative two's complement r is ~r + 1
+            // NOLINTNEXTLINE(readability-redundant-casting): needed for 16bit digits, which are promoted to int
+            r = static_cast<mp_digit>(static_cast<mp_digit>(~r) + carry);
+            carry = carry != 0 && r == 0 ? 1 : 0;
+        }
+        dz[i] = r;
+    }
+    auto used = n;
+    if (carry != 0) {
+        dz[used++] = 1;
+    }
+    while (used > 1 && dz[used - 1] == 0) {
+        --used;
+    }
+    z.used = used;
+    z.sign = neg && (used > 1 || dz[0] != 0) ? MP_NEG : MP_ZPOS;
+    mp_int_swap(c, &z);
+    mp_int_clear(&z);
+    return MP_OK;
+}
+
+auto digit_view(mp_int a) -> DigitView {
+    return {MP_DIGITS(a), MP_USED(a), MP_SIGN(a) == MP_NEG};
+}
 
 template <char op> auto mp_int_binop(mp_int a, mp_int b, mp_int c) -> mp_result {
-    try {
-        auto len_a = mp_int_binary_len(a);
-        auto len_b = mp_int_binary_len(b);
-        auto limit = std::max(len_a, len_b);
-        auto buf_a = to_binary(a, len_a, limit);
-        auto buf_b = to_binary(b, len_b, limit);
-        for (int i = 0; std::cmp_less(i, limit); ++i) {
-            if constexpr (op == '&') {
-                buf_a[i] = buf_a[i] & buf_b[i];
-            }
-            if constexpr (op == '|') {
-                buf_a[i] = buf_a[i] | buf_b[i];
-            }
-            if constexpr (op == '^') {
-                buf_a[i] = buf_a[i] ^ buf_b[i];
-            }
-        }
-        return mp_int_read_binary(c, buf_a.get(), static_cast<int>(limit));
-    } catch (std::bad_alloc const &) {
-        return MP_MEMORY;
-    }
+    return bitop<op>(digit_view(a), digit_view(b), c);
 }
 
 template <char op> auto mp_int_binop_value(mp_int a, mp_small b, mp_int c) -> mp_result {
-    try {
-        auto len_a = mp_int_binary_len(a);
-        auto len_b = static_cast<mp_size>(sizeof(mp_small));
-        auto limit = std::max(len_a, len_b);
-        auto buf_a = to_binary(a, len_a, limit);
-        auto *buf_b = reinterpret_cast<unsigned char *>(&b);
-        for (int i = 0; std::cmp_less(i, limit); ++i) {
-            auto j = limit - i - 1;
-            unsigned char char_b = 0;
-            if (j < len_b) {
-                char_b = buf_b[j];
-            } else if (b < 0) {
-                char_b = 255; // NOLINT(readability-magic-numbers)
-            }
-            if constexpr (op == '&') {
-                buf_a[i] = buf_a[i] & char_b;
-            }
-            if constexpr (op == '|') {
-                buf_a[i] = buf_a[i] | char_b;
-            }
-            if constexpr (op == '^') {
-                buf_a[i] = buf_a[i] ^ char_b;
-            }
+    constexpr auto size = ((sizeof(mp_small) * CHAR_BIT) + MP_DIGIT_BIT - 1) / MP_DIGIT_BIT;
+    auto digits = std::array<mp_digit, size>{};
+    // NOTE: computing the magnitude on the unsigned type avoids overflows for the minimum
+    auto mag = b < 0 ? -static_cast<mp_usmall>(b) : static_cast<mp_usmall>(b);
+    // NOTE: leading zero digits are fine for bitop
+    for (auto &d : digits) {
+        d = static_cast<mp_digit>(mag);
+        if constexpr (size > 1) {
+            mag >>= MP_DIGIT_BIT;
         }
-        return mp_int_read_binary(c, buf_a.get(), static_cast<int>(limit));
-    } catch (std::bad_alloc const &) {
-        return MP_MEMORY;
     }
+    return bitop<op>(digit_view(a), {digits.data(), static_cast<mp_size>(size), b < 0}, c);
 }
 
 template <char op> auto check_binop(int32_t a, int32_t b) -> std::optional<int32_t> {
