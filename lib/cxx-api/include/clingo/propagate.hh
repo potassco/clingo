@@ -159,8 +159,14 @@ class Assignment {
     using iterator = Detail::RandomAccessIterator<Assignment>;
 
     //! Construct an assignment from the underlying C representation.
+    //!
+    //! For internal use.
+    //!
+    //! @param assignment the C representation of the assignment
     explicit Assignment(clingo_assignment_t const *assignment) : assignment_(assignment) {}
+
     //! Get the id of the thread to which the assignment belongs.
+    //!
     //! @return the id of the solving thread owning this assignment
     [[nodiscard]] auto thread_id() const -> ProgramId { return Detail::call<clingo_assignment_thread_id>(assignment_); }
 
@@ -174,14 +180,14 @@ class Assignment {
 
     //! Get the literal at the given index in the assignment.
     //!
-    //! @param size the index of the literal
+    //! @param index the index of the literal
     //! @return the literal at the index
-    [[nodiscard]] auto at(size_type size) const -> value_type {
-        return Detail::call<clingo_assignment_at>(assignment_, size);
+    [[nodiscard]] auto at(size_type index) const -> value_type {
+        return Detail::call<clingo_assignment_at>(assignment_, index);
     }
 
     //! @copydoc Assignment::at()
-    [[nodiscard]] auto operator[](size_type size) const -> value_type { return at(size); }
+    [[nodiscard]] auto operator[](size_type index) const -> value_type { return at(index); }
 
     //! Get the decision literal for the given decision level.
     //!
@@ -207,6 +213,7 @@ class Assignment {
 
     //! Check whether the assignment contains the given literal.
     //!
+    //! @param lit the literal to check
     //! @return whether the assignment contains the literal
     [[nodiscard]] auto contains(SolverLiteral lit) const -> bool {
         return Detail::call<clingo_assignment_has_literal>(assignment_, lit);
@@ -246,7 +253,7 @@ class Assignment {
 
     //! Check whether the assignment is total.
     //!
-    //! An assignment is total if all literals are assigned a truth value,
+    //! An assignment is total if all literals are assigned a truth value.
     //!
     //! @return whether the assignment is total
     [[nodiscard]] auto is_total() const -> bool { return Detail::call<clingo_assignment_is_total>(assignment_); }
@@ -283,7 +290,7 @@ class Assignment {
 
     //! Get the root level of the assignment.
     //!
-    //! Decisions levels smaller or equal to the root level are not backtracked
+    //! Decision levels smaller or equal to the root level are not backtracked
     //! during solving.
     //!
     //! @return the root level of the assignment
@@ -495,7 +502,7 @@ class PropagateInit : public PropagateControl {
 
     //! Map a program literal to a solver literal.
     //!
-    //! If std::nullpot is passed, the function returns the true solver
+    //! If std::nullopt is passed, the function returns the true solver
     //! literal.
     //!
     //! @param literal the program literal to map
@@ -579,7 +586,7 @@ class Propagator {
     //! Clingo::PropagateInit::check_mode() can be used to control when this
     //! callback is called.
     //!
-    //! Like in Clingo::Propagator::Propagate(), a propagator can add clauses
+    //! Like in Clingo::Propagator::propagate(), a propagator can add clauses
     //! here to propagate consequences or discard the current assignment.
     //!
     //! @param assignment the current assignment of the solver
@@ -588,8 +595,13 @@ class Propagator {
 
   protected:
     //! Allow derived classes to be moved so that propagators can be passed by value.
+    //!
+    //! @param other the propagator to move
     Propagator(Propagator &&other) noexcept = default;
     //! Allow derived classes to be moved so that propagators can be passed by value.
+    //!
+    //! @param other the propagator to move
+    //! @return a reference to this propagator
     auto operator=(Propagator &&other) noexcept -> Propagator & = default;
 
   private:
@@ -615,6 +627,7 @@ class Heuristic : public Propagator {
     //!
     //! @param assignment the current assignment of the solver
     //! @param literal the fallback literal
+    //! @return the literal to assign
     auto decide(Assignment assignment, SolverLiteral literal) -> SolverLiteral {
         return do_decide(assignment, literal);
     }
