@@ -597,9 +597,13 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     }
 
   private:
+    // NOTE: Strings and tuples are only accessible via pointers. Storing hashes
+    // avoids dereferencing them when comparing candidates during lookups.
+    template <class T>
+    using StoredHashSet = Util::unordered_set<T, Util::value_hasher, Util::value_equal_to, std::allocator<T>, 30, true>;
     using NumberSet = Util::unordered_set<Number>;
-    using StringSet = Util::unordered_set<KeyCharArray>;
-    using TupleSet = Util::unordered_set<KeySymbolArray>;
+    using StringSet = StoredHashSet<KeyCharArray>;
+    using TupleSet = StoredHashSet<KeySymbolArray>;
     using OwnerSet =
         Util::unordered_set<SymbolOwner const *, std::hash<SymbolOwner const *>, std::equal_to<SymbolOwner const *>>;
 
