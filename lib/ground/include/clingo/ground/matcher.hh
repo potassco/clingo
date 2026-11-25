@@ -404,11 +404,20 @@ template <IsBase Base, IsMatch Match> class LookupMatcher : public OnceMatcher {
   private:
     void do_init([[maybe_unused]] InstantiationContext const &ctx, size_t gen) override { base_->update(gen); }
     auto do_once(EvalContext const &ctx) -> bool override {
-        if (auto sym = match_->eval(ctx); sym) {
-            if (auto idx = base_->contains(*sym, type_); idx) {
-                *offset_ = *idx;
-                return true;
+        if constexpr (requires { match_->find(ctx); }) {
+            // NOTE: finding avoids constructing symbols for which no atoms can exist
+            if (auto sym = match_->find(ctx); sym.has_value() && sym->has_value()) {
+                return lookup_(**sym);
             }
+        } else if (auto sym = match_->eval(ctx); sym) {
+            return lookup_(*sym);
+        }
+        return false;
+    }
+    auto lookup_(Base::Key const &sym) -> bool {
+        if (auto idx = base_->contains(sym, type_); idx) {
+            *offset_ = *idx;
+            return true;
         }
         return false;
     }

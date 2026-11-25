@@ -85,6 +85,17 @@ class Term {
     //!
     //! A term might fail to evaluate if a unary or binary operation is not defined for its arguments.
     [[nodiscard]] auto eval(EvalContext const &ctx) const -> std::optional<Symbol> { return do_eval(ctx); }
+    //! Evaluates a term w.r.t. the given assignment without constructing new symbols.
+    //!
+    //! This is useful to look up atoms because no atom can exist for a symbol
+    //! that does not exist in the symbol store. Evaluation errors are reported
+    //! like for eval().
+    //!
+    //! @return std::nullopt if the evaluation fails and otherwise the symbol or
+    //!         std::nullopt if it does not exist in the store
+    [[nodiscard]] auto find(EvalContext const &ctx) const -> std::optional<std::optional<Symbol>> {
+        return do_find(ctx);
+    }
     //! Create a copy of the term renaming/replacing parts of it.
     //!
     //! If a name is given, the name of the outermost function symbol is changed.
@@ -138,6 +149,15 @@ class Term {
     [[nodiscard]] virtual auto do_score(double size, std::vector<bool> const &bound) const -> double = 0;
     [[nodiscard]] virtual auto do_match(EvalContext const &ctx, Symbol sym) const -> bool = 0;
     [[nodiscard]] virtual auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> = 0;
+    //! Find the symbol of the term (see find()).
+    //!
+    //! By default, the term is evaluated constructing its symbol.
+    [[nodiscard]] virtual auto do_find(EvalContext const &ctx) const -> std::optional<std::optional<Symbol>> {
+        if (auto sym = do_eval(ctx); sym.has_value()) {
+            return std::optional<std::optional<Symbol>>{std::in_place, *sym};
+        }
+        return std::nullopt;
+    }
     [[nodiscard]] virtual auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
         -> UTerm = 0;
     [[nodiscard]] virtual auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm = 0;
@@ -380,6 +400,7 @@ class TermTuple : public Term {
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto do_match(EvalContext const &ctx, Symbol sym) const -> bool override;
     [[nodiscard]] auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> override;
+    [[nodiscard]] auto do_find(EvalContext const &ctx) const -> std::optional<std::optional<Symbol>> override;
     [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
         -> UTerm override;
     [[nodiscard]] auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;
@@ -404,6 +425,7 @@ class TermFunction : public Term {
     [[nodiscard]] auto do_score(double size, std::vector<bool> const &bound) const -> double override;
     [[nodiscard]] auto do_match(EvalContext const &ctx, Symbol sym) const -> bool override;
     [[nodiscard]] auto do_eval(EvalContext const &ctx) const -> std::optional<Symbol> override;
+    [[nodiscard]] auto do_find(EvalContext const &ctx) const -> std::optional<std::optional<Symbol>> override;
     [[nodiscard]] auto do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const
         -> UTerm override;
     [[nodiscard]] auto do_rename(Util::unordered_map<size_t, size_t> &vars) const -> UTerm override;

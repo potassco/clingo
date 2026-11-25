@@ -153,7 +153,8 @@ TEST_CASE("grounder_text") {
             auto res = store->gc(false);
             REQUIRE(std::get<0>(res) == 1);
             REQUIRE(std::get<1>(res) == 15);
-            REQUIRE(std::get<2>(res) == 3);
+            // NOTE: looking up q(1) and q(2) does not construct symbols
+            REQUIRE(std::get<2>(res) == 1);
         }
         SECTION("condlit_bug") {
             grd.parse(R"(

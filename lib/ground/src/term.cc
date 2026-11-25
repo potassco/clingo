@@ -25,6 +25,28 @@ auto eval_args(EvalContext const &ctx, UTermVec const &args, std::vector<Symbol>
     return true;
 }
 
+//! Find the symbols of the arguments without constructing new symbols (see Term::find).
+//!
+//! Returns false if the evaluation of an argument fails. Otherwise, sets found
+//! to whether the symbols of all arguments exist. Like eval_args(), arguments
+//! are evaluated until an evaluation fails to report the same errors.
+auto find_args(EvalContext const &ctx, UTermVec const &args, std::vector<Symbol> &res, bool &found) -> bool {
+    res.clear();
+    found = true;
+    for (auto const &arg : args) {
+        auto sym = arg->find(ctx);
+        if (!sym.has_value()) {
+            return false;
+        }
+        if (!sym->has_value()) {
+            found = false;
+        } else if (found) {
+            res.emplace_back(**sym);
+        }
+    }
+    return true;
+}
+
 auto match_args(EvalContext const &ctx, UTermVec const &term_args, SymbolSpan sym_args) -> bool {
     if (term_args.size() != sym_args.size()) {
         return false;
@@ -1174,6 +1196,17 @@ auto TermTuple::do_eval(EvalContext const &ctx) const -> std::optional<Symbol> {
     return std::nullopt;
 }
 
+auto TermTuple::do_find(EvalContext const &ctx) const -> std::optional<std::optional<Symbol>> {
+    auto found = false;
+    if (!find_args(ctx, args_, eval_, found)) {
+        return std::nullopt;
+    }
+    if (!found) {
+        return std::optional<std::optional<Symbol>>{std::in_place};
+    }
+    return std::optional<std::optional<Symbol>>{std::in_place, ctx.store().tup_find(eval_)};
+}
+
 auto TermTuple::do_rename(SymbolStore &store, RenameMode mode, [[maybe_unused]] String const *name, size_t *vars) const
     -> UTerm {
     assert(name == nullptr);
@@ -1262,6 +1295,17 @@ auto TermFunction::do_eval(EvalContext const &ctx) const -> std::optional<Symbol
         return ctx.store().fun_ref(*name_, eval_, false);
     }
     return std::nullopt;
+}
+
+auto TermFunction::do_find(EvalContext const &ctx) const -> std::optional<std::optional<Symbol>> {
+    auto found = false;
+    if (!find_args(ctx, args_, eval_, found)) {
+        return std::nullopt;
+    }
+    if (!found) {
+        return std::optional<std::optional<Symbol>>{std::in_place};
+    }
+    return std::optional<std::optional<Symbol>>{std::in_place, ctx.store().fun_find(*name_, eval_, false)};
 }
 
 auto TermFunction::do_rename(SymbolStore &store, RenameMode mode, String const *name, size_t *vars) const -> UTerm {
