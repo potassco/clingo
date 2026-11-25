@@ -63,9 +63,11 @@ class TheoryAssignment {
         }
 
         //! Increment the iterator to the next value (postfix).
+        //!
+        //! @return a copy of the iterator before incrementing it
         auto operator++(int) -> iterator { return std::exchange(*this, ++iterator(*this)); }
 
-        //! Check whether their are still values in the assignment.
+        //! Check whether there are still values in the assignment.
         //!
         //! @param a the iterator to compare
         //! @param b the sentinel
@@ -91,6 +93,8 @@ class TheoryAssignment {
     static_assert(std::sentinel_for<sentinel, iterator>);
 
     //! Construct a theory assignment from its C representation and a thread id.
+    //!
+    //! For internal use.
     //!
     //! @param theory the C theory representation
     //! @param thread_id the thread id for which to get the assignment
@@ -269,7 +273,7 @@ class Theory {
 
     //! Incorporate statistics from the theory into the solver's statistics.
     //!
-    //! @param step the current step of the solver
+    //! @param step the statistics of the current step
     //! @param accu the accumulated statistics
     void stats(Stats step, [[maybe_unused]] Stats accu) const {
         Detail::handle_error(theory_.on_stats(theory_.self, c_cast(step)));
@@ -298,7 +302,7 @@ class Theory {
         Detail::handle_error(theory_.register_options(theory_.self, c_cast(opts)));
     }
 
-    //! Validate previously parsed the theory options.
+    //! Validate the previously parsed theory options.
     //!
     //! Should be called from the Clingo::App::validate_options() method.
     void validate_options() const { Detail::handle_error(theory_.validate_options(theory_.self)); }
