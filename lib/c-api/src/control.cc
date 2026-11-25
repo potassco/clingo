@@ -35,7 +35,7 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
                                    clingo_control_t **control) -> bool {
     CLINGO_TRY {
         using namespace Potassco::ProgramOptions;
-        require(not_null(lib, control) && valid_span(arguments, size));
+        require(not_null(lib, control) && valid_strings(arguments, size));
 
         auto opts = CppClingo::CAPI::ClingoOptions{lib->log, *lib->store};
         auto slv_cfg = std::make_unique<Clasp::Cli::ClaspCliConfig>();
@@ -67,7 +67,6 @@ extern "C" auto clingo_control_new(clingo_lib_t *lib, clingo_string_t const *arg
         bargs.reserve(size);
         cargs.reserve(size + 1);
         for (auto const &str : std::span{arguments, size}) {
-            require(valid_span(str.data, str.size));
             bargs.emplace_back(std::string_view{str.data, str.size});
             cargs.emplace_back(bargs.back().c_str());
         }
@@ -134,11 +133,9 @@ extern "C" auto clingo_control_mode(clingo_control_t *control, clingo_mode_t *mo
 extern "C" auto clingo_control_parse_files(clingo_control_t *control, clingo_string_t const *files, size_t size)
     -> bool {
     CLINGO_TRY {
-        require(control != nullptr && valid_span(files, size));
-        auto vec = CppClingo::Util::to_vec(std::span{files, size}, [](auto const &x) {
-            require(valid_span(x.data, x.size));
-            return std::string_view{x.data, x.size};
-        });
+        require(control != nullptr && valid_strings(files, size));
+        auto vec = CppClingo::Util::to_vec(std::span{files, size},
+                                           [](auto const &x) { return std::string_view{x.data, x.size}; });
         control->slv->parse(vec);
     }
     CLINGO_CATCH;

@@ -355,12 +355,10 @@ extern "C" auto clingo_main(clingo_lib_t *lib, clingo_string_t const *arguments,
         if (code != nullptr) {
             *code = 1;
         }
-        require(lib != nullptr && valid_span(arguments, size));
+        require(lib != nullptr && valid_strings(arguments, size));
         auto capp = ClingoApp{*lib, app, data};
-        auto args = CppClingo::Util::to_vec(std::span{arguments, size}, [](auto const &str) {
-            require(valid_span(str.data, str.size));
-            return std::string{str.data, str.size};
-        });
+        auto args = CppClingo::Util::to_vec(std::span{arguments, size},
+                                            [](auto const &str) { return std::string{str.data, str.size}; });
         auto cargs = CppClingo::Util::to_vec(args, [](auto const &str) { return str.c_str(); });
         auto res = capp.main(cargs);
         if (code != nullptr) {

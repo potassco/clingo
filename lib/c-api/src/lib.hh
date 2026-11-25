@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <source_location>
+#include <span>
 #include <stdexcept> // IWYU pragma: keep
 #include <type_traits>
 #include <utility>
@@ -193,6 +194,12 @@ constexpr auto not_null(T... ptrs) noexcept -> bool {
 //! Check whether a pointer is valid for an array of the given size.
 template <class T> constexpr auto valid_span(T const *ptr, size_t size) noexcept -> bool {
     return ptr != nullptr || size == 0;
+}
+
+//! Check whether an array of strings and the strings in it are valid.
+constexpr auto valid_strings(clingo_string_t const *strs, size_t size) noexcept -> bool {
+    return valid_span(strs, size) &&
+           std::ranges::all_of(std::span{strs, size}, [](auto const &x) { return valid_span(x.data, x.size); });
 }
 
 //! Write an optional out parameter if it is not null.
