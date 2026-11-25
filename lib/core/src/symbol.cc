@@ -1165,10 +1165,6 @@ auto SymbolStore::num_ref(Number num) noexcept -> Symbol {
     return do_num(std::move(num));
 }
 
-auto SymbolStore::num_ref(int32_t num) noexcept -> Symbol {
-    return Symbol::from_rep(Number::to_repr(Number(num)));
-}
-
 auto SymbolStore::tup_ref(SymbolSpan args) -> Symbol {
     if (args.empty()) {
         return Symbol::from_rep(REP_TUP);

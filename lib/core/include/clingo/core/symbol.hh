@@ -6,6 +6,7 @@
 #include <clingo/util/print.hh>
 #include <clingo/util/unordered_set.hh>
 
+#include <optional>
 #include <ostream>
 #include <span>
 
@@ -232,6 +233,18 @@ class Symbol {
     [[nodiscard]] auto type() const noexcept -> SymbolType;
     //! Get the numeric value of the symbol.
     [[nodiscard]] auto num() const noexcept -> Number const &;
+    //! Get the numeric value of the symbol if it is a number fitting into 32 bits.
+    //!
+    //! This is a fast alternative to checking the type and calling num() for
+    //! the common case of small numbers.
+    [[nodiscard]] auto small_num() const noexcept -> std::optional<int32_t> {
+        // NOTE: small numbers are stored in the upper 32 bits and are the only
+        // symbols whose lower 32 bits are all unset
+        if ((rep_ & SMALL_NUM_MASK) == 0) {
+            return static_cast<int32_t>(rep_ >> SMALL_NUM_SHIFT);
+        }
+        return std::nullopt;
+    }
     //! Get the (raw) string value of the symbol.
     [[nodiscard]] auto str() const noexcept -> String;
     //! Get the name of the symbol.
@@ -293,6 +306,11 @@ class Symbol {
 
     //! Output the symbol to the given buffer.
     friend auto operator<<(Util::OutputBuffer &out, Symbol const &sym) -> Util::OutputBuffer &;
+
+    //! The representation bits that are unset for small numbers.
+    static constexpr uint64_t SMALL_NUM_MASK = 0xFFFFFFFF;
+    //! The position of the value in the representation of small numbers.
+    static constexpr uint64_t SMALL_NUM_SHIFT = 32;
 
   private:
     explicit Symbol(uint64_t repr) noexcept : rep_{repr} {}
@@ -504,7 +522,10 @@ class SymbolStore {
     //! Construct a number (e.g., <tt>42</tt>).
     [[nodiscard]] auto num_ref(Number num) noexcept -> Symbol;
     //! Construct a number.
-    [[nodiscard]] static auto num_ref(int32_t num) noexcept -> Symbol;
+    [[nodiscard]] static auto num_ref(int32_t num) noexcept -> Symbol {
+        // NOTE: this corresponds to the representation of small numbers (see Symbol::small_num())
+        return Symbol::from_rep(static_cast<uint64_t>(num) << Symbol::SMALL_NUM_SHIFT);
+    }
     //! Construct a tuple.
     //!
     //! For example: <tt>(x,y)</tt>.
