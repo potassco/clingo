@@ -45,7 +45,7 @@ void join(clingo_control_t *ctl, clingo_program_t const *prg);
 //! @addtogroup cpp_control
 //! @{
 
-//! Class to providing a view on the const directives in a logic program.
+//! Class providing a view on the const directives in a logic program.
 //!
 //! The class models a map from parameter names to their values.
 class ConstMap {
@@ -70,6 +70,8 @@ class ConstMap {
     //! Construct from the underlying C representation.
     //!
     //! For internal use.
+    //!
+    //! @param map the C representation of the constant map
     explicit ConstMap(clingo_const_map_t const *map) : map_{map} {}
 
     //! Check if the map contains the given key.
@@ -80,7 +82,7 @@ class ConstMap {
         return Detail::call<clingo_const_map_find>(map_, name.data(), name.size(), nullptr);
     }
 
-    //! Get the value of for the given key.
+    //! Get the value for the given key.
     //!
     //! @param name the key to look up
     //! @return the value for the key
@@ -184,7 +186,7 @@ enum class DiscardType : clingo_discard_type_t // NOLINT
 //! cycles.
 class Control {
   public:
-    //! Callbock for injecting symbols into the grounding process.
+    //! Callback for injecting symbols into the grounding process.
     //!
     //! The callback takes the name of the function and the parameters as a
     //! string view and a span of symbols as arguments and returns a vector of
@@ -228,12 +230,14 @@ class Control {
     //!
     //! Note that the control object discards previously grounded programs
     //! after calls to solve(). Only the part of the program grounded after the
-    //! last call to solve() or at the beginning are written to the file.
+    //! last call to solve() or at the beginning is written to the file.
     //!
     //! If no path is given, clingo's internal output buffer is used instead of
     //! writing to a file. The buffer content can be accessed via
     //! Control::buffer(). If WriteAspifFlags::preamble_auto is used, the
-    //! preamble is written only if the buffer is currently empty. In
+    //! preamble is written unless the program is appended to existing
+    //! content, i.e., unless WriteAspifFlags::append is used and the file
+    //! exists or the buffer is not empty. In
     //! application mode, the buffer is printed to stdout and cleared after
     //! each major operation like grounding, so the preamble flag should be set
     //! explicitly in this case.
@@ -282,8 +286,9 @@ class Control {
     //! Ground the logic program with the given parameters.
     //!
     //! The given parts determine which program parts are grounded with which
-    //! parameters. If no parts are given, the parts given by the parts
-    //! directive are grounded.
+    //! parameters. If no parts are given, the parts set via parts() (for
+    //! example, by a parts directive) are grounded or, if there are none, the
+    //! base part.
     //!
     //! @param parts the parts to ground the control object with
     //! @param ctx the context to use for grounding
@@ -318,9 +323,7 @@ class Control {
 
     //! Ground the control object with the given parts.
     //!
-    //! The given parts determine which program parts are grounded with which
-    //! parameters. If no parts are given, the parts given by the parts
-    //! directive are grounded.
+    //! Convenience overload to pass the parts as an initializer list.
     //!
     //! @param parts the parts to ground the control object with
     //! @param ctx the context to use for grounding
@@ -331,8 +334,8 @@ class Control {
     //! Ground the logic program with the given parameters.
     //!
     //! The given parts determine which program parts are grounded with which
-    //! parameters. If no parts are given, those specified by the parts
-    //! directive are grounded.
+    //! parameters. If no parts are given, the parts set via parts() are
+    //! grounded or, if there are none, the base part.
     //!
     //! A handler implementing the GroundEventHandler interface can be given to
     //! handle grounding events. The handler is passed by value; use std::ref
@@ -340,7 +343,8 @@ class Control {
     //! and can be set to nullptr to ignore events.
     //!
     //! @param parts the parts to ground the control object with
-    //! @param handler the context to use for grounding
+    //! @param handler the handler for grounding events
+    //! @return a handle to the running ground call
     template <Detail::UserData<GroundEventHandler> Handler = std::nullptr_t>
     [[nodiscard]] auto start_ground(std::optional<PartSpan> parts = std::nullopt, Handler &&handler = nullptr) const
         -> GroundHandle {
@@ -517,7 +521,8 @@ class Control {
     //! Get the text buffer of the control object.
     //!
     //! Manually created control objects use this buffer to output statements
-    //! to if the control mode has been set to parse, rewrite, or ground.
+    //! to if the control mode has been set to parse, rewrite, or ground. It
+    //! also receives the output of write_aspif() if no path is given.
     //!
     //! @return the contents of the text buffer
     [[nodiscard]] auto buffer() const -> std::string_view {
