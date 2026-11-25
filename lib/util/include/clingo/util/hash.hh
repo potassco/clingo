@@ -13,7 +13,6 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <typeinfo>
 #include <variant>
 #include <vector>
 
@@ -27,9 +26,6 @@ inline auto hash_mix(size_t h) -> size_t;
 
 //! Combine the given hashes.
 template <class... T> inline auto hash_combine(T... a) -> size_t;
-
-//! Compute a hash for type_info.
-auto value_hash(std::type_info const &x) -> size_t;
 
 //! Compute a hash using std::hash.
 template <class T> auto value_hash(T const &x) -> size_t;
@@ -276,10 +272,6 @@ template <class T> auto value_hash_range(T const &x) -> size_t {
                 [](auto const &seed, auto const &x) { return Util::hash_combine(seed, Util::value_hash(x)); });
     }
     // NOLINTEND(readability-magic-numbers)
-}
-
-inline auto value_hash(std::type_info const &x) -> size_t {
-    return hash_mix(x.hash_code());
 }
 
 template <class T> auto value_hash(T const &x) -> size_t {
