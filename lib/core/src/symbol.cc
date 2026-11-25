@@ -611,15 +611,16 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
     }
 
   private:
-    // NOTE: Strings and tuples are only accessible via pointers. Storing hashes
-    // avoids dereferencing them when comparing candidates during lookups.
-    template <class T>
-    using StoredHashSet = Util::unordered_set<T, Util::value_hasher, Util::value_equal_to, std::allocator<T>, 30, true>;
+    //! Hash owners by address.
+    struct OwnerHash {
+        auto operator()(SymbolOwner const *owner) const -> size_t {
+            return Util::hash_mix(std::hash<SymbolOwner const *>{}(owner));
+        }
+    };
     using NumberSet = Util::unordered_set<Number>;
-    using StringSet = StoredHashSet<KeyCharArray>;
-    using TupleSet = StoredHashSet<KeySymbolArray>;
-    using OwnerSet =
-        Util::unordered_set<SymbolOwner const *, std::hash<SymbolOwner const *>, std::equal_to<SymbolOwner const *>>;
+    using StringSet = Util::unordered_set<KeyCharArray>;
+    using TupleSet = Util::unordered_set<KeySymbolArray>;
+    using OwnerSet = Util::unordered_set<SymbolOwner const *, OwnerHash, std::equal_to<SymbolOwner const *>>;
 
     template <class T, class... Args> auto insert_(T &table, Args &&...args) -> std::pair<typename T::iterator, bool> {
         typename T::value_type arr(alloc_, std::forward<Args>(args)...);

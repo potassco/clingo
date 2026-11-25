@@ -371,7 +371,11 @@ template <class T, class... Args> auto value_hash_record(Args const &...x) -> si
     return hash_combine(value_hash(x)...);
 }
 
-static constexpr unsigned int default_neighborhood_size = 62;
+//! The default neighborhood size of hash tables.
+//!
+//! Storing hashes requires a neighborhood size of at most 30. Then the
+//! neighborhood bitmap and the hash fit into the space of a 64bit bitmap.
+static constexpr unsigned int default_neighborhood_size = 30;
 
 //! @}
 
