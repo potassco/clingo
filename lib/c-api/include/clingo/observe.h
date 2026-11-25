@@ -11,6 +11,32 @@ extern "C" {
 
 typedef struct clingo_control clingo_control_t;
 
+//! @example observe.c
+//! The example shows how to inspect the ground program and how to write it in
+//! aspif format.
+//!
+//! ## Output ##
+//!
+//! ~~~~~~~~~~~~
+//! ./observe
+//! external: 3 false
+//! rule: {1} :- .
+//! rule: 2 :- 1.
+//! minimize: priority=0 1*2
+//! aspif:
+//! asp 2 0 0 incremental
+//! 5 3 2
+//! 1 1 1 1 0 0
+//! 1 0 1 2 0 1 1
+//! 2 0 1 2 1
+//! 4 0 1 1 a
+//! 4 0 2 1 b
+//! 4 0 3 1 c
+//! 0
+//! ~~~~~~~~~~~~
+//!
+//! ## Code ##
+
 //! @addtogroup c_observe
 //! @{
 

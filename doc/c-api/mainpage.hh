@@ -66,6 +66,8 @@
 
 //! @defgroup c_observe Ground Program Inspection
 //! Functions and data structures to inspect ground programs.
+//!
+//! For an example, see @ref observe.c.
 
 //! @defgroup c_backend Ground Program Extension
 //! Add non-ground program representations (ASTs) to logic programs or extend the ground (aspif) program.
@@ -185,6 +187,8 @@
 
 //! @defgroup cpp_observe Ground Program Inspection
 //! Functions and data structures to inspect ground programs.
+//!
+//! For an example, see @ref observe.cc.
 
 //! @defgroup cpp_backend Ground Program Extension
 //! Extend the logic program with ground statements (in aspif-like format).

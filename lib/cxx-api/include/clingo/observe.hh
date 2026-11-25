@@ -7,6 +7,14 @@
 
 namespace Clingo {
 
+//! @example observe.cc
+//! The example shows how to inspect the ground program and how to write it in
+//! aspif format.
+//!
+//! This is the C++ version of @ref observe.c and produces the same output.
+//!
+//! ## Code ##
+
 //! @addtogroup cpp_observe
 //! @{
 

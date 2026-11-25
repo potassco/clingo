@@ -10,6 +10,7 @@ set(source-group
     "control.cc"
     "ground.cc"
     "model.cc"
+    "observe.cc"
     "profile.cc"
     "propagate.cc"
     "solve.cc"

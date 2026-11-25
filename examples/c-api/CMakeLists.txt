@@ -10,6 +10,7 @@ set(source-group
     "control.c"
     "ground.c"
     "model.c"
+    "observe.c"
     "profile.c"
     "propagate.c"
     "solve.c"
