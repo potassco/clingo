@@ -151,7 +151,7 @@ enum class Attribute : clingo_ast_attribute_t // NOLINT
 
 //! Enumeration of available ast node types.
 //!
-//! Each note type is associated with a set of attributes.
+//! Each node type is associated with a set of attributes.
 enum class NodeType : clingo_ast_type_t // NOLINT
 {
     // terms
@@ -251,7 +251,7 @@ void visit(Visitor const &fun, std::optional<Node> const &node);
 //! Visit the nodes in the given span with the visitor.
 //!
 //! @param fun the visitor
-//! @param nodes the node to visit
+//! @param nodes the nodes to visit
 void visit(Visitor const &fun, std::span<Node const> nodes);
 
 //! Function to transform ast nodes.
@@ -263,39 +263,46 @@ using Transformer = std::function<std::optional<Node>(Node const &)>;
 //!
 //! This function simply calls `fun(node)`.
 //!
-//! @param fun the visitor
+//! @param fun the transformer
 //! @param node the node to transform
+//! @return the transformed node or std::nullopt if the node is unchanged
 auto transform(Transformer const &fun, Node const &node) -> std::optional<Node>;
 //! Transform the given node with the transformer if engaged.
 //!
-//! @param fun the visitor
+//! @param fun the transformer
 //! @param node the node to transform
+//! @return the transformed node or std::nullopt if the node is unchanged
 auto transform(Transformer const &fun, std::optional<Node> const &node) -> std::optional<std::optional<Node>>;
 //! Transform the nodes in the given span with the transformer.
 //!
-//! @param fun the visitor
-//! @param nodes the node to visit
+//! @param fun the transformer
+//! @param nodes the nodes to transform
+//! @return the transformed nodes or std::nullopt if no node changed
 auto transform(Transformer const &fun, std::vector<Node> nodes) -> std::optional<std::vector<Node>>;
 
 //! Node capturing expressions in logic programs.
 //!
 //! Nodes are immutable objects supporting record updates.
 //!
-//! Refer to `lib/c-api/src/ast_yaml.cc` for node types and their arguments.
+//! The node types and their arguments are described by clingo_ast_info(),
+//! which is defined in `lib/c-api/src/ast_info.cc`.
 class Node {
   public:
-    //! Construct a node form its C representation.
+    //! Construct a node from its C representation.
     //!
     //! If copy is true copies the given node or otherwise takes ownership.
     //! Copying itself is cheap and just involves updating reference counts.
     //!
-    //! For internal sue.
+    //! For internal use.
     //!
     //! @param ast the C ast
     //! @param copy whether to copy
     explicit Node(clingo_ast_t *ast, bool copy = false) : ast_{ast, copy} {}
 
     //! Cast the node to its underlying C representation.
+    //!
+    //! @param x the node to cast
+    //! @return the C representation of the node
     [[nodiscard]] friend auto c_cast(Node const &x) -> clingo_ast_t * { return x.ast_.get(); }
 
     //! Construct a node of the given type.
@@ -354,6 +361,7 @@ class Node {
     //!
     //! @param lib the library object to store symbols
     //! @param fun the transformer
+    //! @return the transformed node or std::nullopt if no child changed
     [[nodiscard]] auto accept(Library const &lib, Transformer const &fun) const -> std::optional<Node> {
         return dispatch_(lib, static_cast<size_t>(type()), fun, std::make_index_sequence<Detail::cons.size()>());
     }
@@ -767,6 +775,9 @@ class RewriteContext {
     explicit RewriteContext(Library const &lib) : ctx_{Detail::call<clingo_ast_rewrite_context_create>(c_cast(lib))} {}
 
     //! Convert the context to its underlying C object.
+    //!
+    //! @param x the context to convert
+    //! @return the C object
     friend auto c_cast(RewriteContext const &x) -> clingo_ast_rewrite_context_t * { return x.ctx_.get(); }
 
     //! Set the projection mode.
@@ -785,7 +796,7 @@ class RewriteContext {
 
     //! Enable projection of anonymous variables in negated literals.
     //!
-    //! This exists mainly for backward compatibility with clingo 5. Program
+    //! This exists mainly for backward compatibility with clingo 5. Programs
     //! should use the projection `*` instead.
     //!
     //! @param value whether to enable
@@ -799,7 +810,7 @@ class RewriteContext {
     //! Protect a parameter from simplification.
     //!
     //! Parameters from const directives and program directives should be
-    //! projected before rewriting.
+    //! protected before rewriting.
     //!
     //! @param name the name of the parameter to protect
     void add_param(std::string_view name) {
@@ -842,14 +853,14 @@ class Program {
     //! @param lib a library to store symbols
     explicit Program(Library const &lib) : prg_{Detail::call<clingo_program_new>(c_cast(lib))} {}
 
-    //! Add a statemente node to the program.
+    //! Add a statement node to the program.
     //!
     //! @param stm the statement to add
     void add(Node const &stm) const { Detail::handle_error(clingo_program_add(prg_.get(), c_cast(stm))); }
 
     //! Convert the program to its underlying C representation.
     //!
-    //! @param x the prgoram
+    //! @param x the program
     //! @return the C object
     friend auto c_cast(Program const &x) -> clingo_program_t * { return x.prg_.get(); }
 
@@ -861,7 +872,7 @@ class Program {
 //!
 //! @param lib the library to store symbols in
 //! @param string the string to parse
-//! @param type the node type to parse
+//! @param type the type of the expression to parse
 //! @return the parsed node
 inline auto parse(Library const &lib, std::string_view string, ParseType type = ParseType::statement) -> Node {
     return Node{Detail::call<clingo_ast_parse_expression>(c_cast(lib), static_cast<clingo_ast_parse_type_t>(type),
@@ -933,6 +944,9 @@ namespace std {
 //! Hasher for AST nodes.
 template <> struct hash<Clingo::AST::Node> {
     //! Compute the hash for the given node.
+    //!
+    //! @param x the node
+    //! @return the hash value
     auto operator()(Clingo::AST::Node const &x) const noexcept -> size_t { return x.hash(); }
 };
 
