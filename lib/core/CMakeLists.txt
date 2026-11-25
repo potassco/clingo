@@ -34,7 +34,7 @@ set(test
     ${test-group})
 # ]]]
 
-add_library(clingo-core STATIC)
+add_library(clingo-core OBJECT)
 target_sources(clingo-core PRIVATE ${header} ${source})
 clingo_target_properties(TARGETS clingo-core FOLDER lib TYPE extra)
 target_include_directories(clingo-core

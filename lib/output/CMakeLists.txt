@@ -17,7 +17,7 @@ set(source
     ${source-group})
 # ]]]
 
-add_library(clingo-output STATIC)
+add_library(clingo-output OBJECT)
 target_sources(clingo-output PRIVATE ${header} ${source})
 clingo_target_properties(TARGETS clingo-output FOLDER lib TYPE extra)
 target_include_directories(clingo-output

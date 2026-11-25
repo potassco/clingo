@@ -53,7 +53,7 @@ set(test
     ${test-group})
 # ]]]
 
-add_library(clingo-ground STATIC)
+add_library(clingo-ground OBJECT)
 target_sources(clingo-ground PRIVATE ${header} ${source})
 clingo_target_properties(TARGETS clingo-ground FOLDER lib TYPE extra)
 target_include_directories(clingo-ground
@@ -69,6 +69,6 @@ if(CLINGO_BUILD_TESTS)
     target_sources(test_clingo-ground PRIVATE ${test})
     clingo_target_properties(TARGETS test_clingo-ground FOLDER test SUBDIR tests)
     target_include_directories(test_clingo-ground PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
-    target_link_libraries(test_clingo-ground PRIVATE clingo-ground Catch2::Catch2WithMain)
+    target_link_libraries(test_clingo-ground PRIVATE clingo-ground clingo-core Catch2::Catch2WithMain)
     catch_discover_tests(test_clingo-ground DL_PATH "$<TARGET_FILE_DIR:clingo>")
 endif()

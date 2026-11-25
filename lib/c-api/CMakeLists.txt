@@ -86,7 +86,7 @@ endif()
 target_include_directories(clingo PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
-target_link_libraries(clingo PRIVATE clingo-control)
+target_link_libraries(clingo PRIVATE clingo-control clingo-input clingo-ground clingo-output clingo-core)
 string(TOLOWER "${CMAKE_BUILD_TYPE}" build_type)
 if(build_type STREQUAL "debug")
     target_compile_definitions(clingo PRIVATE CLINGO_DEBUG)
