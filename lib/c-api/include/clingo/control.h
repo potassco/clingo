@@ -175,11 +175,14 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_parse_string(clingo_control_t *con
 //!
 //! @see clingo_control_start_ground()
 //!
+//! The handler takes ownership of the user data, which is freed via its free
+//! callback also if the function fails.
+//!
 //! @param[in] control the target
 //! @param[in] parts array of parts to ground
 //! @param[in] size size of the parts array
-//! @param[in] handler handler for grounding events
-//! @param[in] data user data for ground_callback
+//! @param[in] handler handler for grounding events (may be NULL)
+//! @param[in] data user data for the handler
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t size,
                                                      clingo_ground_event_handler_t const *handler, void *data);
@@ -196,11 +199,14 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_control_ground(clingo_control_t *control, 
 //!
 //! @see clingo_control_ground()
 //!
+//! The handler takes ownership of the user data, which is freed via its free
+//! callback also if the function fails.
+//!
 //! @param[in] control the target
 //! @param[in] parts array of parts to ground
 //! @param[in] size size of the parts array
-//! @param[in] handler handler for grounding events
-//! @param[in] data user data for ground_callback
+//! @param[in] handler handler for grounding events (may be NULL)
+//! @param[in] data user data for the handler
 //! @param[out] handle the resulting ground handle
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_control_start_ground(clingo_control_t *control, clingo_part_t const *parts,

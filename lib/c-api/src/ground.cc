@@ -41,6 +41,7 @@ class Handler : public CppClingo::Control::GroundEventHandler {
 
     static auto sym_cb_(clingo_symbol_t const *symbols, size_t symbols_size, void *data) -> bool {
         CLINGO_TRY {
+            require(data != nullptr && valid_span(symbols, symbols_size));
             auto *out = static_cast<CppClingo::SymbolVec *>(data);
             auto const *it = cpp_cast(symbols);
             out->insert(out->end(), it, std::next(it, static_cast<std::ptrdiff_t>(symbols_size)));
@@ -52,10 +53,7 @@ class Handler : public CppClingo::Control::GroundEventHandler {
     CHandler<clingo_ground_event_handler_t> handler_;
 };
 
-auto cpp_cast(clingo_ground_handle_t *hnd, bool not_null = true) -> CppClingo::Control::GroundHandle * {
-    if (hnd == nullptr && not_null) {
-        throw std::logic_error("ground handle is null");
-    }
+auto cpp_cast(clingo_ground_handle_t *hnd) -> CppClingo::Control::GroundHandle * {
     return reinterpret_cast<CppClingo::Control::GroundHandle *>(hnd); // NOLINT
 }
 
@@ -76,6 +74,7 @@ static_assert(static_cast<clingo_ground_result_e>(CppClingo::GroundResult::inter
 
 extern "C" auto clingo_ground_handle_get(clingo_ground_handle_t *handle, clingo_ground_result_t *result) -> bool {
     CLINGO_TRY {
+        require(not_null(handle, result));
         *result = static_cast<clingo_ground_result_t>(cpp_cast(handle)->get());
     }
     CLINGO_CATCH;
@@ -83,6 +82,7 @@ extern "C" auto clingo_ground_handle_get(clingo_ground_handle_t *handle, clingo_
 
 extern "C" auto clingo_ground_handle_wait(clingo_ground_handle_t *handle, double timeout, bool *result) -> bool {
     CLINGO_TRY {
+        require(not_null(handle, result));
         *result = cpp_cast(handle)->wait(timeout);
     }
     CLINGO_CATCH;
@@ -90,6 +90,7 @@ extern "C" auto clingo_ground_handle_wait(clingo_ground_handle_t *handle, double
 
 extern "C" auto clingo_ground_handle_cancel(clingo_ground_handle_t *handle) -> bool {
     CLINGO_TRY {
+        require(handle != nullptr);
         cpp_cast(handle)->cancel();
     }
     CLINGO_CATCH;
@@ -97,20 +98,24 @@ extern "C" auto clingo_ground_handle_cancel(clingo_ground_handle_t *handle) -> b
 
 extern "C" auto clingo_ground_handle_interrupt(clingo_ground_handle_t *handle) -> bool {
     CLINGO_TRY {
+        require(handle != nullptr);
         cpp_cast(handle)->interrupt();
     }
     CLINGO_CATCH;
 }
 
 extern "C" void clingo_ground_handle_close(clingo_ground_handle_t *handle) {
-    delete cpp_cast(handle, false);
+    delete cpp_cast(handle);
 }
 
 extern "C" auto clingo_control_ground(clingo_control_t *control, clingo_part_t const *parts, size_t size,
                                       clingo_ground_event_handler_t const *handler, void *data) -> bool {
     CLINGO_TRY {
+        // NOTE: the handler owns the data also if the arguments are invalid
+        auto hnd = CHandler{handler, data};
+        require(control != nullptr);
         auto ctx = std::optional<Handler>{};
-        if (auto hnd = CHandler{handler, data}; hnd) {
+        if (hnd) {
             ctx.emplace(control->lib, std::move(hnd));
         }
         control->slv->ground(convert(control, parts, size), ctx ? &*ctx : nullptr);
@@ -122,7 +127,9 @@ extern "C" auto clingo_control_start_ground(clingo_control_t *control, clingo_pa
                                             clingo_ground_event_handler_t const *handler, void *data,
                                             clingo_ground_handle_t **handle) -> bool {
     CLINGO_TRY {
+        // NOTE: the handler owns the data also if the arguments are invalid
         auto hnd = CHandler{handler, data};
+        require(not_null(control, handle));
         auto ctx = hnd ? std::make_unique<Handler>(control->lib, std::move(hnd)) : nullptr;
         *handle = c_cast(std::make_unique<CppClingo::Control::GroundHandle>(
                              control->slv->start_ground(convert(control, parts, size), std::move(ctx)))

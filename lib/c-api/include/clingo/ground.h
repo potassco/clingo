@@ -55,6 +55,9 @@ enum clingo_ground_result_e {
 typedef unsigned clingo_ground_result_t;
 
 //! The ground event handler interface.
+//!
+//! All callbacks may be NULL. Without a callable callback, no function is
+//! callable and calling external functions without a call callback fails.
 typedef struct clingo_ground_event_handler {
     //! Check if the function with the given name and number of arguments is callable.
     //!
@@ -169,7 +172,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_ground_handle_interrupt(clingo_ground_hand
 //! This internally calls `clingo_ground_handle_cancel()` if grounding has not
 //! finished yet.
 //!
-//! @param[in] handle the target
+//! @param[in] handle the target (may be NULL)
 CLINGO_VISIBILITY_DEFAULT void clingo_ground_handle_close(clingo_ground_handle_t *handle);
 
 //! @}

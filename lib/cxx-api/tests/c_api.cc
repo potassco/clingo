@@ -1,6 +1,7 @@
 #include <clingo/ast.h>
 #include <clingo/control.h>
 #include <clingo/core.h>
+#include <clingo/ground.h>
 #include <clingo/symbol.h>
 
 #include <catch2/catch_test_macros.hpp>
@@ -211,6 +212,31 @@ TEST_CASE("c-api-control") {
     clingo_control_release(ctl);
     clingo_control_release(nullptr);
     clingo_control_acquire(nullptr);
+    clingo_lib_release(lib);
+}
+
+TEST_CASE("c-api-ground") {
+    clingo_lib_t *lib = nullptr;
+    REQUIRE(clingo_lib_new(0, clingo_log_level_info, nullptr, nullptr, 0, &lib));
+    clingo_control_t *ctl = nullptr;
+    REQUIRE(clingo_control_new(lib, nullptr, 0, &ctl));
+    auto freed = 0;
+    auto handler = clingo_ground_event_handler_t{nullptr, nullptr, nullptr, Logger::free};
+    // the handler data is freed also if the arguments are invalid
+    REQUIRE(failed_invalid(clingo_control_ground(nullptr, nullptr, 0, &handler, &freed), "clingo_control_ground"));
+    REQUIRE(freed == 1);
+    REQUIRE(failed_invalid(clingo_control_start_ground(ctl, nullptr, 0, &handler, &freed, nullptr),
+                           "clingo_control_start_ground"));
+    REQUIRE(freed == 2);
+    auto part = clingo_part_t{"base", 4, nullptr, 1};
+    REQUIRE(failed_invalid(clingo_control_ground(ctl, &part, 1, &handler, &freed), "clingo_control_ground"));
+    REQUIRE(freed == 3);
+    REQUIRE(failed_invalid(clingo_ground_handle_get(nullptr, nullptr), "clingo_ground_handle_get"));
+    REQUIRE(failed_invalid(clingo_ground_handle_cancel(nullptr), "clingo_ground_handle_cancel"));
+    clingo_ground_handle_close(nullptr);
+    REQUIRE(clingo_control_ground(ctl, nullptr, 0, &handler, &freed));
+    REQUIRE(freed == 4);
+    clingo_control_release(ctl);
     clingo_lib_release(lib);
 }
 
