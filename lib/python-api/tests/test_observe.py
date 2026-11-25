@@ -2,7 +2,7 @@
 Unit tests for clingo.backend module.
 """
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from clingo.backend import ExternalType, HeuristicType, Observer
 from clingo.base import Base

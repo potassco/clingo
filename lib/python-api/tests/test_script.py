@@ -2,8 +2,8 @@
 Unit tests for clingo.script module.
 """
 
+from collections.abc import Sequence
 from textwrap import dedent
-from typing import Sequence
 
 from clingo.control import Control
 from clingo.core import Library

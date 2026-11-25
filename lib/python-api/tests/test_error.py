@@ -6,7 +6,7 @@ import gc
 import re
 import subprocess
 import sys
-from typing import Callable, Sequence
+from collections.abc import Callable, Sequence
 
 import pytest
 from clingo.app import App, AppOptions, clingo_main

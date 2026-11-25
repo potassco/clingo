@@ -2,9 +2,8 @@
 Unit tests for clingo.propagate module.
 """
 
-import collections.abc
+from collections.abc import Sequence
 from threading import Barrier
-from typing import Optional, Sequence
 
 import pytest
 from clingo.control import Control
@@ -32,7 +31,7 @@ class AIFFBPropagator(Propagator):
     n_threads: int
     errors: list[str]
     fail_thread: int
-    barrier: Optional[Barrier]
+    barrier: Barrier | None
     weight_con: bool
 
     def __init__(self) -> None:
@@ -315,7 +314,7 @@ class PropagateControlPropagator(Propagator):
         self._lit_a = init.solver_literal(a.literal)
         assert self._lit_a in ass
         assert -self._lit_a in ass
-        assert isinstance(ass, collections.abc.Sequence)
+        assert isinstance(ass, Sequence)
         assert ass[:1] == [ass[0]] and ass[-1] == ass[len(ass) - 1]
         assert ass.index(ass[0]) == 0 and ass.count(ass[0]) == 1
         assert "a" not in ass
@@ -340,8 +339,8 @@ class PropagateControlPropagator(Propagator):
         assert trail[trail.begin(lvl)] == -self._lit_a
         assert list(trail[trail.begin(lvl) : trail.end(lvl)]) == [-self._lit_a]
         view = trail.level(lvl)
-        assert isinstance(trail, collections.abc.Sequence)
-        assert isinstance(view, collections.abc.Sequence)
+        assert isinstance(trail, Sequence)
+        assert isinstance(view, Sequence)
         assert type(view).__name__ == "_TrailView"
         assert list(view) == [-self._lit_a] and list(view[::-1]) == [-self._lit_a]
         assert view.index(-self._lit_a) == 0 and view.count(-self._lit_a) == 1
