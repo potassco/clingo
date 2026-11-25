@@ -30,23 +30,23 @@ async def main() -> None:
     """
     loop = asyncio.get_running_loop()
     models: list[Sequence[Symbol]] = []
-    with Library() as lib:
-        ctl = Control(lib, ["0"])
-        ctl.parse_string(PROGRAM)
-        await ctl.ground_async(loop)
-        beat = asyncio.create_task(heartbeat())
-        try:
-            await asyncio.wait_for(
-                ctl.solve_async(
-                    loop, on_model=lambda mdl: models.append(mdl.symbols(shown=True))
-                ),
-                timeout=1.0,
-            )
-            print("search finished")
-        except TimeoutError:
-            print("search timed out")
-        finally:
-            beat.cancel()
+    lib = Library()
+    ctl = Control(lib, ["0"])
+    ctl.parse_string(PROGRAM)
+    await ctl.ground_async(loop)
+    beat = asyncio.create_task(heartbeat())
+    try:
+        await asyncio.wait_for(
+            ctl.solve_async(
+                loop, on_model=lambda mdl: models.append(mdl.symbols(shown=True))
+            ),
+            timeout=1.0,
+        )
+        print("search finished")
+    except TimeoutError:
+        print("search timed out")
+    finally:
+        beat.cancel()
     print(f"collected {len(models)} models")
 
 

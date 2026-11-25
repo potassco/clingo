@@ -59,14 +59,14 @@ async def main() -> None:
     Run the race.
     """
     program = instance(800, 2.25)
-    with Library() as lib:
-        tasks = [asyncio.create_task(solve(lib, program, config)) for config in CONFIGS]
-        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        for task in pending:
-            task.cancel()
-        await asyncio.gather(*pending, return_exceptions=True)
-        config, res = done.pop().result()
-        print(f"winner: {config} ({res})")
+    lib = Library()
+    tasks = [asyncio.create_task(solve(lib, program, config)) for config in CONFIGS]
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+    for task in pending:
+        task.cancel()
+    await asyncio.gather(*pending, return_exceptions=True)
+    config, res = done.pop().result()
+    print(f"winner: {config} ({res})")
 
 
 asyncio.run(main())

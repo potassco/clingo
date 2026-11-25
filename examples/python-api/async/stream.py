@@ -27,14 +27,14 @@ async def main() -> None:
     Stream all models.
     """
     loop = asyncio.get_running_loop()
-    with Library() as lib:
-        ctl = Control(lib, ["0"])
-        ctl.parse_string(PROGRAM)
-        await ctl.ground_async(loop)
-        async with ctl.solve_async(loop, yield_=True) as hnd:
-            async for mdl in hnd:
-                await consume(" ".join(str(sym) for sym in mdl.symbols(shown=True)))
-            print(await hnd)
+    lib = Library()
+    ctl = Control(lib, ["0"])
+    ctl.parse_string(PROGRAM)
+    await ctl.ground_async(loop)
+    async with ctl.solve_async(loop, yield_=True) as hnd:
+        async for mdl in hnd:
+            await consume(" ".join(str(sym) for sym in mdl.symbols(shown=True)))
+        print(await hnd)
 
 
 asyncio.run(main())

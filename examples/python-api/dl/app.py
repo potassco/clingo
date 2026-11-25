@@ -3,25 +3,16 @@ This is a scaled down version of clingo-dl show casing how to implement a
 propagator for difference logic.
 """
 
-import gc
 import heapq
 import sys
+from collections.abc import Callable, MutableMapping, Sequence
 from enum import StrEnum
 from functools import singledispatch
 from itertools import filterfalse
-from typing import (
-    Callable,
-    List,
-    MutableMapping,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    TypeVar,
-)
 
 from clingo import ast
 from clingo.app import App, AppOptions, clingo_main
+from clingo.ast import body, head, terms
 from clingo.base import TheoryTerm, TheoryTermType
 from clingo.control import Control, ControlMode
 from clingo.core import Library
@@ -32,8 +23,8 @@ from clingo.symbol import Function, Number, Symbol, SymbolType, Tuple_, parse_te
 Node = Symbol  # pylint: disable=invalid-name
 Weight = int
 Level = int
-Edge = Tuple[Node, Node]
-WeightedEdge = Tuple[Node, Node, Weight]
+Edge = tuple[Node, Node]
+WeightedEdge = tuple[Node, Node, Weight]
 MapNodeWeight = MutableMapping[Node, Weight]
 
 THEORY = """
@@ -121,37 +112,33 @@ def rewrite(lib: Library, files: Sequence[str]) -> ast.Program:
     """
     Transformer to tag head and body occurrences of `&diff` atoms.
     """
-    TheoryAtom = TypeVar("TheoryAtom", ast.BodyTheoryAtom, ast.HeadTheoryAtom)
 
-    def tag(atom: TheoryAtom) -> TheoryAtom:
+    def tag(name: terms.Term) -> terms.Term:
         """
-        Tag the theory atom by its type.
+        Tag the name of a theory atom.
         """
-        name = atom.name
-        if isinstance(name, ast.TermFunction):
-            name = name.update(lib, name=f"__{name.name}_h")
-        else:
-            assert isinstance(name, ast.TermSymbolic)
-            symbol = name.symbol
-            name = name.update(
-                lib,
-                symbol=Function(
-                    lib, f"__{symbol.name}_h", symbol.arguments, symbol.is_positive
-                ),
-            )
-        return atom.update(lib, name=name)
+        if isinstance(name, terms.TermFunction):
+            return name.update(lib, name=f"__{name.name}_h")
+        assert isinstance(name, terms.TermSymbolic)
+        symbol = name.symbol
+        return name.update(
+            lib,
+            symbol=Function(
+                lib, f"__{symbol.name}_h", symbol.arguments, symbol.is_positive
+            ),
+        )
 
     @singledispatch
     def accept(expr):
         return expr.transform(lib, accept)
 
     @accept.register
-    def _(atom: ast.BodyTheoryAtom) -> ast.BodyTheoryAtom:
-        return tag(atom)
+    def _(atom: body.BodyTheoryAtom) -> body.BodyTheoryAtom:
+        return atom.update(lib, name=tag(atom.name))
 
     @accept.register
-    def _(atom: ast.HeadTheoryAtom) -> ast.HeadTheoryAtom:
-        return tag(atom)
+    def _(atom: head.HeadTheoryAtom) -> head.HeadTheoryAtom:
+        return atom.update(lib, name=tag(atom.name))
 
     prg = ast.Program(lib)
     prg.add(ast.parse_statement(lib, THEORY))
@@ -175,8 +162,8 @@ class Graph:
     _last_edges: MutableMapping[Node, WeightedEdge]
     _previous_edge: MutableMapping[Level, MutableMapping[Edge, Weight]]
     _previous_potential: MutableMapping[Level, MapNodeWeight]
-    _changed: Set[Node]
-    _min_gamma: List[Tuple[Weight, Node]]
+    _changed: set[Node]
+    _min_gamma: list[tuple[Weight, Node]]
 
     def __init__(self, lib: Library):
         self._lib = lib
@@ -262,7 +249,7 @@ class Graph:
 
     def _extract_cycle(
         self, level: Level, u: Node, v: Node, d: Weight
-    ) -> Optional[List[WeightedEdge]]:
+    ) -> list[WeightedEdge] | None:
         """
         Check if there is a negative cycle.
         """
@@ -288,9 +275,7 @@ class Graph:
         self._set_edge(level, (u, v), d)
         return None
 
-    def add_edge(
-        self, level: Level, edge: WeightedEdge
-    ) -> Optional[List[WeightedEdge]]:
+    def add_edge(self, level: Level, edge: WeightedEdge) -> list[WeightedEdge] | None:
         """
         Add an edge to the graph and return a negative cycle (if there is one).
         """
@@ -316,7 +301,7 @@ class Graph:
 
         return self._extract_cycle(level, u, v, d)
 
-    def get_assignment(self) -> List[Tuple[Node, Weight]]:
+    def get_assignment(self) -> list[tuple[Node, Weight]]:
         """
         Get the current assignment to integer variables.
         """
@@ -342,9 +327,9 @@ class DLPropagator(Propagator):
     """
 
     _lib: Library
-    _l2e: MutableMapping[int, List[WeightedEdge]]
-    _e2l: MutableMapping[WeightedEdge, List[int]]
-    _states: List[Graph]
+    _l2e: MutableMapping[int, list[WeightedEdge]]
+    _e2l: MutableMapping[WeightedEdge, list[int]]
+    _states: list[Graph]
 
     def __init__(self, lib: Library):
         super().__init__()
@@ -435,8 +420,8 @@ class DLApp(App):
     version: str = "1.0"
 
     _propagator: DLPropagator
-    _minimize: Optional[Symbol]
-    _bound: Optional[int]
+    _minimize: Symbol | None
+    _bound: int | None
 
     def __init__(self, lib: Library):
         super().__init__(DLApp.program_name, DLApp.version)
@@ -515,9 +500,8 @@ class DLApp(App):
         """
         Run the application.
         """
-        with Library() as lib:
-            clingo_main(lib, sys.argv[1:], DLApp(lib))
-            gc.collect()  # optional: ensures all symbols are collected
+        lib = Library()
+        clingo_main(lib, sys.argv[1:], DLApp(lib))
 
 
 if __name__ == "__main__":

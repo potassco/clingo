@@ -10,9 +10,9 @@ structure recognition.
 
 import re
 from abc import abstractmethod
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Iterator, Sequence
 
 from clingo.core import Library
 from clingo.symbol import Infimum, Number, Supremum, Symbol, parse_term
@@ -456,33 +456,31 @@ def main():
     """
     Some tests for exposition.
     """
-    with Library() as lib:
-        m = match("(_,_)", parse_term(lib, "(1,2)"))
-        assert m and not m.assignment
-        m = match("(#sup,#inf)", parse_term(lib, "(#sup,#inf)"))
-        assert m
-        m = match("f(X,(a))", parse_term(lib, "f(1,(a))"))
-        assert m and m.assignment == {"X": Number(lib, 1)}
-        m = match("f(X,(a,))", parse_term(lib, "f(1,(a,))"))
-        assert m and m.assignment == {"X": Number(lib, 1)}
-        m = match("f(X,(a,b))", parse_term(lib, "f(1,(a,b))"))
-        assert m and m.assignment == {"X": Number(lib, 1)}
-        m = match("f(X,(a,b,))", parse_term(lib, "f(1,(a,b))"))
-        assert m and m.assignment == {"X": Number(lib, 1)}
-        m = match("f(X,(,))", parse_term(lib, "f(1,())"))
-        assert m and m.assignment == {"X": Number(lib, 1)}
-        m = match("f(X,())", parse_term(lib, "f(1,())"))
-        assert m and m.assignment == {"X": Number(lib, 1)}
-        m = match(r'f(X,"a\n\"bc\\")', parse_term(lib, r'f(1,"a\n\"bc\\")'))
-        assert m and m.assignment == {"X": Number(lib, 1)}
-        m = match("f(X,10)", parse_term(lib, "f(1,10)"))
-        assert m and m.assignment == {"X": Number(lib, 1)}
-        assert match("f(X,10)", parse_term(lib, "f(1,11)")) is None
-        m = match("f(-g(X,-5,X,Y),10)", parse_term(lib, "f(-g(1,-5,1,2),10)"))
-        assert m and m.assignment == {"X": Number(lib, 1), "Y": Number(lib, 2)}
-        assert (
-            match("f(-g(X,-5,X,Y),10)", parse_term(lib, "f(-g(1,-5,2,2),10)")) is None
-        )
+    lib = Library()
+    m = match("(_,_)", parse_term(lib, "(1,2)"))
+    assert m and not m.assignment
+    m = match("(#sup,#inf)", parse_term(lib, "(#sup,#inf)"))
+    assert m
+    m = match("f(X,(a))", parse_term(lib, "f(1,(a))"))
+    assert m and m.assignment == {"X": Number(lib, 1)}
+    m = match("f(X,(a,))", parse_term(lib, "f(1,(a,))"))
+    assert m and m.assignment == {"X": Number(lib, 1)}
+    m = match("f(X,(a,b))", parse_term(lib, "f(1,(a,b))"))
+    assert m and m.assignment == {"X": Number(lib, 1)}
+    m = match("f(X,(a,b,))", parse_term(lib, "f(1,(a,b))"))
+    assert m and m.assignment == {"X": Number(lib, 1)}
+    m = match("f(X,(,))", parse_term(lib, "f(1,())"))
+    assert m and m.assignment == {"X": Number(lib, 1)}
+    m = match("f(X,())", parse_term(lib, "f(1,())"))
+    assert m and m.assignment == {"X": Number(lib, 1)}
+    m = match(r'f(X,"a\n\"bc\\")', parse_term(lib, r'f(1,"a\n\"bc\\")'))
+    assert m and m.assignment == {"X": Number(lib, 1)}
+    m = match("f(X,10)", parse_term(lib, "f(1,10)"))
+    assert m and m.assignment == {"X": Number(lib, 1)}
+    assert match("f(X,10)", parse_term(lib, "f(1,11)")) is None
+    m = match("f(-g(X,-5,X,Y),10)", parse_term(lib, "f(-g(1,-5,1,2),10)"))
+    assert m and m.assignment == {"X": Number(lib, 1), "Y": Number(lib, 2)}
+    assert match("f(-g(X,-5,X,Y),10)", parse_term(lib, "f(-g(1,-5,2,2),10)")) is None
 
 
 if __name__ == "__main__":

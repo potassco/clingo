@@ -27,6 +27,7 @@ from typing import Any
 
 from clingo import ast
 from clingo.app import App, AppOptions, clingo_main
+from clingo.ast import body, literals, statements, terms
 from clingo.control import Control
 from clingo.core import Library, Location
 from clingo.symbol import Function, Number, Symbol, SymbolType
@@ -58,7 +59,7 @@ class Transformer:
         self._final = False
         self._current = "initial"
 
-    def _get_param(self, name: str, location: Location) -> tuple[str, ast.Term]:
+    def _get_param(self, name: str, location: Location) -> tuple[str, terms.Term]:
         """
         Extract the time parameter from the given name.
 
@@ -72,23 +73,23 @@ class Transformer:
         n = name.replace("'", "")
         primes = len(name) - len(n)
         if self._current == "base":
-            param: ast.Term = ast.TermSymbolic(
+            param: terms.Term = terms.TermSymbolic(
                 self._lib, location, Number(self._lib, -primes)
             )
         else:
-            param = ast.TermSymbolic(self._lib, location, self._param)
+            param = terms.TermSymbolic(self._lib, location, self._param)
             if primes > 0:
-                param = ast.TermBinaryOperation(
+                param = terms.TermBinaryOperation(
                     self._lib,
                     location,
                     param,
-                    ast.BinaryOperator.Minus,
-                    ast.TermSymbolic(self._lib, location, Number(self._lib, primes)),
+                    terms.BinaryOperator.Minus,
+                    terms.TermSymbolic(self._lib, location, Number(self._lib, primes)),
                 )
         return n, param
 
     @singledispatchmethod
-    def _rewrite_term(self, expr: ast.Term) -> ast.Term:
+    def _rewrite_term(self, expr: terms.Term) -> terms.Term:
         """
         Recursively rewrite terms by adding the time parameter.
 
@@ -98,10 +99,10 @@ class Transformer:
         Returns:
             AST term with time parameter added.
         """
-        return expr
+        return expr.transform(self._lib, self._rewrite_term) or expr
 
     @_rewrite_term.register
-    def _(self, expr: ast.TermFunction) -> ast.Term:
+    def _(self, expr: terms.TermFunction) -> terms.Term:
         name, param = self._get_param(expr.name, expr.location)
         pool = []
         for args in expr.pool:
@@ -111,15 +112,15 @@ class Transformer:
         return expr.update(self._lib, name=name, pool=pool)
 
     @_rewrite_term.register
-    def _(self, expr: ast.TermSymbolic) -> ast.Term:
+    def _(self, expr: terms.TermSymbolic) -> terms.Term:
         if expr.symbol.type == SymbolType.Function:
             name, param = self._get_param(expr.symbol.name, expr.location)
-            args: list[ast.Term] = []
+            args: list[terms.Term] = []
             for arg in expr.symbol.arguments:
-                args.append(ast.TermSymbolic(self._lib, expr.location, arg))
+                args.append(terms.TermSymbolic(self._lib, expr.location, arg))
             args.append(param)
-            pool = [ast.ArgumentTuple(self._lib, args)]
-            sym = ast.TermFunction(self._lib, expr.location, name, pool)
+            pool = [terms.ArgumentTuple(self._lib, args)]
+            sym = terms.TermFunction(self._lib, expr.location, name, pool)
             return sym
         raise RuntimeError("not implemented")
 
@@ -137,24 +138,24 @@ class Transformer:
         Returns:
             Rewritten AST statement.
         """
-        ret = expr
+        ret = expr.transform(self._lib, self._rewrite_stm) or expr
         if self._final and hasattr(ret, "body"):
             loc = ret.location
-            sym = ast.TermSymbolic(self._lib, loc, self._param)
-            arg = ast.ArgumentTuple(self._lib, [sym])
-            fun = ast.TermFunction(self._lib, loc, "finally", [arg], False)
-            lit = ast.LiteralSymbolic(self._lib, loc, ast.Sign.NoSign, fun)
+            sym = terms.TermSymbolic(self._lib, loc, self._param)
+            arg = terms.ArgumentTuple(self._lib, [sym])
+            fun = terms.TermFunction(self._lib, loc, "finally", [arg], False)
+            lit = literals.LiteralSymbolic(self._lib, loc, literals.Sign.NoSign, fun)
             bdy = list(ret.body)
-            bdy.append(ast.BodySimpleLiteral(self._lib, lit))
+            bdy.append(body.BodySimpleLiteral(self._lib, lit))
             ret = ret.update(self._lib, body=bdy)
         return ret
 
     @_rewrite_stm.register
-    def _(self, expr: ast.LiteralSymbolic) -> ast.Literal:
+    def _(self, expr: literals.LiteralSymbolic) -> literals.Literal:
         return expr.update(self._lib, atom=self._rewrite_term(expr.atom))
 
     @_rewrite_stm.register
-    def _(self, expr: ast.StatementProgram) -> ast.Statement:
+    def _(self, expr: statements.StatementProgram) -> statements.Statement:
         args = list(expr.arguments)
         name = expr.name
         self._final = False
@@ -177,11 +178,11 @@ class Transformer:
         return expr.update(self._lib, name=name, arguments=args)
 
     @_rewrite_stm.register
-    def _(self, expr: ast.StatementShowSignature) -> ast.Statement:
+    def _(self, expr: statements.StatementShowSignature) -> statements.Statement:
         return expr.update(self._lib, arity=expr.arity + 1)
 
     @_rewrite_stm.register
-    def _(self, expr: ast.StatementProjectSignature) -> ast.Statement:
+    def _(self, expr: statements.StatementProjectSignature) -> statements.Statement:
         return expr.update(self._lib, arity=expr.arity + 1)
 
     def __call__(self, files: Sequence[str]) -> ast.Program:

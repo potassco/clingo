@@ -8,6 +8,7 @@ import sys
 from functools import singledispatchmethod
 
 from clingo import ast
+from clingo.ast import statements
 from clingo.core import Library
 
 
@@ -30,7 +31,7 @@ class Order:
         return expr.transform(self._lib, self._dispatch)
 
     @_dispatch.register
-    def _(self, stm: ast.StatementRule) -> ast.StatementRule:
+    def _(self, stm: statements.StatementRule) -> statements.StatementRule:
         """
         Order bodies of rules.
         """

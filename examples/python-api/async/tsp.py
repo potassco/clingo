@@ -130,28 +130,26 @@ async def main(n: int, solve_time: float, cutoff_time: float) -> None:
     """
     loop = asyncio.get_running_loop()
     program = instance(n)
-    with Library() as lib:
-        ctls = {name: Control(lib, args) for name, args in CONFIGS.items()}
-        for ctl in ctls.values():
-            ctl.parse_string(ENCODING)
-            ctl.parse_string(program)
-        await asyncio.gather(*(ctl.ground_async(loop) for ctl in ctls.values()))
+    lib = Library()
+    ctls = {name: Control(lib, args) for name, args in CONFIGS.items()}
+    for ctl in ctls.values():
+        ctl.parse_string(ENCODING)
+        ctl.parse_string(program)
+    await asyncio.gather(*(ctl.ground_async(loop) for ctl in ctls.values()))
 
-        portfolio = Portfolio(cutoff_time)
-        timer = loop.call_later(solve_time, portfolio.stop, "time limit")
-        loop.add_signal_handler(signal.SIGINT, portfolio.stop, "Ctrl-C")
-        try:
-            await asyncio.gather(
-                *(portfolio.run(name, ctl) for name, ctl in ctls.items())
-            )
-        finally:
-            loop.remove_signal_handler(signal.SIGINT)
-            timer.cancel()
+    portfolio = Portfolio(cutoff_time)
+    timer = loop.call_later(solve_time, portfolio.stop, "time limit")
+    loop.add_signal_handler(signal.SIGINT, portfolio.stop, "Ctrl-C")
+    try:
+        await asyncio.gather(*(portfolio.run(name, ctl) for name, ctl in ctls.items()))
+    finally:
+        loop.remove_signal_handler(signal.SIGINT)
+        timer.cancel()
 
-        if portfolio.best is not None:
-            cost, name, cities = portfolio.best
-            print(f"best tour with cost {cost} by {name}:")
-            print(" ".join(map(str, cities)))
+    if portfolio.best is not None:
+        cost, name, cities = portfolio.best
+        print(f"best tour with cost {cost} by {name}:")
+        print(" ".join(map(str, cities)))
 
 
 asyncio.run(main(60, solve_time=10.0, cutoff_time=2.0))
