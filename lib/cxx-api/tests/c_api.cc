@@ -2,6 +2,7 @@
 #include <clingo/control.h>
 #include <clingo/core.h>
 #include <clingo/ground.h>
+#include <clingo/model.h>
 #include <clingo/solve.h>
 #include <clingo/symbol.h>
 
@@ -268,6 +269,33 @@ TEST_CASE("c-api-solve") {
     clingo_solve_handle_close(hnd);
     clingo_solve_handle_close(nullptr);
     REQUIRE(freed == 4);
+    clingo_control_release(ctl);
+    clingo_lib_release(lib);
+}
+
+TEST_CASE("c-api-model") {
+    clingo_lib_t *lib = nullptr;
+    REQUIRE(clingo_lib_new(0, clingo_log_level_info, nullptr, nullptr, 0, &lib));
+    clingo_control_t *ctl = nullptr;
+    REQUIRE(clingo_control_new(lib, nullptr, 0, &ctl));
+    REQUIRE(clingo_control_parse_string(ctl, "a.", 2));
+    REQUIRE(clingo_control_ground(ctl, nullptr, 0, nullptr, nullptr));
+    clingo_solve_handle_t *hnd = nullptr;
+    REQUIRE(clingo_control_solve(ctl, clingo_solve_mode_yield, nullptr, 0, nullptr, nullptr, &hnd));
+    clingo_model_t *mdl = nullptr;
+    REQUIRE(clingo_solve_handle_model(hnd, &mdl));
+    REQUIRE(mdl != nullptr);
+    REQUIRE(failed_invalid(clingo_model_number(mdl, nullptr), "clingo_model_number"));
+    REQUIRE(
+        failed_invalid(clingo_model_symbols(mdl, clingo_show_type_shown, nullptr, nullptr), "clingo_model_symbols"));
+    REQUIRE(
+        failed_invalid(clingo_model_symbols(mdl, 16, [](auto...) { return true; }, nullptr), "clingo_model_symbols"));
+    REQUIRE(clingo_model_cost(mdl, nullptr, nullptr));
+    REQUIRE(failed_invalid(clingo_model_extend(mdl, nullptr, 1), "clingo_model_extend"));
+    clingo_solve_control_t *sctl = nullptr;
+    REQUIRE(clingo_model_control(mdl, &sctl));
+    REQUIRE(failed_invalid(clingo_solve_control_add_clause(sctl, nullptr, 1), "clingo_solve_control_add_clause"));
+    clingo_solve_handle_close(hnd);
     clingo_control_release(ctl);
     clingo_lib_release(lib);
 }

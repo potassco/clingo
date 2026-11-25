@@ -65,7 +65,7 @@ enum clingo_consequence_e {
     clingo_consequence_true = 1,    //!< The literal is a consequence.
     clingo_consequence_unknown = 2, //!< The literal might or might not be a consequence.
 };
-//! Corresponding type to ::clingo_model_type_e.
+//! Corresponding type to ::clingo_consequence_e.
 typedef int clingo_consequence_t;
 
 //! @name Functions for Inspecting Models
@@ -87,8 +87,8 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_number(clingo_model_t const *model, 
 //! Get the symbols of the selected types in the model.
 //!
 //! @param[in] model the target
-//! @param[in] show which symbols to select
-//! @param[out] callback callback to copy symbols
+//! @param[in] show which symbols to select (a bitset of ::clingo_show_type_e)
+//! @param[in] callback callback to copy symbols
 //! @param[in] data userdata for the callback
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_model_symbols(clingo_model_t const *model, clingo_show_type_bitset_t show,
@@ -115,7 +115,7 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_is_true(clingo_model_t const *model,
 //! information about which literals are consequences. The current state of a
 //! literal can be requested using this function. If this function is used
 //! during normal model enumeration, the function just returns whether a
-//! literal is true of false in the current model.
+//! literal is true or false in the current model.
 //!
 //! @param[in] model the target
 //! @param[in] literal the literal to lookup
@@ -128,18 +128,18 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_model_is_consequence(clingo_model_t const 
 //! @attention The lifetime of the costs array is tied to the lifetime of the object.
 //!
 //! @param[in] model the target
-//! @param[out] costs the resulting costs
-//! @param[out] size the size of the costs array
+//! @param[out] costs the resulting costs (optional)
+//! @param[out] size the size of the costs array (optional)
 //! @return whether the call was successful
 //! @see clingo_model_optimality_proven()
 CLINGO_VISIBILITY_DEFAULT bool clingo_model_cost(clingo_model_t const *model, int64_t const **costs, size_t *size);
 //! Get the priorities of the costs.
 //!
-//! @attention The lifetime of the costs array is tied to the lifetime of the object.
+//! @attention The lifetime of the priorities array is tied to the lifetime of the object.
 //!
 //! @param[in] model the target
-//! @param[out] priorities the resulting priorities
-//! @param[out] size the size of the priorities array
+//! @param[out] priorities the resulting priorities (optional)
+//! @param[out] size the size of the priorities array (optional)
 //! @return whether the call was successful
 CLINGO_VISIBILITY_DEFAULT bool clingo_model_priority(clingo_model_t const *model, clingo_weight_t const **priorities,
                                                      size_t *size);
