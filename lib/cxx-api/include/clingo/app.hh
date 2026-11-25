@@ -26,8 +26,9 @@ class Options {
   public:
     //! An option parser.
     //!
-    //! The function takes the value to parse and returns whether the value has
-    //! been parsed successfully.
+    //! The function takes the value to parse. It should throw
+    //! std::invalid_argument if the value is invalid; other exceptions are
+    //! propagated.
     using Parser = std::function<void(std::string_view value)>;
     //! A list of option parsers.
     using ParserList = std::forward_list<Parser>;
@@ -40,13 +41,15 @@ class Options {
     //! @param parsers a list to store option parsers in
     Options(clingo_options_t *opts, ParserList &parsers) : opts_{opts}, parsers_{&parsers} {}
 
-    //! Convert the class to it's underlying C type.
+    //! Convert the class to its underlying C type.
+    //!
+    //! @param x the options object to convert
+    //! @return the C type
     friend auto c_cast(Options const &x) -> clingo_options_t * { return x.opts_; }
 
     //! Add an option that is processed with a custom parser.
     //!
-    //! Note that the parser that the parse is responsible to store the
-    //! semantic value.
+    //! Note that the parser is responsible for storing the semantic value.
     //!
     //! Parameter option specifies the name(s) of the option. For example,
     //! "-p,ping" adds the short option "-p" and its long form "--ping". It is
@@ -93,6 +96,9 @@ class Options {
     }
 
     //! Set `value` as default value for the option with the given name.
+    //!
+    //! @param option the name of the option
+    //! @param value the default value
     void set_default_value(std::string_view option, std::string_view value) {
         Detail::handle_error(
             clingo_options_set_default_value(opts_, option.data(), option.size(), value.data(), value.size()));
@@ -162,7 +168,7 @@ class App {
 
     //! Validate previously parsed options.
     //!
-    //! Should throw std::invalid_value if conflicting options are found.
+    //! Should throw std::invalid_argument if conflicting options are found.
     void validate_options() { do_validate_options(); }
 
   private:
