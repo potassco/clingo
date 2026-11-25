@@ -11,9 +11,7 @@ static_assert(static_cast<int>(CppClingo::Ground::ProfileType::step) == static_c
 extern "C" auto clingo_control_profile(clingo_control_t const *control, clingo_profile_visitor_t const *visit,
                                        void *data) -> bool {
     CLINGO_TRY {
-        if (control == nullptr || visit == nullptr) {
-            return fail_arguments();
-        }
+        require(not_null(control, visit));
         control->slv->accept([data, visit](auto const &x, size_t depth) {
             handle_error(std::visit(
                 [data, visit, depth]<typename T>(T const &x) {
