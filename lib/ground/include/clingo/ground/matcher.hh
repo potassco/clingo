@@ -114,7 +114,12 @@ template <IsEval Expr> auto make_once_matcher(Expr const &expr, typename Expr::K
 //! A matcher for anything that is not a fact. The evaluated match is stored in
 //! the given reference.
 template <IsBase Base, IsMatch Match>
-auto make_non_fact_matcher(Base &base, Match const &match, typename Match::Key &target) -> UMatcher;
+//!
+//! If pending is not null and the match supports Term::find(), symbols that
+//! do not exist yet are not constructed. Instead, pending is set and the
+//! symbol has to be constructed when it is needed.
+auto make_non_fact_matcher(Base &base, Match const &match, typename Match::Key &target, bool *pending = nullptr)
+    -> UMatcher;
 
 //! Construct a matcher for an atom.
 //!
@@ -550,12 +555,27 @@ template <IsBase Base, class Sig> class IndexSet : public BaseContext {
 
 template <IsBase Base, IsMatch Match> class NonFactMatcher : public OnceMatcher {
   public:
-    NonFactMatcher(Base &base, Match const &match, Match::Key &target)
-        : base_{&base}, match_{&match}, target_{&target} {}
+    NonFactMatcher(Base &base, Match const &match, Match::Key &target, bool *pending)
+        : base_{&base}, match_{&match}, target_{&target}, pending_{pending} {}
 
   private:
     void do_init([[maybe_unused]] InstantiationContext const &ctx, size_t gen) override { base_->update(gen); }
     auto do_once(EvalContext const &ctx) -> bool override {
+        if constexpr (requires { match_->find(ctx); }) {
+            if (pending_ != nullptr) {
+                auto sym = match_->find(ctx);
+                if (!sym.has_value()) {
+                    return false;
+                }
+                // NOTE: no atom can exist for a symbol that does not exist
+                *pending_ = !sym->has_value();
+                if (*pending_) {
+                    return true;
+                }
+                *target_ = **sym;
+                return !base_->is_fact(**sym);
+            }
+        }
         if (auto sym = match_->eval(ctx)) {
             *target_ = *sym;
             return !base_->is_fact(*sym);
@@ -567,6 +587,7 @@ template <IsBase Base, IsMatch Match> class NonFactMatcher : public OnceMatcher 
     Base *base_;
     Match const *match_;
     Match::Key *target_;
+    bool *pending_;
 };
 
 //! A matcher that provides at most one match.
@@ -625,8 +646,8 @@ auto make_atom_matcher(std::pmr::monotonic_buffer_resource &mbr, std::vector<boo
 }
 
 template <IsBase Base, IsMatch Match>
-auto make_non_fact_matcher(Base &base, Match const &match, typename Match::Key &target) -> UMatcher {
-    return std::make_unique<Detail::NonFactMatcher<Base, Match>>(base, match, target);
+auto make_non_fact_matcher(Base &base, Match const &match, typename Match::Key &target, bool *pending) -> UMatcher {
+    return std::make_unique<Detail::NonFactMatcher<Base, Match>>(base, match, target, pending);
 }
 
 template <IsEval Expr> auto make_once_matcher(Expr const &expr, typename Expr::Key &target) -> UMatcher {

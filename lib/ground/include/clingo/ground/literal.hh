@@ -240,6 +240,8 @@ class LitSymbolic : public Lit {
     size_t index_;
     size_t offset_ = 0;
     Symbol symbol_;
+    //! Whether symbol_ has not been constructed because it did not exist when matching.
+    bool pending_ = false;
     Sign sign_;
     //! Whether the literal occurs in a domain component.
     bool domain_;
@@ -283,6 +285,8 @@ class LitProject : public Lit {
     size_t index_;
     size_t offset_ = 0;
     Symbol symbol_;
+    //! Whether symbol_ has not been constructed because it did not exist when matching.
+    bool pending_ = false;
     Sign sign_;
     bool domain_;
 };

@@ -387,8 +387,19 @@ auto get_atom(AtomBase &base, OutputStm &out, Sign sign, size_t index, Symbol sy
 } // namespace
 
 auto LitSymbolic::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &out) const -> bool {
-    assert(offset_ != invalid_offset || Symbol::to_rep(symbol_) != 0);
-    if (auto atom = get_atom(*base_, ctx.out(), sign_, index_, symbol_, offset_)) {
+    if (pending_ && sign_ == Sign::once && index_ == stratified_index) {
+        // NOTE: the atom does not exist and cannot be added anymore
+        return false;
+    }
+    auto symbol = symbol_;
+    if (pending_) {
+        // NOTE: evaluation cannot fail because the symbol could be found
+        auto sym = atom_->eval(ctx);
+        assert(sym.has_value());
+        symbol = *sym;
+    }
+    assert(offset_ != invalid_offset || Symbol::to_rep(symbol) != 0);
+    if (auto atom = get_atom(*base_, ctx.out(), sign_, index_, symbol, offset_)) {
         out.lit(sign_, atom->key(), atom->value().id);
         return true;
     }
@@ -432,7 +443,7 @@ auto LitSymbolic::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTy
     -> std::pair<UMatcher, std::optional<size_t>> {
     offset_ = invalid_offset;
     if (sign_ == Sign::once) {
-        return {make_non_fact_matcher(*base_, *atom_, symbol_), std::nullopt};
+        return {make_non_fact_matcher(*base_, *atom_, symbol_, &pending_), std::nullopt};
     }
     if (sign_ == Sign::twice && index_ != stratified_index) {
         return {make_once_matcher(*atom_, symbol_), std::nullopt};
@@ -484,7 +495,18 @@ void LitProject::do_print(std::ostream &out) const {
 }
 
 auto LitProject::do_output(EvalContext const &ctx, OutputLit &out) const -> bool {
-    if (auto atom = get_atom(state_->p_base(), ctx.out(), sign_, index_, symbol_, offset_)) {
+    if (pending_ && sign_ == Sign::once && index_ == stratified_index) {
+        // NOTE: the atom does not exist and cannot be added anymore
+        return false;
+    }
+    auto symbol = symbol_;
+    if (pending_) {
+        // NOTE: evaluation cannot fail because the symbol could be found
+        auto sym = p_atom_->eval(ctx);
+        assert(sym.has_value());
+        symbol = *sym;
+    }
+    if (auto atom = get_atom(state_->p_base(), ctx.out(), sign_, index_, symbol, offset_)) {
         // evaluation cannot fail by construction
         auto sym = atom_->eval(ctx);
         assert(sym);
@@ -552,7 +574,7 @@ auto LitProject::do_matcher(std::pmr::monotonic_buffer_resource &mbr, MatcherTyp
     };
     offset_ = invalid_offset;
     if (sign_ == Sign::once) {
-        return {m(make_non_fact_matcher(state_->p_base(), *p_atom_, symbol_)), std::nullopt};
+        return {m(make_non_fact_matcher(state_->p_base(), *p_atom_, symbol_, &pending_)), std::nullopt};
     }
     if (sign_ == Sign::twice && index_ != stratified_index) {
         return {m(make_once_matcher(*p_atom_, symbol_)), std::nullopt};
