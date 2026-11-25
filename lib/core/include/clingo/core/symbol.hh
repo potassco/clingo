@@ -602,6 +602,14 @@ class SymbolStore {
     //!
     //! For example: <tt>f(x,y)</tt>.
     [[nodiscard]] auto fun_ref(String name, SymbolSpan args, bool sign) -> Symbol;
+    //! Find a tuple without constructing it.
+    //!
+    //! @return the tuple or std::nullopt if it does not exist in the store
+    [[nodiscard]] auto tup_find(SymbolSpan args) -> std::optional<Symbol>;
+    //! Find a function symbol without constructing it.
+    //!
+    //! @return the function symbol or std::nullopt if it does not exist in the store
+    [[nodiscard]] auto fun_find(String name, SymbolSpan args, bool sign) -> std::optional<Symbol>;
 
     //! Block garbage collection.
     //!
@@ -629,6 +637,8 @@ class SymbolStore {
   private:
     [[nodiscard]] virtual auto do_tup(SymbolSpan args, bool referenced) -> Symbol = 0;
     [[nodiscard]] virtual auto do_fun(String str, SymbolSpan args, bool sign, bool referenced) -> Symbol = 0;
+    [[nodiscard]] virtual auto do_tup_find(SymbolSpan args) -> std::optional<Symbol> = 0;
+    [[nodiscard]] virtual auto do_fun_find(String str, SymbolSpan args, bool sign) -> std::optional<Symbol> = 0;
     [[nodiscard]] virtual auto do_string(std::string_view str, bool referenced) -> String = 0;
     [[nodiscard]] virtual auto do_num(Number num) -> Symbol = 0;
 

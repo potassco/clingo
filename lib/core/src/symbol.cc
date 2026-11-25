@@ -449,6 +449,20 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         return Symbol::from_rep(rep);
     }
 
+    [[nodiscard]] auto do_fun_find(String name, SymbolSpan args, bool sign) -> std::optional<Symbol> override {
+        if (auto jt = find_(tuples_, SymbolStore::str_ref(name), args); jt != tuples_.end()) {
+            return Symbol::from_rep(KeySymbolArray::to_repr(*jt) | (sign ? REP_SIGNED_FUN : REP_FUN));
+        }
+        return std::nullopt;
+    }
+
+    [[nodiscard]] auto do_tup_find(SymbolSpan args) -> std::optional<Symbol> override {
+        if (auto jt = find_(tuples_, args); jt != tuples_.end()) {
+            return Symbol::from_rep(KeySymbolArray::to_repr(*jt) | REP_TUP);
+        }
+        return std::nullopt;
+    }
+
     [[nodiscard]] auto do_string(std::string_view str, bool referenced) -> String override {
         assert(!str.empty());
         auto [it, ins] = insert_(strings_, str, referenced);
@@ -623,6 +637,15 @@ template <class Allocator> class DefaultSymbolStore : public SymbolStore {
         }
     }
 
+    //! Find a value in the given table without inserting it.
+    template <class T, class... Args> auto find_(T &table, Args &&...args) -> T::iterator {
+        // NOTE: the temporary key is marked so that it is compared by content
+        typename T::value_type arr(alloc_, std::forward<Args>(args)..., false);
+        auto it = table.find(arr);
+        arr.destroy(alloc_);
+        return it;
+    }
+
     template <class T> void clear_(T &table) noexcept {
         for (auto const &arr : table) {
             arr.destroy(alloc_);
@@ -655,6 +678,16 @@ template <class Alloc> class SharedSymbolStore : public SymbolStore {
     [[nodiscard]] auto do_tup(SymbolSpan args, bool referenced) -> Symbol override {
         std::unique_lock ulock{mutex_};
         return store_.do_tup(args, referenced);
+    }
+
+    [[nodiscard]] auto do_fun_find(String name, SymbolSpan args, bool sign) -> std::optional<Symbol> override {
+        std::unique_lock ulock{mutex_};
+        return store_.do_fun_find(name, args, sign);
+    }
+
+    [[nodiscard]] auto do_tup_find(SymbolSpan args) -> std::optional<Symbol> override {
+        std::unique_lock ulock{mutex_};
+        return store_.do_tup_find(args);
     }
 
     [[nodiscard]] auto do_string(std::string_view str, bool referenced) -> String override {
@@ -1130,6 +1163,20 @@ auto SymbolStore::fun_ref(String name, SymbolSpan args, bool sign) -> Symbol {
         return Symbol::from_rep(rep);
     }
     return do_fun(name, args, sign, false);
+}
+
+auto SymbolStore::tup_find(SymbolSpan args) -> std::optional<Symbol> {
+    if (args.empty()) {
+        return Symbol::from_rep(REP_TUP);
+    }
+    return do_tup_find(args);
+}
+
+auto SymbolStore::fun_find(String name, SymbolSpan args, bool sign) -> std::optional<Symbol> {
+    if (args.empty()) {
+        return fun_ref(name, args, sign);
+    }
+    return do_fun_find(name, args, sign);
 }
 
 auto SymbolStore::string_ref(std::string_view str) -> String {
