@@ -620,6 +620,16 @@ class Library {
     //! @param acquire whether to acquire the library object
     explicit Library(clingo_lib_t *rep, bool acquire) : rep_{rep, acquire} {}
 
+    //! Report a message via the library's logger.
+    //!
+    //! The message is dropped if the log level of the logger excludes it.
+    //!
+    //! @param code the message code
+    //! @param message the message
+    void report(MessageCode code, std::string_view message) const {
+        clingo_lib_report(rep_.get(), static_cast<clingo_message_t>(code), message.data(), message.size());
+    }
+
     //! Casts the library object to its C representation.
     //!
     //! @param lib the library object to cast
