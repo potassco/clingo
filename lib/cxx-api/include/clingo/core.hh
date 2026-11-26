@@ -626,7 +626,7 @@ class Library {
     //!
     //! @param code the message code
     //! @param message the message
-    void report(MessageCode code, std::string_view message) const {
+    void report(MessageCode code, std::string_view message) const noexcept {
         clingo_lib_report(rep_.get(), static_cast<clingo_message_t>(code), message.data(), message.size());
     }
 

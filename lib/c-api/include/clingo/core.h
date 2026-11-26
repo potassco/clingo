@@ -283,6 +283,9 @@ CLINGO_VISIBILITY_DEFAULT bool clingo_lib_add_finalizer(clingo_lib_t *lib, cling
 
 //! Report a message via the library’s logger.
 //!
+//! Reporting does not fail. Messages with invalid codes and errors while
+//! reporting are written to stderr.
+//!
 //! @param[in] lib the library (may be NULL to ignore the message)
 //! @param[in] code associated code
 //! @param[in] message the message

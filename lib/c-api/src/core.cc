@@ -3,7 +3,9 @@
 
 #include <clingo/core/location.hh>
 
+#include <cstdio>
 #include <cstring>
+#include <exception>
 #include <mutex>
 
 using namespace CppClingo::CAPI;
@@ -229,9 +231,24 @@ extern "C" void clingo_lib_release(clingo_lib_t *lib) {
 }
 
 extern "C" void clingo_lib_report(clingo_lib_t *lib, clingo_message_t code, char const *message, size_t size) {
-    auto c = static_cast<CppClingo::MessageCode>(code);
-    if (lib != nullptr && lib->log.check(c)) {
-        CppClingo::Report(lib->log, c).out() << std::string_view{message, size};
+    if (lib == nullptr) {
+        return;
+    }
+    auto msg = message != nullptr ? std::string_view{message, size} : std::string_view{};
+    // NOTE: reporting cannot fail, so problems are written to stderr instead
+    if (code < clingo_message_trace || code > clingo_message_error) {
+        fprintf(stderr, "error: invalid message code %d: %.*s\n", code, static_cast<int>(msg.size()), msg.data());
+        return;
+    }
+    try {
+        auto c = static_cast<CppClingo::MessageCode>(code);
+        if (lib->log.check(c)) {
+            CppClingo::Report(lib->log, c).out() << msg;
+        }
+    } catch (std::exception const &e) {
+        fprintf(stderr, "error: failed to report message: %s\n", e.what());
+    } catch (...) {
+        fprintf(stderr, "error: failed to report message\n");
     }
 }
 

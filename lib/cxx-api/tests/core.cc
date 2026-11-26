@@ -33,6 +33,9 @@ TEST_CASE("core report", "[cxx][core][report]") {
     lib.report(MessageCode::warn, "test");
     lib.report(MessageCode::info, "test");
     REQUIRE(msgs == std::vector<std::pair<MessageCode, std::string>>{{MessageCode::warn, "warning: test"}});
+    // invalid message codes are written to stderr
+    lib.report(static_cast<MessageCode>(42), "test");
+    REQUIRE(msgs.size() == 1);
 }
 
 } // namespace Clingo::Test
