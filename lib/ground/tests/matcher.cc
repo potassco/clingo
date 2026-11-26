@@ -12,7 +12,8 @@ namespace {
 
 class NullOutputLit : public OutputLit {
   private:
-    void do_lit([[maybe_unused]] Sign sign, [[maybe_unused]] Symbol sym, [[maybe_unused]] size_t uid) override {}
+    void do_lit([[maybe_unused]] Sign sign, [[maybe_unused]] Symbol sym, [[maybe_unused]] size_t uid,
+                [[maybe_unused]] bool recursive) override {}
     void do_boolean([[maybe_unused]] bool value) override {}
     auto do_delayed([[maybe_unused]] Sign sign, [[maybe_unused]] std::optional<size_t> uid) -> size_t override {
         return 0;

@@ -409,7 +409,17 @@ class BuilderRule {
     //! @param head the literals forming the head
     //! @param body the literals forming the body
     //! @param choice whether the rule is a choice or disjunctive rule
-    void add(BuilderBase &bld, PrgLitSpan head, PrgLitSpan body, bool choice) {
+    void add(BuilderBase &bld, PrgLitSpan head, PrgLitSpan body, bool choice) { add(bld, head, body, body, choice); }
+
+    //! Add a disjunctive or choice rule.
+    //!
+    //! Dependency edges are only added for the given subset of the body.
+    //!
+    //! @param head the literals forming the head
+    //! @param body the literals forming the body
+    //! @param deps the body literals the head can depend on recursively
+    //! @param choice whether the rule is a choice or disjunctive rule
+    void add(BuilderBase &bld, PrgLitSpan head, PrgLitSpan body, PrgLitSpan deps, bool choice) {
         hd_.clear();
         hd_.reserve(head.size());
         bd_.clear();
@@ -417,7 +427,7 @@ class BuilderRule {
         for (auto const &hlit : head) {
             if (hlit > 0) {
                 hd_.emplace_back(hlit);
-                for (auto const &blit : body) {
+                for (auto const &blit : deps) {
                     if (blit > 0) {
                         bld.add_edge(hlit, blit);
                     }
@@ -1357,6 +1367,11 @@ class OutputCond : public OutputLit {
     //! @return the literals
     [[nodiscard]] auto literals() const -> PrgLitVec const & { return body_; }
 
+    //! Get the positive literals of the body that can be part of a positive cycle with the head.
+    //!
+    //! @return the literals
+    [[nodiscard]] auto dependencies() const -> PrgLitVec const & { return deps_; }
+
     //! Get the base builder of the output.
     //!
     //! @return the base builder
@@ -1368,10 +1383,14 @@ class OutputCond : public OutputLit {
     //!
     //! @param sign the sign of the literal
     //! @param uid the uid
-    void append(Sign sign, size_t uid) {
+    //! @param recursive whether the literal can depend positively on the head
+    void append(Sign sign, size_t uid, bool recursive = true) {
         switch (sign) {
             case Sign::none: {
                 body_.emplace_back(uid_to_lit(uid));
+                if (recursive) {
+                    deps_.emplace_back(body_.back());
+                }
                 return;
             }
             case Sign::once: {
@@ -1387,10 +1406,15 @@ class OutputCond : public OutputLit {
     }
 
     //! Start a new condition/body clearing the underlying literals.
-    void start() { body_.clear(); }
+    void start() {
+        body_.clear();
+        deps_.clear();
+    }
 
   private:
-    void do_lit(Sign sign, [[maybe_unused]] Symbol sym, size_t uid) override { append(sign, uid); }
+    void do_lit(Sign sign, [[maybe_unused]] Symbol sym, size_t uid, bool recursive) override {
+        append(sign, uid, recursive);
+    }
 
     void do_boolean(bool value) override {
         if (!value) {
@@ -1406,6 +1430,7 @@ class OutputCond : public OutputLit {
 
     BuilderBase *bld_;
     PrgLitVec body_;
+    PrgLitVec deps_;
 };
 
 //! Output handling rule bodies.
@@ -1469,7 +1494,7 @@ class OutputBackend : public OutputStm, OutputTheory {
             auto choice = get<2>(*head);
             auto lit = uid_to_lit(get<1>(*head));
             if (lit != fact_) {
-                rule_.add(bld_, std::array{lit}, body_.literals(), choice);
+                rule_.add(bld_, std::array{lit}, body_.literals(), body_.dependencies(), choice);
             }
         } else {
             rule_.add(bld_, {}, body_.literals(), false);
@@ -1492,7 +1517,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         if (!uid) {
             uid = bld_.next_lit();
         }
-        rule_.add(bld_, std::array{uid_to_lit(*uid)}, body_.literals(), false);
+        rule_.add(bld_, std::array{uid_to_lit(*uid)}, body_.literals(), body_.dependencies(), false);
         return *uid;
     }
 
@@ -1500,7 +1525,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         if (!uid) {
             uid = bld_.next_lit();
         }
-        rule_.add(bld_, std::array{uid_to_lit(*uid)}, body_.literals(), false);
+        rule_.add(bld_, std::array{uid_to_lit(*uid)}, body_.literals(), body_.dependencies(), false);
         return *uid;
     }
 
@@ -1508,7 +1533,7 @@ class OutputBackend : public OutputStm, OutputTheory {
         if (!uid) {
             uid = bld_.next_lit();
         }
-        rule_.add(bld_, std::array{uid_to_lit(*uid)}, body_.literals(), false);
+        rule_.add(bld_, std::array{uid_to_lit(*uid)}, body_.literals(), body_.dependencies(), false);
         return *uid;
     }
 

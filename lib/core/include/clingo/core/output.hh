@@ -63,7 +63,12 @@ class OutputLit {
     //! Destroy the output.
     virtual ~OutputLit() = default;
     //! Output the given symbolic literal.
-    void lit(Sign sign, Symbol sym, size_t uid) { do_lit(sign, sym, uid); }
+    //!
+    //! @param sign the sign of the literal
+    //! @param sym the atom of the literal
+    //! @param uid the uid of the atom
+    //! @param recursive whether the atom can depend positively on the head of the statement
+    void lit(Sign sign, Symbol sym, size_t uid, bool recursive) { do_lit(sign, sym, uid, recursive); }
     //! Output the given boolean constant.
     void boolean(bool value) { do_boolean(value); }
     //! Delay or output a previously added aggregate/conditional literal/theory.
@@ -73,7 +78,7 @@ class OutputLit {
     auto delayed(Sign sign, std::optional<size_t> uid) -> size_t { return do_delayed(sign, uid); }
 
   private:
-    virtual void do_lit(Sign sign, Symbol sym, size_t uid) = 0;
+    virtual void do_lit(Sign sign, Symbol sym, size_t uid, bool recursive) = 0;
     virtual void do_boolean(bool value) = 0;
     virtual auto do_delayed(Sign sign, std::optional<size_t> uid) -> size_t = 0;
 };

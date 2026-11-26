@@ -400,7 +400,7 @@ auto LitSymbolic::do_output([[maybe_unused]] EvalContext const &ctx, OutputLit &
     }
     assert(offset_ != invalid_offset || Symbol::to_rep(symbol) != 0);
     if (auto atom = get_atom(*base_, ctx.out(), sign_, index_, symbol, offset_)) {
-        out.lit(sign_, atom->key(), atom->value().id);
+        out.lit(sign_, atom->key(), atom->value().id, index_ != stratified_index);
         return true;
     }
     return false;
@@ -510,7 +510,7 @@ auto LitProject::do_output(EvalContext const &ctx, OutputLit &out) const -> bool
         // evaluation cannot fail by construction
         auto sym = atom_->eval(ctx);
         assert(sym);
-        out.lit(sign_, *sym, atom->value().id);
+        out.lit(sign_, *sym, atom->value().id, index_ != stratified_index);
         return true;
     }
     return false;
