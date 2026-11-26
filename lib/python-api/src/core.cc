@@ -508,12 +508,51 @@ auto py_library_capsule(PyObject *self, [[maybe_unused]] PyObject *args) -> PyOb
     return PyCapsule_New(lib, "clingo_lib_t", nullptr);
 }
 
+auto py_library_report(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) -> PyObject * {
+    PyObject *type_obj = unset_arg();
+    PyObject *message = unset_arg();
+    if (!parse_args("report", {"message_type", "message"}, {}, args, nargs, kwnames, {&type_obj, &message})) {
+        return nullptr;
+    }
+    if (PyUnicode_Check(message) == 0) {
+        PyErr_SetString(PyExc_TypeError, "message must be a string");
+        return nullptr;
+    }
+    auto *state = state_of(self);
+    if (state == nullptr) {
+        return nullptr;
+    }
+    // NOTE: the conversion raises a ValueError for invalid message types
+    auto type = steal(PyObject_CallFunctionObjArgs(state->message_type_enum, type_obj, nullptr));
+    auto code = clingo_message_t{};
+    if (type.get() == nullptr || !parse_num(type.get(), &code, "message_type")) {
+        return nullptr;
+    }
+    Py_ssize_t size = 0;
+    auto const *str = PyUnicode_AsUTF8AndSize(message, &size);
+    if (str == nullptr) {
+        return nullptr;
+    }
+    auto *lib = library_get(self);
+    if (lib == nullptr) {
+        return nullptr;
+    }
+    clingo_lib_report(lib, code, str, static_cast<size_t>(size));
+    Py_RETURN_NONE;
+}
+
 auto py_library_methods = std::array{
     PyMethodDef{
         "_capsule",
         py_library_capsule,
         METH_NOARGS,
         PyDoc_STR("Get a capsule holding the underlying C library object."),
+    },
+    PyMethodDef{
+        "report",
+        method_cast(py_library_report),
+        METH_FASTCALL | METH_KEYWORDS,
+        PyDoc_STR("Report a message via the logger of the library."),
     },
     PyMethodDef{nullptr, nullptr, 0, nullptr},
 };

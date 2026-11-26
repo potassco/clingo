@@ -142,6 +142,17 @@ class Library:
         Get a capsule holding the underlying C library object.
         """
 
+    def report(self, message_type: MessageType, message: str) -> None:
+        """
+        Report a message via the logger of the library.
+
+        The message is dropped if the log level excludes it.
+
+        Args:
+            message_type: The type of the message.
+            message: The message.
+        """
+
 class Position:
     """
     Represents a position in a source file.

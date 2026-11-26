@@ -2,7 +2,8 @@
 Unit tests for clingo.core module.
 """
 
-from clingo.core import Library, version
+import pytest
+from clingo.core import Library, LogLevel, MessageType, version
 
 
 class TestCore:
@@ -21,3 +22,18 @@ class TestCore:
         Test library creation.
         """
         assert Library() is not None
+
+    def test_report(self):
+        """
+        Test reporting messages via the logger of a library.
+        """
+        messages: list[tuple[MessageType, str]] = []
+        lib = Library(
+            log_level=LogLevel.Warn,
+            logger=lambda code, msg: messages.append((code, msg)),
+        )
+        lib.report(MessageType.Warn, "test")
+        lib.report(MessageType.Info, "test")
+        assert messages == [(MessageType.Warn, "warning: test")]
+        with pytest.raises(ValueError):
+            lib.report(42, "test")  # type: ignore
