@@ -201,6 +201,11 @@ class OutputStm {
     void flush() { do_flush(); }
     //! Handle classical negation of two atoms.
     void classical_negation(size_t atom_a, size_t atom_b) { do_classical_negation(atom_a, atom_b); }
+    //! Enable or disable recording positive dependencies between literals.
+    //!
+    //! Dependencies are only needed to translate constructs whose atoms can be
+    //! part of positive cycles. Recording is enabled by default.
+    void record_dependencies(bool value) { do_record_dependencies(value); }
     //! End the current (incremental) grounding step.
     void end_ground() { do_end_ground(); }
 
@@ -245,6 +250,7 @@ class OutputStm {
 
     virtual void do_flush() = 0;
     virtual void do_classical_negation(size_t atom_a, size_t atom_b) = 0;
+    virtual void do_record_dependencies(bool value) = 0;
     virtual void do_end_ground() = 0;
 
     virtual void do_mark(SymbolCollector &gc) = 0;

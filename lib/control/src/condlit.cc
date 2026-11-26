@@ -23,6 +23,7 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit, Ground:
     elems.reserve(lit.elems().size());
     Ground::BaseVec bases;
     bases.reserve(elems.size());
+    auto has_cond = false;
     for (auto const &elem : lit.elems()) {
         auto elem_vars = Ground::VariableSet{};
         // head
@@ -47,6 +48,7 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit, Ground:
         // condition
         auto cond = Ground::ULitVec{};
         if (auto const *clit = std::get_if<Input::CondLit>(&elem)) {
+            has_cond = has_cond || !clit->cond().empty();
             cond.reserve(clit->cond().size() + 1);
             for (auto const &lit : clit->cond()) {
                 build_lit(ctx, lit,
@@ -70,6 +72,10 @@ void build_hd_lit(BuildContext &ctx, Input::HdLitDisjunction const &lit, Ground:
     auto sp_body = ctx.single_pass_body();
     auto elem_priority = ctx.inc_priority();
     auto index = sp_body ? Ground::stratified_index : ctx.next_index();
+    // NOTE: only elements with conditions need a translation that is aware of head cycles
+    if (has_cond) {
+        ctx.require_head_cycles();
+    }
 
     // initialize state
     std::ranges::sort(bases, std::less<>{}, [](auto const &x) -> decltype(auto) { return std::get<0>(x); });
@@ -113,6 +119,9 @@ namespace {
     auto sp_premise = intersects(ctx.type(), Input::ComponentType::single_pass) ||
                       std::ranges::all_of(lit.cond(), [&](auto const &lit) { return ctx.single_pass(lit); });
     auto sp_conclusion = ctx.single_pass(lit.lit());
+    if (has_conclusion && !sp_premise) {
+        ctx.require_cycles();
+    }
 
     auto empty_index = Ground::stratified_index;
     auto premise_index = Ground::stratified_index;

@@ -332,7 +332,7 @@ class BuilderBase {
             info(it.value()).clause = std::distance(clauses_.begin(), it);
             for (auto const &lit : it->first.first) {
                 if (add_edges && lit > 0) {
-                    graph_.add_edge(it.value(), lit);
+                    add_edge(it.value(), lit);
                 }
             }
         }
@@ -355,7 +355,19 @@ class BuilderBase {
     //!
     //! @param u a "head" atom
     //! @param v a "body" atom
-    void add_edge(size_t u, size_t v) { graph_.add_edge(u, v); }
+    void add_edge(size_t u, size_t v) {
+        if (record_) {
+            graph_.add_edge(u, v);
+        }
+    }
+
+    //! Enable or disable recording dependency edges.
+    //!
+    //! @param value whether to record edges
+    void record_dependencies(bool value) { record_ = value; }
+
+    //! Drop the recorded dependencies without computing components.
+    void clear_dependencies() { graph_.clear(); }
 
     //! Get the literal info for an atom.
     //!
@@ -393,6 +405,7 @@ class BuilderBase {
     ProgramBackend *backend_;
     PrgLitVec lits_;
     Util::Graph graph_;
+    bool record_ = true;
     LitInfoVec infos_;
     ClauseLitMap clauses_;
     VertexMap vertices_;
@@ -448,6 +461,9 @@ class BuilderRule {
 //! Builder for min and max aggregates.
 template <class Sym> class BuilderMinMax {
   public:
+    //! Check whether there are delayed translations that need cycle information.
+    [[nodiscard]] auto has_delayed() const -> bool { return !delayed_.empty(); }
+
     //! Delays or translates min and max aggregates based on monotonicity.
     //!
     //! Converts aggregates into sequences of form
@@ -705,6 +721,9 @@ template <class Sym> class BuilderMinMax {
 //! A builder for sum aggregates taking dependency info into account.
 class BuilderSum {
   public:
+    //! Check whether there are delayed translations that need cycle information.
+    [[nodiscard]] auto has_delayed() const -> bool { return !delayed_.empty(); }
+
     //! Add a sum aggregate.
     //!
     //! @param bld the base builder
@@ -1031,6 +1050,9 @@ class BuilderSum {
 //! Builder for conditional literals in rule bodies.
 class BuilderCondLit {
   public:
+    //! Check whether there are delayed translations that need cycle information.
+    [[nodiscard]] auto has_delayed() const -> bool { return !delayed_.empty(); }
+
     //! Define a conjunction of conditional literal.
     //!
     //! The given literal is derived by the given conditional literals.
@@ -1118,6 +1140,9 @@ class BuilderCondLit {
 //! Builder for disjunctions in rule heads.
 class BuilderDisjunction {
   public:
+    //! Check whether there are delayed translations that need cycle information.
+    [[nodiscard]] auto has_delayed() const -> bool { return !delayed_.empty(); }
+
     using DisjElemSpan = OutputStm::DisjElemSpan;
 
     //! Define a disjunction of (conditional) literals.
@@ -1676,8 +1701,16 @@ class OutputBackend : public OutputStm, OutputTheory {
         bld_.backend().rule({}, std::array{uid_to_atom(atom_a), uid_to_atom(atom_b)}, false);
     }
 
+    void do_record_dependencies(bool value) override { bld_.record_dependencies(value); }
+
     void do_end_ground() override {
-        bld_.compute_sccs();
+        // NOTE: only these translations make use of cycle information
+        if (min_.has_delayed() || max_.has_delayed() || sum_.has_delayed() || cond_lit_.has_delayed() ||
+            disjunction_.has_delayed()) {
+            bld_.compute_sccs();
+        } else {
+            bld_.clear_dependencies();
+        }
         minimize_.tr(bld_);
         cond_lit_.tr(bld_);
         disjunction_.tr(bld_);

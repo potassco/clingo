@@ -111,6 +111,20 @@ class BuildContext {
     //! Return a fresh atom index.
     [[nodiscard]] auto next_index() -> size_t { return comp_->incomplete.size() + index_++; }
 
+    //! Mark that the statement contains a construct whose translation needs cycle information.
+    //!
+    //! Such cycles only pass through atoms of the current component.
+    void require_cycles() { cycles_ = true; }
+    //! Check whether the statement needs cycle information.
+    [[nodiscard]] auto cycles() const -> bool { return cycles_; }
+    //! Mark that the statement contains a disjunction whose translation needs head cycles.
+    //!
+    //! Head cycles pass through statements depending on the disjunction, which
+    //! can belong to later components.
+    void require_head_cycles() { head_cycles_ = true; }
+    //! Check whether the statement needs head cycle information.
+    [[nodiscard]] auto head_cycles() const -> bool { return head_cycles_; }
+
     //! Get the logger.
     [[nodiscard]] auto logger() const -> Logger & { return *log_; }
 
@@ -227,6 +241,8 @@ class BuildContext {
     ProfileProgram *profile_;
     size_t priority = 0;
     size_t index_ = 0;
+    bool cycles_ = false;
+    bool head_cycles_ = false;
 };
 
 //! @}

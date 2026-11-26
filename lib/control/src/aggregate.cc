@@ -286,6 +286,11 @@ void build_bd_lit(BuildContext &ctx, Input::BdLitAggregate const &lit, Ground::P
 
     auto elem_priority = ctx.inc_priority();
     auto index = sp_elems ? Ground::stratified_index : ctx.next_index();
+    // NOTE: only sum aggregates and aggregates with != guards need a translation that is aware of cycles
+    auto neq = std::ranges::any_of(guards, [](auto const &guard) { return guard.first == Relation::not_equal; });
+    if (!sp_elems && (fun == AggregateFunction::sum || neq)) {
+        ctx.require_cycles();
+    }
 
     auto create_body = [&](size_t reserve) {
         auto body = Ground::ULitVec{};

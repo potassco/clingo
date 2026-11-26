@@ -438,6 +438,7 @@ class OutputText : public OutputStm, OutputTheory {
         // nothing to do here
     }
 
+    void do_record_dependencies([[maybe_unused]] bool value) override {}
     void do_end_ground() override {
         if (std::exchange(explicit_show_, false)) {
             *out_ << "#show.\n";

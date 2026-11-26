@@ -72,6 +72,8 @@ class Builder : public Input::DependencyBuilder {
     //! Translate components.
     auto do_components(Input::Components const &comps) -> GroundResult override {
         auto lin = Ground::Linearizer{*mbr_, opts_->fun, opts_->sel};
+        // NOTE: once a disjunction has been seen, dependencies are recorded for all remaining components
+        auto head_cycles = false;
         for (auto const &ref_comps : comps) {
             CLINGO_REPORT(*log_, debug) << "  component";
             for (auto const &ref_comp : ref_comps) {
@@ -87,6 +89,7 @@ class Builder : public Input::DependencyBuilder {
                 auto states = Ground::UStateVec{};
                 auto src_it = ref_comp.srcs.begin();
                 auto src_ie = ref_comp.srcs.end();
+                auto cycles = false;
                 for (auto const &stm : ref_comp.stms) {
                     Util::unordered_map<String, size_t> var_map;
                     Input::visit_variables(
@@ -108,7 +111,10 @@ class Builder : public Input::DependencyBuilder {
                         BuildContext{*mbr_,   *log_, *store_, theory_directives_, *bases_,  ref_comp, def_map, gcomp,
                                      var_map, body,  states,  context_,           *profile_};
                     build_stm(ctx, *stm, src_it != src_ie ? *src_it++ : nullptr);
+                    cycles = cycles || ctx.cycles();
+                    head_cycles = head_cycles || ctx.head_cycles();
                 }
+                out_->record_dependencies(cycles || head_cycles);
                 auto queue = Ground::Queue{stop_};
                 lin.start(queue);
                 for (auto const &stm : gcomp.stms()) {
@@ -124,6 +130,7 @@ class Builder : public Input::DependencyBuilder {
             }
             out_->flush();
         }
+        out_->record_dependencies(true);
         return GroundResult::ok;
     }
 
