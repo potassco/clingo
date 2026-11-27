@@ -30,6 +30,7 @@
 #include <gringo/domain.hh>
 #include <gringo/output/types.hh>
 #include <potassco/theory_data.h>
+#include <sstream>
 #include <unordered_map>
 
 namespace Gringo {
@@ -228,6 +229,14 @@ struct PrintPlain {
 template <typename T> PrintPlain &operator<<(PrintPlain &out, T const &x) {
     out.stream << x;
     return out;
+}
+
+// prints ":" followed by what f prints; a leading "-" must not be glued to the colon (":-")
+template <typename F> void printColon(PrintPlain out, F &&f) {
+    std::ostringstream ss;
+    f(PrintPlain{out.domain, ss});
+    auto str = ss.str();
+    out << (!str.empty() && str.front() == '-' ? ": " : ":") << str;
 }
 
 // {{{1 declaration of LiteralId
