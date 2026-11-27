@@ -251,7 +251,13 @@ PlainBounds AggregateAtomRange::plainBounds() {
     // Case (c) can furthermore correspond to one or two != occurrences.
     PlainBounds cBounds;
     auto rng = range();
+    auto disjoint = [&rng](auto const &part) { return part < rng || rng < part; };
+    bool skipDisjoint = !std::all_of(bounds.begin(), bounds.end(), disjoint);
     for (auto part : bounds) {
+        // parts outside the range would be mistaken for the other side of a != bound
+        if (skipDisjoint && disjoint(part)) {
+            continue;
+        }
         if (rng.left < part.left) {
             // (a)
             if (cBounds.empty()) {
