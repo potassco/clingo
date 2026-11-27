@@ -226,9 +226,8 @@ void ShowStatement::print(PrintPlain out, char const *prefix) const {
     out << prefix;
     out << "#show " << term_;
     if (!body_.empty()) {
-        out << ":";
+        printColon(out, [this](PrintPlain out) { printPlainBody(out, body_); });
     }
-    printPlainBody(out, body_);
     out << ".\n";
 }
 
@@ -285,9 +284,8 @@ void HeuristicStatement::print(PrintPlain out, char const *prefix) const {
     out << prefix << "#heuristic ";
     call(out.domain, atom_, &Literal::printPlain, out);
     if (!body_.empty()) {
-        out << ":";
+        printColon(out, [this](PrintPlain out) { printPlainBody(out, body_); });
     }
-    printPlainBody(out, body_);
     out << ".[" << value_ << "@" << priority_ << "," << toString(mod_) << "]\n";
 }
 
@@ -318,9 +316,8 @@ void EdgeStatement::print(PrintPlain out, char const *prefix) const {
     out << prefix;
     out << "#edge(" << u_ << "," << v_ << ")";
     if (!body_.empty()) {
-        out << ":";
+        printColon(out, [this](PrintPlain out) { printPlainBody(out, body_); });
     }
-    printPlainBody(out, body_);
     out << ".\n";
 }
 
@@ -541,7 +538,7 @@ class Atomtab : public Statement {
     void print(PrintPlain out, char const *prefix) const override {
         out << prefix << "#show " << (Symbol)*atom_;
         if (!atom_->fact()) {
-            out << ":" << (Symbol)*atom_;
+            printColon(out, [this](PrintPlain out) { out << (Symbol)*atom_; });
         }
         out << ".\n";
     }
@@ -652,9 +649,8 @@ Symtab::Symtab(Symbol symbol, LitVec body) : symbol_(symbol), body_(std::move(bo
 void Symtab::print(PrintPlain out, char const *prefix) const {
     out << prefix << "#show " << symbol_;
     if (!body_.empty()) {
-        out << ":";
+        printColon(out, [this](PrintPlain out) { printPlainBody(out, body_); });
     }
-    printPlainBody(out, body_);
     out << ".\n";
 }
 
@@ -697,8 +693,8 @@ void Minimize::print(PrintPlain out, char const *prefix) const {
     int i = 0;
     out << prefix << "#minimize{";
     auto f = [&i, this](PrintPlain &out, LitWeightVec::value_type const &x) {
-        out << x.second << "@" << priority_ << "," << i++ << ":";
-        call(out.domain, x.first, &Literal::printPlain, out);
+        out << x.second << "@" << priority_ << "," << i++;
+        printColon(out, [&x](PrintPlain out) { call(out.domain, x.first, &Literal::printPlain, out); });
     };
     print_comma(out, lits_, ";", f);
     out << "}.\n";

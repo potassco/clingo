@@ -41,23 +41,26 @@ void printLit(PrintPlain out, LiteralId lit) { call(out.domain, lit, &Literal::p
 
 void printCond(PrintPlain out, TupleId tuple, Formula::value_type cond) {
     print_comma(out, out.domain.tuple(tuple), ",");
-    out << ":";
     auto rng = out.domain.clause(cond.first, cond.second);
-    print_comma(out, rng, ",", [](PrintPlain out, LiteralId lit) { printLit(out, lit); });
+    printColon(out, [&](PrintPlain out) {
+        print_comma(out, rng, ",", [](PrintPlain out, LiteralId lit) { printLit(out, lit); });
+    });
 }
 
 void printCond(PrintPlain out, TupleId tuple, HeadFormula::value_type const &cond) {
     print_comma(out, out.domain.tuple(tuple), ",");
-    out << ":";
-    if (cond.first.valid()) {
-        printLit(out, cond.first);
-    } else {
-        out << "#true";
-    }
+    printColon(out, [&](PrintPlain out) {
+        if (cond.first.valid()) {
+            printLit(out, cond.first);
+        } else {
+            out << "#true";
+        }
+    });
     if (cond.second.second > 0) {
-        out << ":";
         auto rng = out.domain.clause(cond.second.first, cond.second.second);
-        print_comma(out, rng, ",", [](PrintPlain out, LiteralId lit) { printLit(out, lit); });
+        printColon(out, [&](PrintPlain out) {
+            print_comma(out, rng, ",", [](PrintPlain out, LiteralId lit) { printLit(out, lit); });
+        });
     }
 }
 
@@ -581,7 +584,6 @@ void ConjunctionElement::print(PrintPlain out) const {
             print_comma(out, heads_, "|", pc);
         }
         if (bodies_.front().second > 0) {
-            out << ":";
             auto pc = [](PrintPlain out, ClauseId id) {
                 if (id.second == 0) {
                     out << "#true";
@@ -589,7 +591,7 @@ void ConjunctionElement::print(PrintPlain out) const {
                     print_comma(out, out.domain.clause(id), ",", printLit);
                 }
             };
-            print_comma(out, bodies_, "|", pc);
+            printColon(out, [&](PrintPlain out) { print_comma(out, bodies_, "|", pc); });
         }
     }
 }
@@ -672,7 +674,6 @@ void DisjunctionElement::print(PrintPlain out) const {
             print_comma(out, heads_, "&", pc);
         }
         if (bodies_.front().second > 0) {
-            out << ":";
             auto pc = [](PrintPlain out, ClauseId id) {
                 if (id.second == 0) {
                     out << "#true";
@@ -680,7 +681,7 @@ void DisjunctionElement::print(PrintPlain out) const {
                     print_comma(out, out.domain.clause(id), "&", printLit);
                 }
             };
-            print_comma(out, bodies_, "|", pc);
+            printColon(out, [&](PrintPlain out) { print_comma(out, bodies_, "|", pc); });
         }
     }
 }
