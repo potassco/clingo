@@ -258,7 +258,10 @@ LiteralId translateMinMax(DomainData &data, Translator &x, AggregateAnalyzer &re
             }
         }
         if (hasAntecedent) {
-            assert(!antecedent.empty());
+            if (antecedent.empty()) {
+                // no element can take a value in the excluded gap
+                continue;
+            }
             if (consequent.empty()) {
                 for (auto &lit : antecedent) {
                     conjunction.emplace_back(lit.negate());
