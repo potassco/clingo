@@ -252,10 +252,10 @@ PlainBounds AggregateAtomRange::plainBounds() {
     PlainBounds cBounds;
     auto rng = range();
     auto disjoint = [&rng](auto const &part) { return part < rng || rng < part; };
-    bool skipDisjoint = !std::all_of(bounds.begin(), bounds.end(), disjoint);
+    bool allDisjoint = std::all_of(bounds.begin(), bounds.end(), disjoint);
     for (auto part : bounds) {
         // parts outside the range would be mistaken for the other side of a != bound
-        if (skipDisjoint && disjoint(part)) {
+        if (!allDisjoint && disjoint(part)) {
             continue;
         }
         if (rng.left < part.left) {
@@ -285,6 +285,10 @@ PlainBounds AggregateAtomRange::plainBounds() {
         if (part.right < rng.right) {
             // (b)
             cBounds.emplace_back(part.right.inclusive ? Relation::LEQ : Relation::LT, part.right.bound);
+        }
+        if (allDisjoint) {
+            // the aggregate is false; one bound outside the range says so
+            break;
         }
     }
     assert(cBounds.size() < 3);
