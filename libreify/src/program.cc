@@ -97,6 +97,17 @@ size_t Reifier::weightLitTuple(WeightLitSpan const &args) {
     for (auto &x : args) {
         lits.emplace_back(x.lit, x.weight);
     }
+    // duplicate literals would collapse into one fact, so sum their weights
+    std::sort(lits.begin(), lits.end());
+    auto jt = lits.begin();
+    for (auto it = lits.begin(); it != lits.end(); ++it) {
+        if (jt != lits.begin() && (jt - 1)->first == it->first) {
+            (jt - 1)->second += it->second;
+        } else {
+            *jt++ = *it;
+        }
+    }
+    lits.erase(jt, lits.end());
     return tuple(stepData_.weightLitTuples, "weighted_literal_tuple", std::move(lits));
 }
 
